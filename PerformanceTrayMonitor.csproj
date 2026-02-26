@@ -1,0 +1,60 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows7.0</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+
+    <!-- Windows requires the app icon to be Content -->
+    <ApplicationIcon>Resources\Icons\App\app.ico</ApplicationIcon>
+
+    <Nullable>enable</Nullable>
+    <Title>PerformanceTrayMonitor</Title>
+    <Description>Display Windows Performance Counter data in a window and optionally in animated tray icons</Description>
+    <Copyright>Public Domain</Copyright>
+    <PackageTags>Performance Counters, Tray</PackageTags>
+  </PropertyGroup>
+
+  <!-- App icon must be Content -->
+  <ItemGroup>
+    <Content Include="Resources\Icons\App\app.ico" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Serilog.Enrichers.Context" Version="4.6.5" />
+    <PackageReference Include="Serilog.Enrichers.WithCaller" Version="1.3.0" />
+    <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
+  </ItemGroup>
+
+  <!-- All embedded icons (WPF Resource) -->
+  <ItemGroup>
+
+    <!-- Animated App Frames -->
+    <Resource Include="Resources\Icons\App\Animated\bubble-1.ico" />
+    <Resource Include="Resources\Icons\App\Animated\bubble-2.ico" />
+    <Resource Include="Resources\Icons\App\Animated\bubble-3.ico" />
+    <Resource Include="Resources\Icons\App\Animated\bubble-4.ico" />
+
+    <!-- Counter Icon Sets: Activity -->
+    <Resource Include="Resources\Icons\Counter\Activity\activity-1.ico" />
+    <Resource Include="Resources\Icons\Counter\Activity\activity-2.ico" />
+    <Resource Include="Resources\Icons\Counter\Activity\activity-3.ico" />
+    <Resource Include="Resources\Icons\Counter\Activity\activity-4.ico" />
+    <Resource Include="Resources\Icons\Counter\Activity\activity-5.ico" />
+
+    <!-- Counter Icon Sets: Graphic -->
+    <Resource Include="Resources\Icons\Counter\Graphic\graphic-1.ico" />
+    <Resource Include="Resources\Icons\Counter\Graphic\graphic-2.ico" />
+    <Resource Include="Resources\Icons\Counter\Graphic\graphic-3.ico" />
+    <Resource Include="Resources\Icons\Counter\Graphic\graphic-4.ico" />
+    <Resource Include="Resources\Icons\Counter\Graphic\graphic-5.ico" />
+
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Resources\Icons\CustomSet\" />
+    <Folder Include="Logs\" />
+  </ItemGroup>
+
+</Project>

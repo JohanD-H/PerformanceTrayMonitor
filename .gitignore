@@ -1,0 +1,6 @@
+PerformanceTrayMonitor.txt
+Logs/
+bin/
+obj/
+.vs/
+*.user

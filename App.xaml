@@ -1,0 +1,16 @@
+<Application x:Class="PerformanceTrayMonitor.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:PerformanceTrayMonitor"
+             xmlns:conv="clr-namespace:PerformanceTrayMonitor.Converters"
+             ShutdownMode="OnExplicitShutdown">
+
+    <Application.Resources>
+
+        <!-- Converters available to the whole app -->
+        <conv:ModeToVisibilityConverter x:Key="ModeToVisibility"/>
+        <conv:ActivityToBrushConverter x:Key="ActivityToBrush"/>
+
+    </Application.Resources>
+
+</Application>
