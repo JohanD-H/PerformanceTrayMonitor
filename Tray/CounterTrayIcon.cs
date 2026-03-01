@@ -1,13 +1,17 @@
 ﻿using PerformanceTrayMonitor.Configuration;
 using PerformanceTrayMonitor.Models;
+using PerformanceTrayMonitor.ViewModels;
 using Serilog;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
-using System.Linq;
 using System.Windows;
 using System.Windows.Forms;
+
+// --------------------------------------------
+// Performance Counter tray icon animation
+// --------------------------------------------
 
 namespace PerformanceTrayMonitor.Tray
 {
@@ -19,9 +23,14 @@ namespace PerformanceTrayMonitor.Tray
 
 		private readonly NotifyIcon _notifyIcon;
 		private readonly Timer _updateTimer;
+		private readonly MainViewModel _mainVm;
 
-		public CounterTrayIcon(CounterSettings settings, Func<double> valueProvider, IconSetDefinition set)
+		// ------------------------------------------------------------
+		// BUILD THE COUNTER TRAY ICON AND GIVE IT MOUSE HANDLING!
+		// ------------------------------------------------------------
+		public CounterTrayIcon(CounterSettings settings, Func<double> valueProvider, IconSetDefinition set, MainViewModel mainVm)
 		{
+			_mainVm = mainVm;
 			_settings = settings;
 			_valueProvider = valueProvider;
 
@@ -30,7 +39,10 @@ namespace PerformanceTrayMonitor.Tray
 			_frames = LoadFrames(set);
 
 			if (_frames.Length == 0)
-				throw new InvalidOperationException($"Icon set '{set.Name}' contains no frames.");
+			{
+				Log.Error($"Icon set '{set.Name}' contains no frames. Using emergency fallback icon.");
+				_frames = new[] { SystemIcons.Warning }; // or your own embedded fallback icon
+			}
 
 			_notifyIcon = new NotifyIcon
 			{
@@ -39,7 +51,23 @@ namespace PerformanceTrayMonitor.Tray
 				Text = settings.DisplayName
 			};
 
-			_updateTimer = new Timer { Interval = 500 };
+			_notifyIcon.MouseUp += (s, e) =>
+			{
+				System.Windows.Application.Current.Dispatcher.Invoke(() =>
+				{
+					if (e.Button == MouseButtons.Left)
+					{
+						_mainVm.TogglePopup();
+					}
+					else if (e.Button == MouseButtons.Right)
+					{
+						if (!_mainVm.ShowAppIcon)
+							_mainVm.ToggleAppIcon();
+					}
+				});
+			};
+
+			_updateTimer = new Timer { Interval = 50 };
 			_updateTimer.Tick += (_, _) => UpdateIcon();
 			_updateTimer.Start();
 		}
@@ -74,7 +102,8 @@ namespace PerformanceTrayMonitor.Tray
 					else
 					{
 						// External file
-						using var fs = File.OpenRead(new Uri(uri).LocalPath);
+						var localPath = new Uri(uri).LocalPath;
+						using var fs = new FileStream(localPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
 						icons.Add(new Icon(fs));
 					}
 				}
@@ -105,8 +134,8 @@ namespace PerformanceTrayMonitor.Tray
 				: $" ({_settings.Instance})";
 
 			string tooltip =
-				$"{_settings.DisplayName}\n" +
-				$"{valuePart}\n" +
+				$"{_settings.DisplayName}{Environment.NewLine}" +
+				$"{valuePart}{Environment.NewLine}" +
 				$"{_settings.Category}/{_settings.Counter}{instancePart}";
 
 			if (tooltip.Length > 63)
@@ -132,34 +161,66 @@ namespace PerformanceTrayMonitor.Tray
 		// ------------------------------------------------------------
 		// UPDATE LOOP
 		// ------------------------------------------------------------
+		private int _lastFrameIndex = -1;
+
 		private void UpdateIcon()
 		{
 			double value = _valueProvider();
 
 			int index = GetFrameIndex(value, _settings.Min, _settings.Max, _frames.Length);
-			_notifyIcon.Icon = _frames[index];
 
+			// To trap on anything "Network" use:
+			// if (_settings.Category?.Contains("Network", StringComparison.OrdinalIgnoreCase) == true && value != 0)
+			// The below simply traps on a specific category, "Network Interface" in this case
+			if (string.Equals(_settings.Category, "Network Interface", StringComparison.OrdinalIgnoreCase) && value != 0)
+			{
+				Log.Debug($"[Network] Raw value = {value}, index = {index}");
+			}
+
+			// Only update the icon if the frame actually changed
+			if (index != _lastFrameIndex)
+			{
+			_lastFrameIndex = index;
+				_notifyIcon.Icon = _frames[index];
+			}
+
+			// Tooltip can update every tick; it's cheap
 			_notifyIcon.Text = BuildTooltip(value);
 		}
 
 		private static int GetFrameIndex(double value, double min, double max, int frameCount)
 		{
-			value = Math.Max(min, Math.Min(max, value));
+			double val = Math.Max(min, Math.Min(max, value));
+			//Log.Debug($"val = {val}");
 
-			double normalized = (value - min) / (max - min);
+			double normalized = (val - min) / (max - min);
+			//Log.Debug($"normalized = {normalized}");
 
-			int index = (int)(normalized * frameCount);
+			// Below both work, but pick what feels best.
+			//
+			// Normalize, standard
+			// int index = (int)(normalized * (frameCount - 1));
+			// Normalize, but gives a smoother transition
+			int index = (int)Math.Round(normalized * (frameCount - 1));
+
 			return Math.Max(0, Math.Min(frameCount - 1, index));
 		}
 
 		// ------------------------------------------------------------
 		// DISPOSAL
 		// ------------------------------------------------------------
+		private bool _disposed;
 		public void Dispose()
 		{
+			if (_disposed)
+				return;
+			_disposed = true;
+
 			_updateTimer.Stop();
 			_updateTimer.Dispose();
 
+			_notifyIcon.Icon = null;     // Prevent rare WinForms handle reuse issues
+			_notifyIcon.Text = "";
 			_notifyIcon.Visible = false;
 			_notifyIcon.Dispose();
 

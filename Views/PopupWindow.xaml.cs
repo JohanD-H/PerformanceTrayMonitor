@@ -3,8 +3,14 @@ using System.ComponentModel;
 using System.Windows;
 using System.Windows.Media.Animation;
 
+// -------------------------------------------
+// Popup, to show defined performance counters
+// -------------------------------------------
 namespace PerformanceTrayMonitor.Views
 {
+	/*
+	 * This needs improving!
+	 */
 	public partial class PopupWindow : Window
 	{
 		private bool _isClosingAnimated;

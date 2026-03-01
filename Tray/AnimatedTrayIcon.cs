@@ -4,14 +4,17 @@ using PerformanceTrayMonitor.Views;
 using Serilog;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 
+// --------------------------------------------
+// Application tray icon animation
+// --------------------------------------------
 namespace PerformanceTrayMonitor.Configuration
 {
 	internal sealed class AnimatedTrayIcon : IDisposable
@@ -21,7 +24,8 @@ namespace PerformanceTrayMonitor.Configuration
 		private readonly List<Bitmap> _frames = new();
 		private readonly ContextMenuStrip _menu = new();
 		private readonly ConfigViewModel _configVm;
-		private readonly MainViewModel _mainVm; // ← add this
+		private readonly MainViewModel _mainVm;
+		private readonly List<Icon> _icons = new();
 
 		private int _frameIndex;
 
@@ -38,12 +42,15 @@ namespace PerformanceTrayMonitor.Configuration
 
 			BuildMenu();
 
-			_notifyIcon.MouseUp += (s, e) =>
+			_notifyIcon.MouseUp += NotifyIcon_MouseUp;
+			/*
+			_notifyIcon.MouseUp += async (s, e) =>
 			{
 				if (e.Button == MouseButtons.Right)
 				{
 					BuildMenu();
-					_menu.Show(Cursor.Position);
+					await Task.Delay(50); // May be safer
+					_menu.Show(Control.MousePosition);
 				}
 				if (e.Button == MouseButtons.Left)
 				{
@@ -53,8 +60,10 @@ namespace PerformanceTrayMonitor.Configuration
 					});
 				}
 			};
+			*/
 
 			LoadFrames();
+			Log.Debug($"Frames: {_frames.Count}, Icons: {_icons.Count}");
 
 			if (_frames.Count == 0)
 				throw new InvalidOperationException("AnimatedTrayIcon: No frames found.");
@@ -65,9 +74,108 @@ namespace PerformanceTrayMonitor.Configuration
 			{
 				Interval = TimeSpan.FromMilliseconds(250)
 			};
-			_timer.Tick += (_, _) => AdvanceFrame();
+			_timer.Tick += OnTimerTick;
 			_timer.Start();
 		}
+
+		private void OnTimerTick(object? sender, EventArgs e)
+		{
+			AdvanceFrame();
+		}
+
+		private void NotifyIcon_MouseUp(object? sender, MouseEventArgs e)
+		{
+			if (e.Button == MouseButtons.Right)
+			{
+				BuildMenu();
+				ShowTrayMenu();
+				/*
+				// Delay helps Windows settle the tray icon position
+				await Task.Delay(50);
+
+				// Show menu above the tray icon instead of at cursor
+				_menu.Show(_notifyIcon, new Point(0, -_menu.Height));
+				*/
+			}
+			else if (e.Button == MouseButtons.Left)
+			{
+				System.Windows.Application.Current.Dispatcher.Invoke(() =>
+				{
+					_mainVm.TogglePopup();
+				});
+			}
+		}
+
+		public enum TaskbarEdge
+		{
+			Bottom,
+			Top,
+			Left,
+			Right
+		}
+
+		public static TaskbarEdge GetTaskbarEdge()
+		{
+			var screen = Screen.PrimaryScreen;
+			var wa = screen.WorkingArea;
+			var sb = screen.Bounds;
+
+			if (wa.Top > sb.Top)
+				return TaskbarEdge.Top;
+			if (wa.Left > sb.Left)
+				return TaskbarEdge.Left;
+			if (wa.Right < sb.Right)
+				return TaskbarEdge.Right;
+
+			return TaskbarEdge.Bottom;
+		}
+
+		public static Point GetTrayIconLocation()
+		{
+			var screen = Screen.PrimaryScreen;
+			var wa = screen.WorkingArea;
+			var sb = screen.Bounds;
+
+			var edge = GetTaskbarEdge();
+
+			return edge switch
+			{
+				TaskbarEdge.Bottom => new Point(wa.Right - 10, wa.Bottom + 1),
+				TaskbarEdge.Top => new Point(wa.Right - 10, wa.Top - 1),
+				TaskbarEdge.Left => new Point(wa.Left - 1, wa.Bottom - 10),
+				TaskbarEdge.Right => new Point(wa.Right + 1, wa.Bottom - 10),
+				_ => new Point(wa.Right - 10, wa.Bottom + 1)
+			};
+		}
+
+		private void ShowTrayMenu()
+		{
+			var edge = GetTaskbarEdge();
+			var trayPos = GetTrayIconLocation();
+
+			// Small delay helps Windows settle the tray icon position
+			Task.Delay(50).Wait();
+
+			switch (edge)
+			{
+				case TaskbarEdge.Bottom:
+					_menu.Show(new Point(trayPos.X - _menu.Width, trayPos.Y - _menu.Height));
+					break;
+
+				case TaskbarEdge.Top:
+					_menu.Show(new Point(trayPos.X - _menu.Width, trayPos.Y));
+					break;
+
+				case TaskbarEdge.Left:
+					_menu.Show(new Point(trayPos.X, trayPos.Y - _menu.Height));
+					break;
+
+				case TaskbarEdge.Right:
+					_menu.Show(new Point(trayPos.X - _menu.Width, trayPos.Y - _menu.Height));
+					break;
+			}
+		}
+
 
 		// ------------------------------------------------------------
 		// FRAME LOADING (EMBEDDED + OPTIONAL EXTERNAL)
@@ -89,7 +197,11 @@ namespace PerformanceTrayMonitor.Configuration
 				if (files.Count > 0)
 				{
 					foreach (var file in files)
-						_frames.Add(new Icon(file).ToBitmap());
+					{
+						var bmp = new Icon(file).ToBitmap();
+						_frames.Add(bmp);
+						_icons.Add(IconFromBitmap(bmp));
+					}
 
 					return; // External overrides embedded
 				}
@@ -124,6 +236,7 @@ namespace PerformanceTrayMonitor.Configuration
 				{
 					var bmp = LoadEmbeddedBitmap(basePath + file);
 					_frames.Add(bmp);
+					_icons.Add(IconFromBitmap(bmp));
 				}
 				catch (Exception ex)
 				{
@@ -171,13 +284,29 @@ namespace PerformanceTrayMonitor.Configuration
 				return;
 
 			_frameIndex = (_frameIndex + 1) % _frames.Count;
-			_notifyIcon.Icon = IconFromBitmap(_frames[_frameIndex]);
+			_notifyIcon.Icon = _icons[_frameIndex];
 		}
 
 		private static Icon IconFromBitmap(Bitmap bmp)
 		{
 			IntPtr hIcon = bmp.GetHicon();
-			return Icon.FromHandle(hIcon);
+
+			// Wrap the handle
+			var icon = Icon.FromHandle(hIcon);
+
+			// Clone to detach from the raw handle
+			var clone = (Icon)icon.Clone();
+
+			// Now it's safe to destroy the original HICON
+			NativeMethods.DestroyIcon(hIcon);
+
+			return clone;
+		}
+
+		internal static class NativeMethods
+		{
+			[System.Runtime.InteropServices.DllImport("user32.dll", CharSet = System.Runtime.InteropServices.CharSet.Auto)]
+			public extern static bool DestroyIcon(IntPtr handle);
 		}
 
 		// ------------------------------------------------------------
@@ -186,7 +315,7 @@ namespace PerformanceTrayMonitor.Configuration
 		private void BuildMenu()
 		{
 			bool framesVisible = DebugIconWindow.IsOpen;   // you can expose a static flag
-			bool countersVisible = _mainVm.IsPopupOpen;    // you already track this
+			bool countersVisible = _mainVm.PopupIsOpen;    // you already track this
 
 			_menu.Items.Clear();
 
@@ -209,13 +338,32 @@ namespace PerformanceTrayMonitor.Configuration
 				});
 			});
 
+			bool appIconVisible = _mainVm.ShowAppIcon;
+			bool anyCounterVisible = _mainVm.Counters.Any(c => c.ShowInTray);
+
+			_menu.Items.Add(
+				appIconVisible ? "Hide App Icon" : "Show App Icon",
+				null,
+				(_, _) =>
+				{
+					System.Windows.Application.Current.Dispatcher.Invoke(() =>
+					{
+						if (!appIconVisible && !anyCounterVisible)
+						{
+							MessageBox.Show("You must have at least one tray icon visible.", "Warning");
+							return;
+						}
+
+						_mainVm.ToggleAppIcon();
+						BuildMenu();
+					});
+				});
+
 			_menu.Items.Add("Configuration", null, (_, _) =>
 			{
 				System.Windows.Application.Current.Dispatcher.Invoke(() =>
 				{
-					var settings = new ConfigWindow(_configVm);
-					settings.Show();
-					settings.Activate();
+					_mainVm.ShowConfig();
 				});
 			});
 
@@ -225,7 +373,7 @@ namespace PerformanceTrayMonitor.Configuration
 			{
 				System.Windows.Application.Current.Dispatcher.Invoke(() =>
 				{
-					// 1. Check if an instance is already open
+					// Check if an instance is already open
 					var existing = System.Windows.Application.Current.Windows
 						.OfType<PerformanceTrayMonitor.Views.AboutWindow>()
 						.FirstOrDefault();
@@ -236,12 +384,10 @@ namespace PerformanceTrayMonitor.Configuration
 						return;
 					}
 
-					// 2. Create the instance (This was the missing piece!)
+					// Create the instance
 					var about = new PerformanceTrayMonitor.Views.AboutWindow();
 
-					// 3. Set the Owner
-					// Note: Application.Current.Windows is a collection, not a single window.
-					// Usually, you want the MainWindow as the owner.
+					// Set the Owner
 					var main = System.Windows.Application.Current.MainWindow;
 					if (main != null && main != about)
 					{
@@ -252,40 +398,16 @@ namespace PerformanceTrayMonitor.Configuration
 					about.ShowDialog();
 				});
 			});
-			/*
-			_menu.Items.Add("About", null, (_, _) =>
-			{
-				System.Windows.Application.Current.Dispatcher.Invoke(() =>
-				{
-					var existing = System.Windows.Application.Current.Windows
-						.OfType<PerformanceTrayMonitor.Views.AboutWindow>()
-						.FirstOrDefault();
-
-					if (existing != null)
-					{
-						existing.Activate();
-						return;
-					}
-
-					var main = System.Windows.Application.Current.Windows;
-					//var main = Application.Current.MainWindow;
-					if (main != null && main != about)
-						about.Owner = main;
-
-					about.ShowDialog();
-				});
-			});
-			*/
 
 			_menu.Items.Add(new ToolStripSeparator());
 
 
 			_menu.Items.Add("Exit", null, (_, _) =>
 			{
-				// 1. Close the WinForms menu FIRST
+				// Close the WinForms menu FIRST
 				_menu.Close();
 
-				// 2. Shutdown WPF AFTER the menu is gone
+				// Shutdown WPF AFTER the menu is gone
 				System.Windows.Application.Current.Dispatcher.BeginInvoke(new Action(() =>
 				{
 					System.Windows.Application.Current.Shutdown();
@@ -296,14 +418,39 @@ namespace PerformanceTrayMonitor.Configuration
 		// ------------------------------------------------------------
 		// DISPOSAL
 		// ------------------------------------------------------------
+		private bool _disposed;
 		public void Dispose()
 		{
+			if (_disposed)
+				return;
+
+			_disposed = true;
+
 			_timer.Stop();
+			_timer.Tick -= OnTimerTick;
+			//_timer.Dispose();
+
+			_menu.Items.Clear();
+			_menu.Close();
+			_menu.Dispose();
+			// _menu = null;         // would require removing readonly
+
+
+			_notifyIcon.Icon = null;
 			_notifyIcon.Visible = false;
+			_notifyIcon.MouseUp -= NotifyIcon_MouseUp;
 			_notifyIcon.Dispose();
+			// _notifyIcon = null;   // would require removing readonly
 
 			foreach (var frame in _frames)
 				frame.Dispose();
+			_frames.Clear();
+
+			foreach (var icon in _icons)
+				icon.Dispose();
+			_icons.Clear();
+
+			GC.SuppressFinalize(this);
 		}
 	}
 }

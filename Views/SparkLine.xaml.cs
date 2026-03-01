@@ -5,6 +5,9 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Shapes;
 
+// -----------------------------------
+// Untested
+// -----------------------------------
 namespace PerformanceTrayMonitor.Views
 {
     public partial class Sparkline : UserControl

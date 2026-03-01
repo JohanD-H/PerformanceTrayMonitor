@@ -9,6 +9,9 @@ using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Linq;
 
+// ---------------------------------------------
+// Manage all tray icons, app and counters
+// ---------------------------------------------
 namespace PerformanceTrayMonitor.Managers
 {
 	public sealed class TrayIconManager : IDisposable
@@ -24,7 +27,7 @@ namespace PerformanceTrayMonitor.Managers
 			Log.Debug($"TrayIconManager created: {GetHashCode()}");
 
 			_mainVm = mainVm;
-			_configVm = mainVm.ConfigVm;   // <-- CRITICAL FIX
+			_configVm = mainVm.ConfigVm;
 
 			// Create the animated app icon
 			_animatedIcon = new AnimatedTrayIcon(_configVm, _mainVm);
@@ -126,17 +129,21 @@ namespace PerformanceTrayMonitor.Managers
 			if (!settings.ShowInTray)
 				return;
 
-			// Validate icon set
+			// Validate icon set by name
 			if (!IconSetConfig.IconSets.TryGetValue(settings.IconSet, out var set))
 			{
-				Log.Debug($"Icon set '{settings.IconSet}' not found — switching to {CounterConfig.DefaultIconSet}.");
-				settings.IconSet = CounterConfig.DefaultIconSet;
+				// Pick the first available icon set as fallback
+				var fallback = IconSetConfig.IconSets.Keys.FirstOrDefault();
 
-				if (!IconSetConfig.IconSets.TryGetValue(settings.IconSet, out set))
+				if (fallback == null)
 				{
-					Log.Error($"Default icon set '{CounterConfig.DefaultIconSet}' missing — cannot create tray icon.");
+					Log.Error("No icon sets available — cannot create tray icon.");
 					return;
 				}
+
+				Log.Debug($"Icon set '{settings.IconSet}' not found — switching to '{fallback}'.");
+				settings.IconSet = fallback;
+				set = IconSetConfig.IconSets[fallback];
 			}
 
 			if (_counterIcons.Count >= TrayIconConfig.MaxCounterTrayIcons)
@@ -150,7 +157,7 @@ namespace PerformanceTrayMonitor.Managers
 
 			Log.Debug($"Creating CounterTrayIcon for {counter.DisplayName} using set '{settings.IconSet}'.");
 
-			_counterIcons[counter] = new CounterTrayIcon(settings, () => counter.CurrentValue, set);
+			_counterIcons[counter] = new CounterTrayIcon(settings, () => counter.CurrentValue, set, _mainVm);
 		}
 
 		// ------------------------------------------------------------
@@ -166,10 +173,50 @@ namespace PerformanceTrayMonitor.Managers
 		}
 
 		// ------------------------------------------------------------
+		// FULL REBUILD (App icon + all counter icons)
+		// ------------------------------------------------------------
+		public void RebuildAllIcons()
+		{
+			Log.Debug("Rebuilding all tray icons...");
+
+			// Dispose animated app icon
+			_animatedIcon?.Dispose();
+			_animatedIcon = null;
+
+			// Dispose all counter icons
+			foreach (var icon in _counterIcons.Values)
+				icon.Dispose();
+			_counterIcons.Clear();
+
+			// Recreate animated app icon (only if enabled)
+			if (_mainVm.ShowAppIcon)
+			{
+				_animatedIcon = new AnimatedTrayIcon(_configVm, _mainVm);
+				Log.Debug($"AnimatedTrayIcon recreated: {_animatedIcon.GetHashCode()}");
+			}
+			else
+			{
+				Log.Debug("ShowAppIcon = false — skipping AnimatedTrayIcon creation.");
+			}
+
+			// Recreate counter icons
+			foreach (var counter in _mainVm.Counters)
+				TryCreateCounterIcon(counter);
+
+			Log.Debug("Rebuild complete.");
+		}
+
+		// ------------------------------------------------------------
 		// DISPOSAL
 		// ------------------------------------------------------------
+		private bool _disposed;
 		public void Dispose()
 		{
+			if (_disposed)
+				return;
+			
+			_disposed = true;
+			
 			Log.Debug($"Disposing TrayIconManager: {GetHashCode()}");
 
 			_mainVm.Counters.CollectionChanged -= Counters_CollectionChanged;
@@ -183,6 +230,7 @@ namespace PerformanceTrayMonitor.Managers
 			_counterIcons.Clear();
 
 			_animatedIcon?.Dispose();
+			_animatedIcon = null;
 		}
 	}
 }

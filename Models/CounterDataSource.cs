@@ -2,6 +2,9 @@ using System;
 using System.Diagnostics;
 using Serilog;
 
+// ------------------------------------
+// Counter data
+// ------------------------------------
 namespace PerformanceTrayMonitor.Models
 {
 	public class CounterDataSource : IDisposable

@@ -8,7 +8,6 @@
     <Application.Resources>
 
         <!-- Converters available to the whole app -->
-        <conv:ModeToVisibilityConverter x:Key="ModeToVisibility"/>
         <conv:ActivityToBrushConverter x:Key="ActivityToBrush"/>
 
     </Application.Resources>

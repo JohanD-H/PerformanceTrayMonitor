@@ -12,6 +12,9 @@ using System.Diagnostics.Metrics;
 using System.Linq;
 using System.Windows.Input;
 
+// --------------------------------------------
+// Configuration window
+// --------------------------------------------
 namespace PerformanceTrayMonitor.ViewModels
 {
 	public class ConfigViewModel : BaseViewModel
@@ -22,65 +25,56 @@ namespace PerformanceTrayMonitor.ViewModels
 		public ObservableCollection<string> Categories { get; } = new();
 		public ObservableCollection<string> CountersInCategory { get; } = new();
 		public ObservableCollection<string> Instances { get; } = new();
-
-		public ObservableCollection<string> Modes { get; } =
-			new(CounterConfig.Modes);
-
-		public ObservableCollection<string> IconSets { get; } =
-			new(CounterConfig.IconSets);
+		public ObservableCollection<string> AvailableIconSets { get; } =
+			new ObservableCollection<string>(
+			IconSetConfig.IconSets.Keys.OrderBy(x => x)
+		);
 
 		public event Action? RequestClose;
 
-private CounterViewModel? _selected;
-public CounterViewModel? Selected
-{
-    get => _selected;
-    set
-    {
-        if (_selected == value)
-            return;
+		private CounterViewModel? _selected;
+		public CounterViewModel? Selected
+		{
+			get => _selected;
+			set
+			{
+				if (_selected == value)
+					return;
 
-        _selected = value;
-        OnPropertyChanged();
+				_selected = value;
+				OnPropertyChanged();
 
-        if (_selected != null)
-        {
-            // Temporarily disable reactive logic while we programmatically load
-            Editor.PropertyChanged -= Editor_PropertyChanged;
+				if (_selected == null)
+				{
+					CountersInCategory.Clear();
+					Instances.Clear();
+					return;
+				}
 
-            // Load editor from selected VM
-            Editor.LoadFrom(_selected);
+				// Temporarily disable reactive logic
+				Editor.PropertyChanged -= Editor_PropertyChanged;
 
-            Log.Debug($"Editor.Category = {Editor.Category}, Editor.Counter = {Editor.Counter}");
+				// Load lists FIRST
+				LoadCountersForCategory(_selected.Category);
+				LoadInstancesForCounter(_selected.Category, _selected.Counter);
 
-            // Populate lists for this category
-            LoadCountersForCategory(Editor.Category);
-            LoadInstancesForCounter(Editor.Category, Editor.Counter);
+				// Now load the editor (this triggers SelectedCategory/Counter)
+				Editor.LoadFrom(_selected);
 
-            // Ensure Counter is valid for this category
-            if (CountersInCategory.Any() && !CountersInCategory.Contains(Editor.Counter))
-            {
-                Log.Debug($"Coercing Editor.Counter from '{Editor.Counter}' to first in category '{Editor.Category}'");
-                Editor.Counter = CountersInCategory.First();
-            }
+				// Re-enable reactive logic
+				Editor.PropertyChanged += Editor_PropertyChanged;
 
-            // Ensure Instance is valid for this category
-            if (Instances.Any() && !Instances.Contains(Editor.Instance))
-            {
-                Log.Debug($"Coercing Editor.Instance from '{Editor.Instance}' to first in category '{Editor.Category}'");
-                Editor.Instance = Instances.First();
-            }
+				(RemoveCommand as RelayCommand)?.RaiseCanExecuteChanged();
+				(ApplyCommand as RelayCommand)?.RaiseCanExecuteChanged();
+			}
+		}
 
-            // Re-enable for real user edits
-            Editor.PropertyChanged += Editor_PropertyChanged;
-        }
+		public CounterEditorViewModel Editor { get; }
 
-        (RemoveCommand as RelayCommand)?.RaiseCanExecuteChanged();
-        (ApplyCommand as RelayCommand)?.RaiseCanExecuteChanged();
-    }
-}
-
-		public CounterEditorViewModel Editor { get; } = new();
+		public ConfigViewModel()
+		{
+			Editor = new CounterEditorViewModel(this);
+		}
 
 		public ICommand AddCommand { get; }
 		public ICommand ApplyCommand { get; }
@@ -89,16 +83,17 @@ public CounterViewModel? Selected
 		public ICommand ResetCommand { get; }
 		public ICommand SaveCommand { get; }
 
-		public ConfigViewModel(List<CounterSettingsDto> snapshot, MainViewModel main)
+		public ConfigViewModel(SettingsOptions settings, MainViewModel main)
 		{
+			Editor = new CounterEditorViewModel(this);
+
 			Log.Debug($"THIS VM = {GetHashCode()}");
 
 			_main = main;
 
-			// Load counters from snapshot
-			foreach (var dto in snapshot)
+			foreach (var dto in settings.Counters)
 			{
-				var settings = new CounterSettings
+				var cs = new CounterSettings
 				{
 					Id = dto.Id,
 					Category = dto.Category,
@@ -107,20 +102,15 @@ public CounterViewModel? Selected
 					DisplayName = dto.DisplayName,
 					Min = dto.Min,
 					Max = dto.Max,
-					Mode = dto.Mode,
 					ShowInTray = dto.ShowInTray,
 					IconSet = dto.IconSet
 				};
 
-				Counters.Add(new CounterViewModel(settings));
+				Counters.Add(new CounterViewModel(cs));
 			}
 
-			// Load categories
 			foreach (var cat in PerformanceCounterCategory.GetCategories().OrderBy(c => c.CategoryName))
-			{
-				//Log.Debug($"Adding: cat.CategoryName = {cat.CategoryName}");
 				Categories.Add(cat.CategoryName);
-			}
 
 			Editor.PropertyChanged += Editor_PropertyChanged;
 
@@ -193,7 +183,6 @@ public CounterViewModel? Selected
 			Selected.DisplayName = settings.DisplayName;
 			Selected.Min = settings.Min;
 			Selected.Max = settings.Max;
-			Selected.Mode = settings.Mode;
 			Selected.ShowInTray = settings.ShowInTray;
 			Selected.IconSet = settings.IconSet;
 		}
@@ -226,6 +215,7 @@ public CounterViewModel? Selected
 			{
 				Selected = null;
 				Editor.LoadDefaults();
+
 			}
 			else if (index < Counters.Count)
 				Selected = Counters[index];
@@ -233,10 +223,30 @@ public CounterViewModel? Selected
 				Selected = Counters.Last();
 		}
 
+		private CounterSettings CreateSettingsFromDto(CounterSettingsDto dto)
+		{
+			return new CounterSettings
+			{
+				Id = dto.Id,
+				Category = dto.Category,
+				Counter = dto.Counter,
+				Instance = dto.Instance,
+				DisplayName = dto.DisplayName,
+				Min = dto.Min,
+				Max = dto.Max,
+				ShowInTray = dto.ShowInTray,
+				IconSet = dto.IconSet
+			};
+		}
+
 		private void ResetToDefaults()
 		{
 			Counters.Clear();
-			Editor.LoadDefaults();
+
+			var dto = new DefaultSettingsProvider().CreateDefaultCounter();
+			Counters.Add(new CounterViewModel(CreateSettingsFromDto(dto)));
+
+			Selected = Counters.FirstOrDefault();
 		}
 
 		private void Save()
@@ -249,7 +259,8 @@ public CounterViewModel? Selected
 			foreach (var c in Counters)
 				Log.Debug($" {c.DisplayName} | {c.Category} | {c.Counter} | {c.Instance} | Show={c.ShowInTray}");
 
-			_main.ReplaceCounters(
+			// Build a new SettingsOptions using the edited counters
+			var newSettings = new SettingsOptions(
 				Counters.Select(c => new CounterSettingsDto
 				{
 					Id = c.Settings.Id,
@@ -259,17 +270,31 @@ public CounterViewModel? Selected
 					DisplayName = c.DisplayName,
 					Min = c.Min,
 					Max = c.Max,
-					Mode = c.Mode,
 					ShowInTray = c.ShowInTray,
 					IconSet = c.IconSet
-				}).ToList()
+				}).ToList(),
+				_main.ShowAppIcon
 			);
 
-			SettingsStore.Save(_main.GetSettingsSnapshot());
+			// Push updated settings into MainViewModel
+			_main.ReplaceSettings(newSettings);
+
+			// Save to disk
+			SettingsStore.Save(newSettings);
+
+			// Close window
 			RequestClose?.Invoke();
+
+			Cleanup();
 		}
 
-		private void LoadCountersForCategory(string category)
+		private void Cleanup()
+		{
+			Editor.PropertyChanged -= Editor_PropertyChanged;
+		}
+
+
+		public void LoadCountersForCategory(string category)
 		{
 			Log.Debug($"category = '{category}'");
 
@@ -316,7 +341,7 @@ public CounterViewModel? Selected
 			}
 		}
 
-		private void LoadInstancesForCounter(string category, string counter)
+		public void LoadInstancesForCounter(string category, string counter)
 		{
 			Log.Debug($"category = '{category}', counter =  '{counter}'");
 

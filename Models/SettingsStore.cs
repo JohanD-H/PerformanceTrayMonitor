@@ -1,54 +1,51 @@
 using PerformanceTrayMonitor.Configuration;
 using Serilog;
+using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Xml.Serialization;
 using P = PerformanceTrayMonitor.Configuration.Paths;
-
 
 namespace PerformanceTrayMonitor.Models
 {
-	/// <summary>
-	/// Thin façade over the SettingsMigrator + SettingsProvider architecture.
-	/// Handles only: load, save, and delegating to the correct components.
-	/// </summary>
 	public static class SettingsStore
 	{
 		private static readonly SettingsMigrator _migrator = new();
 		private static readonly DefaultSettingsProvider _defaults = new();
 
-		// -------------------------------
-		// LOAD (with migration)
-		// -------------------------------
-		public static List<CounterSettingsDto> Load()
+		public static SettingsOptions Load()
 		{
 			Log.Debug($"Loading settings from: {P.SettingsFile}");
-
-			// Let the migrator handle:
-			// - Missing file
-			// - Versioned XML
-			// - Old DTO list
-			// - Old CounterSettings
-			// - Corruption fallback
-			var options = _migrator.LoadOrMigrate(P.SettingsFile);
-
-			return options.Counters;
+			return _migrator.LoadOrMigrate(P.SettingsFile);
 		}
 
-		// -------------------------------
-		// SAVE (always version 2)
-		// -------------------------------
-		public static void Save(List<CounterSettingsDto> settings)
+		public static void Save(SettingsOptions options)
 		{
+			if (options == null)
+			{
+				Log.Error("Attempted to save null SettingsOptions. Falling back to defaults.");
+				options = _defaults.Create();
+			}
+
 			Log.Debug($"Saving settings to: {P.SettingsFile}");
 
 			var file = new SettingsFile
 			{
-				Version = 2,
-				Counters = settings
+				Version = SettingsOptions.CurrentVersion,
+				Counters = options.Counters,
+				ShowAppIcon = options.ShowAppIcon
 			};
 
-			var serializer = new System.Xml.Serialization.XmlSerializer(typeof(SettingsFile));
-			using var fs = System.IO.File.Create(P.SettingsFile);
-			serializer.Serialize(fs, file);
+			try
+			{
+				var serializer = new XmlSerializer(typeof(SettingsFile));
+				using var fs = File.Create(P.SettingsFile);
+				serializer.Serialize(fs, file);
+			}
+			catch (Exception ex)
+			{
+				Log.Error(ex, "Failed to save settings file.");
+			}
 		}
 	}
 }

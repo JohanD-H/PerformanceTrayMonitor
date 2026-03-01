@@ -4,6 +4,9 @@ using System;
 using System.Windows;
 using System.Windows.Media.Animation;
 
+// --------------------------------
+// Configuration window
+// --------------------------------
 namespace PerformanceTrayMonitor.Views
 {
 	public partial class ConfigWindow : Window

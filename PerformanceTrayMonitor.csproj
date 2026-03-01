@@ -11,10 +11,44 @@
 
     <Nullable>enable</Nullable>
     <Title>PerformanceTrayMonitor</Title>
-    <Description>Display Windows Performance Counter data in a window and optionally in animated tray icons</Description>
+    <Description>Display Windows Performance Counter data in a window and optionally in an animated tray icons</Description>
     <Copyright>Public Domain</Copyright>
     <PackageTags>Performance Counters, Tray</PackageTags>
+    <PackageLicenseFile>LICENSE.txt</PackageLicenseFile>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Remove="Resources\Icons\Counter\Activity\Activity-1.ico" />
+    <None Remove="Resources\Icons\Counter\Activity\Activity-2.ico" />
+    <None Remove="Resources\Icons\Counter\Activity\Activity-3.ico" />
+    <None Remove="Resources\Icons\Counter\Activity\Activity-4.ico" />
+    <None Remove="Resources\Icons\Counter\Activity\Activity-5.ico" />
+    <None Remove="Resources\Icons\Counter\Disk-1\Disk-1.ico" />
+    <None Remove="Resources\Icons\Counter\Disk-1\Disk-2.ico" />
+    <None Remove="Resources\Icons\Counter\Disk-1\Disk-3.ico" />
+    <None Remove="Resources\Icons\Counter\Disk-1\Disk-4.ico" />
+    <None Remove="Resources\Icons\Counter\Disk-1\Disk-5.ico" />
+    <None Remove="Resources\Icons\Counter\Memory\memory-1.ico" />
+    <None Remove="Resources\Icons\Counter\Memory\memory-2.ico" />
+    <None Remove="Resources\Icons\Counter\Memory\memory-3.ico" />
+    <None Remove="Resources\Icons\Counter\Memory\memory-4.ico" />
+    <None Remove="Resources\Icons\Counter\Memory\memory-5.ico" />
+    <None Remove="Resources\Icons\Counter\Network\network-1.ico" />
+    <None Remove="Resources\Icons\Counter\Network\network-2.ico" />
+    <None Remove="Resources\Icons\Counter\Network\network-3.ico" />
+    <None Remove="Resources\Icons\Counter\Network\network-4.ico" />
+    <None Remove="Resources\Icons\Counter\Network\network-5.ico" />
+    <None Remove="Resources\Icons\Counter\Smileys\smiley-1.ico" />
+    <None Remove="Resources\Icons\Counter\Smileys\smiley-2.ico" />
+    <None Remove="Resources\Icons\Counter\Smileys\smiley-3.ico" />
+    <None Remove="Resources\Icons\Counter\Smileys\smiley-4.ico" />
+    <None Remove="Resources\Icons\Counter\Smileys\smiley-5.ico" />
+    <None Remove="Resources\Icons\Counter\WiFi-1\WiFi-1.ico" />
+    <None Remove="Resources\Icons\Counter\WiFi-1\WiFi-2.ico" />
+    <None Remove="Resources\Icons\Counter\WiFi-1\WiFi-3.ico" />
+    <None Remove="Resources\Icons\Counter\WiFi-1\WiFi-4.ico" />
+    <None Remove="Resources\Icons\Counter\WiFi-1\WiFi-5.ico" />
+  </ItemGroup>
 
   <!-- App icon must be Content -->
   <ItemGroup>
@@ -35,13 +69,23 @@
     <Resource Include="Resources\Icons\App\Animated\bubble-2.ico" />
     <Resource Include="Resources\Icons\App\Animated\bubble-3.ico" />
     <Resource Include="Resources\Icons\App\Animated\bubble-4.ico" />
-
-    <!-- Counter Icon Sets: Activity -->
     <Resource Include="Resources\Icons\Counter\Activity\activity-1.ico" />
     <Resource Include="Resources\Icons\Counter\Activity\activity-2.ico" />
     <Resource Include="Resources\Icons\Counter\Activity\activity-3.ico" />
     <Resource Include="Resources\Icons\Counter\Activity\activity-4.ico" />
     <Resource Include="Resources\Icons\Counter\Activity\activity-5.ico" />
+
+    <!-- Counter Icon Sets: Activity -->
+    <Resource Include="Resources\Icons\Counter\Disk-2\disk-1.ico" />
+    <Resource Include="Resources\Icons\Counter\Disk-2\disk-2.ico" />
+    <Resource Include="Resources\Icons\Counter\Disk-2\disk-3.ico" />
+    <Resource Include="Resources\Icons\Counter\Disk-2\disk-4.ico" />
+    <Resource Include="Resources\Icons\Counter\Disk-2\disk-5.ico" />
+    <Resource Include="Resources\Icons\Counter\Disk-1\disk-1.ico" />
+    <Resource Include="Resources\Icons\Counter\Disk-1\disk-2.ico" />
+    <Resource Include="Resources\Icons\Counter\Disk-1\disk-3.ico" />
+    <Resource Include="Resources\Icons\Counter\Disk-1\disk-4.ico" />
+    <Resource Include="Resources\Icons\Counter\Disk-1\disk-5.ico" />
 
     <!-- Counter Icon Sets: Graphic -->
     <Resource Include="Resources\Icons\Counter\Graphic\graphic-1.ico" />
@@ -49,12 +93,44 @@
     <Resource Include="Resources\Icons\Counter\Graphic\graphic-3.ico" />
     <Resource Include="Resources\Icons\Counter\Graphic\graphic-4.ico" />
     <Resource Include="Resources\Icons\Counter\Graphic\graphic-5.ico" />
+    <Resource Include="Resources\Icons\Counter\Memory\memory-1.ico" />
+    <Resource Include="Resources\Icons\Counter\Memory\memory-2.ico" />
+    <Resource Include="Resources\Icons\Counter\Memory\memory-3.ico" />
+    <Resource Include="Resources\Icons\Counter\Memory\memory-4.ico" />
+    <Resource Include="Resources\Icons\Counter\Memory\memory-5.ico" />
+    <Resource Include="Resources\Icons\Counter\Network\network-1.ico" />
+    <Resource Include="Resources\Icons\Counter\Network\network-2.ico" />
+    <Resource Include="Resources\Icons\Counter\Network\network-3.ico" />
+    <Resource Include="Resources\Icons\Counter\Network\network-4.ico" />
+    <Resource Include="Resources\Icons\Counter\Network\network-5.ico" />
+    <Resource Include="Resources\Icons\Counter\Smileys\smiley-1.ico" />
+    <Resource Include="Resources\Icons\Counter\Smileys\smiley-2.ico" />
+    <Resource Include="Resources\Icons\Counter\Smileys\smiley-3.ico" />
+    <Resource Include="Resources\Icons\Counter\Smileys\smiley-4.ico" />
+    <Resource Include="Resources\Icons\Counter\Smileys\smiley-5.ico" />
+    <Resource Include="Resources\Icons\Counter\WiFi-2\wifi-1.ico" />
+    <Resource Include="Resources\Icons\Counter\WiFi-2\wifi-2.ico" />
+    <Resource Include="Resources\Icons\Counter\WiFi-2\wifi-3.ico" />
+    <Resource Include="Resources\Icons\Counter\WiFi-2\wifi-4.ico" />
+    <Resource Include="Resources\Icons\Counter\WiFi-2\wifi-5.ico" />
+    <Resource Include="Resources\Icons\Counter\WiFi-1\wifi-1.ico" />
+    <Resource Include="Resources\Icons\Counter\WiFi-1\wifi-2.ico" />
+    <Resource Include="Resources\Icons\Counter\WiFi-1\wifi-3.ico" />
+    <Resource Include="Resources\Icons\Counter\WiFi-1\wifi-4.ico" />
+    <Resource Include="Resources\Icons\Counter\WiFi-1\wifi-5.ico" />
 
   </ItemGroup>
 
   <ItemGroup>
     <Folder Include="Resources\Icons\CustomSet\" />
     <Folder Include="Logs\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="LICENSE.txt">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
   </ItemGroup>
 
 </Project>

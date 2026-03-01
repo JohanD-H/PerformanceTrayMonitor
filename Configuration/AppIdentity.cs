@@ -2,12 +2,12 @@
 using PerformanceTrayMonitor.Models;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
-using System.Reflection;
 using System.Text.Json;
-using System.Linq;
 
+// ------------------------------------------
+// Specific application data
+// ------------------------------------------
 namespace PerformanceTrayMonitor.Configuration
 {
 	internal static class AppIdentity

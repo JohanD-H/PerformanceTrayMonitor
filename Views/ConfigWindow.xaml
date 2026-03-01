@@ -3,8 +3,8 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Configure Counters"
         SizeToContent="Height"
-        MinWidth="650" MinHeight="430"
-        Width="650" Height="430"
+        MinWidth="600" MinHeight="370"
+        Width="600" Height="370"
         ResizeMode="CanResizeWithGrip"
         Icon="D:\Visual Studio\PerformanceTrayMonitor\Resources\Icons\App\app.ico">
 
@@ -42,7 +42,12 @@
 
         <!-- LEFT SIDE -->
         <StackPanel Grid.Column="0">
-            <TextBlock Text="Counters" FontWeight="Bold" Margin="0,0,0,4"/>
+            <TextBlock Text="Tracked Metrics" FontWeight="Bold" Margin="0,0,0,4"/>
+            <TextBlock Text="(Click an item to edit its details)" 
+                       FontStyle="Italic" 
+                       FontSize="11"
+                       Foreground="#888"
+                       Margin="0,0,0,4"/>
 
             <ListBox ItemsSource="{Binding Counters}"
                      SelectedItem="{Binding Selected, Mode=TwoWay}"
@@ -96,17 +101,17 @@
 
             <TextBlock Text="Category"/>
             <ComboBox ItemsSource="{Binding Categories}"
-                      SelectedItem="{Binding Editor.Category, Mode=TwoWay}"
+                      SelectedItem="{Binding Editor.SelectedCategory, Mode=TwoWay}"
                       Margin="0,0,0,4"/>
 
             <TextBlock Text="Counter"/>
             <ComboBox ItemsSource="{Binding CountersInCategory}"
-                      SelectedItem="{Binding Editor.Counter, Mode=TwoWay}"
+                      SelectedItem="{Binding Editor.SelectedCounter, Mode=TwoWay}"
                       Margin="0,0,0,4"/>
 
             <TextBlock Text="Instance"/>
             <ComboBox ItemsSource="{Binding Instances}"
-                      SelectedItem="{Binding Editor.Instance, Mode=TwoWay}"
+                      SelectedItem="{Binding Editor.SelectedInstance, Mode=TwoWay}"
                       Margin="0,0,0,4"/>
 
             <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
@@ -123,16 +128,12 @@
                 </StackPanel>
             </StackPanel>
 
-            <TextBlock Text="Mode" Margin="0,4,0,0"/>
-            <ComboBox ItemsSource="{Binding Modes}"
-                      SelectedItem="{Binding Editor.Mode, Mode=TwoWay}"/>
-
             <GroupBox Header="Tray Icon" Margin="0,8,0,0">
                 <StackPanel>
                     <CheckBox Content="Show in tray"
                               IsChecked="{Binding Editor.ShowInTray, Mode=TwoWay}"/>
 
-                    <ComboBox ItemsSource="{Binding IconSets}"
+                    <ComboBox ItemsSource="{Binding AvailableIconSets}"
                               SelectedItem="{Binding Editor.IconSet, Mode=TwoWay}"
                               IsEnabled="{Binding Editor.ShowInTray}"/>
                 </StackPanel>

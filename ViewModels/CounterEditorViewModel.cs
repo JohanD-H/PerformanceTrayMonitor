@@ -1,7 +1,11 @@
 ﻿using PerformanceTrayMonitor.Configuration;
 using PerformanceTrayMonitor.Models;
 using System;
+using System.Linq;
 
+// ------------------------------------------
+// Editing a counter
+// ------------------------------------------
 namespace PerformanceTrayMonitor.ViewModels
 {
 	public class CounterEditorViewModel : BaseViewModel
@@ -13,9 +17,92 @@ namespace PerformanceTrayMonitor.ViewModels
 		private string _displayName = "";
 		private float _min;
 		private float _max;
-		private string _mode = "Activity";
 		private bool _showInTray;
 		private string _iconSet = "Activity";
+
+		private readonly ConfigViewModel _config;
+
+		public CounterEditorViewModel(ConfigViewModel config)
+		{
+			_config = config;
+		}
+
+		public string SelectedCategory
+		{
+			get => Category;
+			set
+			{
+				if (Category != value)
+				{
+					Category = value;
+					OnPropertyChanged(nameof(SelectedCategory));
+
+					_config.LoadCountersForCategory(value);
+
+					// Validate counter
+					if (_config.CountersInCategory.Any() &&
+						!_config.CountersInCategory.Contains(Counter))
+					{
+						Counter = _config.CountersInCategory.First();
+						OnPropertyChanged(nameof(SelectedCounter));
+					}
+
+					// Rebuild instances
+					_config.LoadInstancesForCounter(Category, Counter);
+
+					// Validate instance
+					if (_config.Instances.Any() &&
+						!_config.Instances.Contains(Instance))
+					{
+						Instance = _config.Instances.First();
+						OnPropertyChanged(nameof(SelectedInstance));
+					}
+				}
+			}
+		}
+
+		public string SelectedCounter
+		{
+			get => Counter;
+			set
+			{
+				if (Counter != value)
+				{
+					Counter = value;
+					OnPropertyChanged(nameof(SelectedCounter));
+
+					_config.LoadInstancesForCounter(Category, value);
+
+					if (_config.Instances.Any() &&
+						!_config.Instances.Contains(Instance))
+					{
+						Instance = _config.Instances.First();
+						OnPropertyChanged(nameof(SelectedInstance));
+					}
+				}
+			}
+		}
+
+		public string SelectedInstance
+		{
+			get => Instance;
+			set
+			{
+				if (Instance != value)
+				{
+					Instance = value;
+					OnPropertyChanged(nameof(SelectedInstance));
+
+					// Validate instance
+					if (_config.Instances.Any() &&
+						!_config.Instances.Contains(Instance))
+					{
+						Instance = _config.Instances.First();
+						OnPropertyChanged(nameof(SelectedInstance));
+					}
+				}
+			}
+		}
 
 		public Guid Id
 		{
@@ -59,12 +146,6 @@ namespace PerformanceTrayMonitor.ViewModels
 			set { _max = value; OnPropertyChanged(); }
 		}
 
-		public string Mode
-		{
-			get => _mode;
-			set { _mode = value; OnPropertyChanged(); }
-		}
-
 		public bool ShowInTray
 		{
 			get => _showInTray;
@@ -80,13 +161,12 @@ namespace PerformanceTrayMonitor.ViewModels
 		public void LoadFrom(CounterViewModel source)
 		{
 			Id = source.Settings.Id;
-			Category = source.Category;
-			Counter = source.Counter;
-			Instance = source.Instance;
+			SelectedCategory = source.Category;
+			SelectedCounter = source.Counter;
+			SelectedInstance = source.Instance;
 			DisplayName = source.DisplayName;
 			Min = source.Min;
 			Max = source.Max;
-			Mode = source.Mode;
 			ShowInTray = source.ShowInTray;
 			IconSet = source.IconSet;
 		}
@@ -102,7 +182,6 @@ namespace PerformanceTrayMonitor.ViewModels
 				DisplayName = DisplayName,
 				Min = Min,
 				Max = Max,
-				Mode = Mode,
 				ShowInTray = ShowInTray,
 				IconSet = IconSet
 			};
@@ -110,15 +189,16 @@ namespace PerformanceTrayMonitor.ViewModels
 
 		public void LoadDefaults()
 		{
+			var defaults = new DefaultSettingsProvider().CreateDefaultCounter();
+
 			Id = Guid.NewGuid();
-			Category = CounterConfig.DefaultCategory;
-			Counter = CounterConfig.DefaultCounter;
-			Instance = CounterConfig.DefaultInstance;
-			DisplayName = CounterConfig.DefaultDisplayName;
-			Min = CounterConfig.DefaultMin;
-			Max = CounterConfig.DefaultMax;
-			Mode = CounterConfig.DefaultMode;
-			IconSet = CounterConfig.DefaultIconSet;
+			SelectedCategory = defaults.Category;
+			SelectedCounter = defaults.Counter;
+			SelectedInstance = defaults.Instance;
+			DisplayName = defaults.DisplayName;
+			Min = defaults.Min;
+			Max = defaults.Max;
+			IconSet = defaults.IconSet;
 		}
 	}
 }

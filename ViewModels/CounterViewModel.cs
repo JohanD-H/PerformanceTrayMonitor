@@ -1,14 +1,19 @@
 using PerformanceTrayMonitor.Models;
 using Serilog;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 
+// ----------------------------------------
+// Show counter in config window
+// ----------------------------------------
 namespace PerformanceTrayMonitor.ViewModels
 {
-	public class CounterViewModel : BaseViewModel
+	public class CounterViewModel : BaseViewModel, IDisposable
 	{
 		private readonly CounterSettings _settings;
 		private PerformanceCounter? _counter;
+		private bool _disposed;
 
 		public string DisplayNameProxy => $"{DisplayName} ({Category})";
 
@@ -99,19 +104,6 @@ namespace PerformanceTrayMonitor.ViewModels
 			}
 		}
 
-		public string Mode
-		{
-			get => _settings.Mode;
-			set
-			{
-				if (_settings.Mode != value)
-				{
-					_settings.Mode = value;
-					OnPropertyChanged();
-				}
-			}
-		}
-
 		public bool ShowInTray
 		{
 			get => _settings.ShowInTray;
@@ -140,6 +132,8 @@ namespace PerformanceTrayMonitor.ViewModels
 
 		public void AttachCounter(PerformanceCounter? counter)
 		{
+			// Dispose any previous counter before replacing
+			_counter?.Dispose();
 			_counter = counter;
 		}
 
@@ -164,7 +158,7 @@ namespace PerformanceTrayMonitor.ViewModels
 
 		public void Update()
 		{
-			if (_counter == null)
+			if (_disposed || _counter == null)
 				return;
 
 			try
@@ -181,6 +175,24 @@ namespace PerformanceTrayMonitor.ViewModels
 			{
 				// swallow transient errors
 			}
+		}
+		public void Dispose()
+		{
+			if (_disposed)
+				return;
+
+			_disposed = true;
+
+			try
+			{
+				_counter?.Dispose();
+			}
+			catch
+			{
+				// ignore disposal errors
+			}
+
+			_counter = null;
 		}
 	}
 }

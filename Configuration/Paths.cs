@@ -1,6 +1,9 @@
 ﻿using System;
 using System.IO;
 
+// -------------------------------------------
+// Application path data
+// -------------------------------------------
 namespace PerformanceTrayMonitor.Configuration
 {
 	internal static class Paths

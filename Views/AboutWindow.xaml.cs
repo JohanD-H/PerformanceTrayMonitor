@@ -1,6 +1,9 @@
 ﻿using System.Windows;
 using Serilog;
 
+// -------------------
+// About window
+// -------------------
 namespace PerformanceTrayMonitor.Views
 {
 	public partial class AboutWindow : Window

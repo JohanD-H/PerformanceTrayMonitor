@@ -3,6 +3,9 @@ using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Collections.Generic;
 
+// ----------------------------------
+// Changing counter values
+// ----------------------------------
 namespace PerformanceTrayMonitor.Models
 {
 	public class CounterSettings : INotifyPropertyChanged
@@ -50,13 +53,6 @@ namespace PerformanceTrayMonitor.Models
 		{
 			get => _max;
 			set => SetField(ref _max, value);
-		}
-
-		private string _mode = "";
-		public string Mode
-		{
-			get => _mode;
-			set => SetField(ref _mode, value ?? "");
 		}
 
 		private bool _showInTray;

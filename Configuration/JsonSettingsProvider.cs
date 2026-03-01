@@ -3,7 +3,11 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
+using Serilog;
 
+// -------------------------------------------
+// Loading/Saving data
+// -------------------------------------------
 namespace PerformanceTrayMonitor.Configuration
 {
 	internal sealed class JsonSettingsProvider : ISettingsProvider
@@ -15,8 +19,14 @@ namespace PerformanceTrayMonitor.Configuration
 
 			var json = File.ReadAllText(Paths.SettingsFile);
 
-			return JsonSerializer.Deserialize<SettingsOptions>(json)
-				   ?? CreateDefault();
+			try
+			{
+				return JsonSerializer.Deserialize<SettingsOptions>(json) ?? CreateDefault();
+			}
+			catch
+			{
+				return CreateDefault();
+			}
 		}
 
 		public void Save(SettingsOptions options)
@@ -26,18 +36,19 @@ namespace PerformanceTrayMonitor.Configuration
 				WriteIndented = true
 			});
 
-			File.WriteAllText(Paths.SettingsFile, json);
+			try
+			{
+				File.WriteAllText(Paths.SettingsFile, json);
+			}
+			catch (Exception ex)
+			{
+				Log.Error(ex, "Failed to save JSON settings.");
+			}
 		}
 
 		private SettingsOptions CreateDefault()
 		{
-			return new SettingsOptions(
-				Counters: new List<CounterSettingsDto>
-				{
-					// your default counter(s)
-				},
-				Version: 1
-			);
+			return new DefaultSettingsProvider().Create();
 		}
 	}
 }

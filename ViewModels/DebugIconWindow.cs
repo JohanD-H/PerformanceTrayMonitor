@@ -7,6 +7,9 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media.Imaging;
 
+// ---------------------------------------------------------------
+// Show the Icon frames, mainly for debugging, for now leave it in
+// ---------------------------------------------------------------
 namespace PerformanceTrayMonitor.Debugging
 {
 	public sealed class DebugIconWindow : Window

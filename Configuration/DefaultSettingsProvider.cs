@@ -8,35 +8,47 @@ namespace PerformanceTrayMonitor.Configuration
 {
 	internal sealed class DefaultSettingsProvider
 	{
+		public CounterSettingsDto CreateDefaultCounter()
+		{
+			string instance = "";
+
+			try
+			{
+				var cat = new PerformanceCounterCategory("PhysicalDisk");
+				var instances = cat.GetInstanceNames();
+
+				instance = instances.Contains("_Total")
+					? "_Total"
+					: instances.FirstOrDefault() ?? "";
+			}
+			catch
+			{
+				instance = "";
+			}
+
+			return new CounterSettingsDto
+			{
+				Id = Guid.NewGuid(),
+				Category = "PhysicalDisk",
+				Counter = "% Disk Time",
+				Instance = instance,
+				DisplayName = "Disk Activity",
+				Min = 0,
+				Max = 100,
+				ShowInTray = false,
+				IconSet = "Activity"
+			};
+		}
+
 		public SettingsOptions Create()
 		{
-			var cat = new PerformanceCounterCategory("PhysicalDisk");
-			var instances = cat.GetInstanceNames();
-
-			var counters = (instances.Length == 0)
-				? cat.GetCounters().Select(c => c.CounterName)
-				: instances.SelectMany(inst => cat.GetCounters(inst)).Select(c => c.CounterName);
-
-			var firstCounter = CounterConfig.DefaultCounter;
-
 			return new SettingsOptions(
-				Counters: new List<CounterSettingsDto>
+				new List<CounterSettingsDto>
 				{
-					new CounterSettingsDto
-					{
-						Id = Guid.NewGuid(),
-						Category = CounterConfig.DefaultCategory,
-						Counter = CounterConfig.DefaultCounter,
-						Instance = instances.Contains("_Total") ? "_Total" : instances.FirstOrDefault() ?? "",
-						DisplayName = CounterConfig.DefaultDisplayName,
-						Min = CounterConfig.DefaultMin,
-						Max = CounterConfig.DefaultMax,
-						Mode = CounterConfig.DefaultMode,
-						ShowInTray = false,
-						IconSet = CounterConfig.DefaultIconSet
-					}
+				CreateDefaultCounter()
 				},
-				Version: 2
+				true,
+				SettingsOptions.CurrentVersion
 			);
 		}
 	}

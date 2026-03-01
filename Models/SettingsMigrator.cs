@@ -7,6 +7,9 @@ using System.Linq;
 using System.Windows;
 using System.Xml.Serialization;
 
+// ---------------------------------------
+// Converting previous settings to current
+// ---------------------------------------
 namespace PerformanceTrayMonitor.Models
 {
 	internal sealed class SettingsMigrator
@@ -24,28 +27,29 @@ namespace PerformanceTrayMonitor.Models
 				return _defaults.Create();
 			}
 
-			// 1. Try versioned SettingsFile (v2)
+			// Try versioned SettingsFile (v2)
 			var v2 = TryLoadV2(filePath);
 			if (v2 != null)
 				return v2;
 
-			// 2. Try old DTO list format
+			// Try old DTO list format
 			var dtoList = TryLoadOldDtoList(filePath);
 			if (dtoList != null)
 			{
 				NotifyUpgrade();
-				return new SettingsOptions(dtoList, Version: 2);
+				return new SettingsOptions(dtoList, true, SettingsOptions.CurrentVersion);
 			}
 
-			// 3. Try old CounterSettings format
+			// Try old CounterSettings format
 			var oldList = TryLoadOldCounterSettings(filePath);
 			if (oldList != null)
 			{
 				NotifyUpgrade();
-				return new SettingsOptions(oldList, Version: 2);
+				return new SettingsOptions(oldList, true, SettingsOptions.CurrentVersion);
+
 			}
 
-			// 4. Everything failed → defaults
+			// Everything failed → defaults
 			Log.Error("All migration attempts failed. Using defaults.");
 			return _defaults.Create();
 		}
@@ -62,10 +66,17 @@ namespace PerformanceTrayMonitor.Models
 
 				var file = (SettingsFile)serializer.Deserialize(fs);
 
-				if (file.Version == 2)
+				if (file.Version == SettingsOptions.CurrentVersion)
 				{
 					Log.Debug("Loaded settings (version 2)");
-					return new SettingsOptions(file.Counters, Version: 2);
+
+					file.Counters ??= new List<CounterSettingsDto>();
+
+					return new SettingsOptions(
+						file.Counters,
+						file.ShowAppIcon,
+						SettingsOptions.CurrentVersion
+					);
 				}
 
 				Log.Warning($"Unknown settings version {file.Version}, attempting migration...");
@@ -118,7 +129,6 @@ namespace PerformanceTrayMonitor.Models
 					DisplayName = s.DisplayName,
 					Min = s.Min,
 					Max = s.Max,
-					Mode = s.Mode,
 					ShowInTray = s.ShowInTray,
 					IconSet = s.IconSet
 				}).ToList();
@@ -136,7 +146,7 @@ namespace PerformanceTrayMonitor.Models
 		private void NotifyUpgrade()
 		{
 			MessageBox.Show(
-				"Your settings file was created by an older version of PerfLED.\n\n" +
+				"Your settings file was created by an older version of PerformanceTrayMonitor.\n\n" +
 				"It has been automatically upgraded to the new format.",
 				"Settings Upgraded",
 				MessageBoxButton.OK,

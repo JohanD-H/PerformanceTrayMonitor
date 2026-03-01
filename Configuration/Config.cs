@@ -2,6 +2,9 @@
 using System.IO;
 using System.Text.Json;
 
+// -------------------------------------------
+// Configuration data
+// -------------------------------------------
 namespace PerformanceTrayMonitor.Configuration
 {
 	internal static class Config

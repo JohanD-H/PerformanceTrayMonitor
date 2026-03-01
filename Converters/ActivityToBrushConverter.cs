@@ -4,6 +4,9 @@ using System.Windows.Data;
 using System.Windows.Media;
 using Serilog;
 
+// ---------------------------------------
+// Brush convertor....
+// ---------------------------------------
 namespace PerformanceTrayMonitor.Converters
 {
 	public class ActivityToBrushConverter : IValueConverter
