@@ -162,6 +162,7 @@ namespace PerformanceTrayMonitor.Tray
 		// UPDATE LOOP
 		// ------------------------------------------------------------
 		private int _lastFrameIndex = -1;
+		private double _old_value = 0.0;
 
 		private void UpdateIcon()
 		{
@@ -169,13 +170,18 @@ namespace PerformanceTrayMonitor.Tray
 
 			int index = GetFrameIndex(value, _settings.Min, _settings.Max, _frames.Length);
 
+#if DEBUG
 			// To trap on anything "Network" use:
 			// if (_settings.Category?.Contains("Network", StringComparison.OrdinalIgnoreCase) == true && value != 0)
 			// The below simply traps on a specific category, "Network Interface" in this case
-			if (string.Equals(_settings.Category, "Network Interface", StringComparison.OrdinalIgnoreCase) && value != 0)
+			if (string.Equals(_settings.Category, "Network Interface", StringComparison.OrdinalIgnoreCase) &&
+				value != 0 &&
+				value != _old_value)
 			{
+				_old_value = value;
 				Log.Debug($"[Network] Raw value = {value}, index = {index}");
 			}
+#endif
 
 			// Only update the icon if the frame actually changed
 			if (index != _lastFrameIndex)

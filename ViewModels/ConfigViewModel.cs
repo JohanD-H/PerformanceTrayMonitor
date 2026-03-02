@@ -29,8 +29,8 @@ namespace PerformanceTrayMonitor.ViewModels
 			new ObservableCollection<string>(
 			IconSetConfig.IconSets.Keys.OrderBy(x => x)
 		);
-
 		public event Action? RequestClose;
+		private bool _hasPendingEdits;
 
 		private CounterViewModel? _selected;
 		public CounterViewModel? Selected
@@ -80,6 +80,7 @@ namespace PerformanceTrayMonitor.ViewModels
 		public ICommand ApplyCommand { get; }
 		public ICommand CancelCommand { get; }
 		public ICommand RemoveCommand { get; }
+		public Func<bool>? ConfirmReset { get; set; }
 		public ICommand ResetCommand { get; }
 		public ICommand SaveCommand { get; }
 
@@ -115,10 +116,21 @@ namespace PerformanceTrayMonitor.ViewModels
 			Editor.PropertyChanged += Editor_PropertyChanged;
 
 			AddCommand = new RelayCommand(_ => AddFromEditor());
-			ApplyCommand = new RelayCommand(_ => ApplyToSelected(), _ => Selected != null);
-			CancelCommand = new RelayCommand(_ => CancelEdits(), _ => Selected != null);
+			ApplyCommand = new RelayCommand(
+				_ => ApplyToSelected(),
+				_ => Selected != null && _hasPendingEdits);
+			CancelCommand = new RelayCommand(
+				_ => CancelEdits(),
+				_ => Selected != null && _hasPendingEdits);
 			RemoveCommand = new RelayCommand(_ => Remove(), _ => Selected != null);
-			ResetCommand = new RelayCommand(_ => ResetToDefaults());
+			ResetCommand = new RelayCommand(
+				_ =>
+				{
+					if (ConfirmReset == null || ConfirmReset())
+						ResetToDefaults();
+				},
+				_ => !IsAtDefaults()
+			);
 			SaveCommand = new RelayCommand(_ => Save());
 
 			if (Counters.Any())
@@ -129,6 +141,10 @@ namespace PerformanceTrayMonitor.ViewModels
 
 		private void Editor_PropertyChanged(object? sender, PropertyChangedEventArgs e)
 		{
+			_hasPendingEdits = true;
+			(ApplyCommand as RelayCommand)?.RaiseCanExecuteChanged();
+			(CancelCommand as RelayCommand)?.RaiseCanExecuteChanged();
+
 			// CATEGORY CHANGED
 			if (e.PropertyName == nameof(Editor.Category))
 			{
@@ -159,6 +175,26 @@ namespace PerformanceTrayMonitor.ViewModels
 			}
 		}
 
+		private bool IsAtDefaults()
+		{
+			if (Counters.Count != 1)
+				return false;
+
+			var dto = new DefaultSettingsProvider().CreateDefaultCounter();
+			var def = CreateSettingsFromDto(dto);
+			var cur = Counters[0].Settings;
+
+			return
+				cur.Category == def.Category &&
+				cur.Counter == def.Counter &&
+				cur.Instance == def.Instance &&
+				cur.DisplayName == def.DisplayName &&
+				cur.Min == def.Min &&
+				cur.Max == def.Max &&
+				cur.ShowInTray == def.ShowInTray &&
+				cur.IconSet == def.IconSet;
+		}
+
 		private void AddFromEditor()
 		{
 			var settings = Editor.ToSettings();
@@ -167,6 +203,8 @@ namespace PerformanceTrayMonitor.ViewModels
 			var vm = new CounterViewModel(settings);
 			Counters.Add(vm);
 			Selected = vm;
+
+			(ResetCommand as RelayCommand)?.RaiseCanExecuteChanged();
 		}
 
 		private void ApplyToSelected()
@@ -185,6 +223,11 @@ namespace PerformanceTrayMonitor.ViewModels
 			Selected.Max = settings.Max;
 			Selected.ShowInTray = settings.ShowInTray;
 			Selected.IconSet = settings.IconSet;
+
+			_hasPendingEdits = false;
+			(ApplyCommand as RelayCommand)?.RaiseCanExecuteChanged();
+			(CancelCommand as RelayCommand)?.RaiseCanExecuteChanged();
+			(ResetCommand as RelayCommand)?.RaiseCanExecuteChanged();
 		}
 
 		private void CancelEdits()
@@ -200,6 +243,11 @@ namespace PerformanceTrayMonitor.ViewModels
 				LoadInstancesForCounter(Editor.Category, Editor.Counter);
 
 				Editor.PropertyChanged += Editor_PropertyChanged;
+
+				_hasPendingEdits = false;
+				(ApplyCommand as RelayCommand)?.RaiseCanExecuteChanged();
+				(CancelCommand as RelayCommand)?.RaiseCanExecuteChanged();
+				(ResetCommand as RelayCommand)?.RaiseCanExecuteChanged();
 			}
 		}
 
@@ -221,6 +269,8 @@ namespace PerformanceTrayMonitor.ViewModels
 				Selected = Counters[index];
 			else
 				Selected = Counters.Last();
+
+			(ResetCommand as RelayCommand)?.RaiseCanExecuteChanged();
 		}
 
 		private CounterSettings CreateSettingsFromDto(CounterSettingsDto dto)
@@ -239,7 +289,7 @@ namespace PerformanceTrayMonitor.ViewModels
 			};
 		}
 
-		private void ResetToDefaults()
+		internal void ResetToDefaults()
 		{
 			Counters.Clear();
 
@@ -247,6 +297,11 @@ namespace PerformanceTrayMonitor.ViewModels
 			Counters.Add(new CounterViewModel(CreateSettingsFromDto(dto)));
 
 			Selected = Counters.FirstOrDefault();
+
+			_hasPendingEdits = false;
+			(ApplyCommand as RelayCommand)?.RaiseCanExecuteChanged();
+			(CancelCommand as RelayCommand)?.RaiseCanExecuteChanged();
+			(ResetCommand as RelayCommand)?.RaiseCanExecuteChanged();
 		}
 
 		private void Save()

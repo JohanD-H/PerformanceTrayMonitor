@@ -19,16 +19,20 @@ namespace PerformanceTrayMonitor.Views
 
 			Log.Debug("ConfigWindow DataContext = " + DataContext?.GetType().Name);
 
-			/* Added in ConfigWindow_Loaded
-			Loaded += (s, e) =>
-			{
-				// Select first item if available
-				if (vm.Counters.Count > 0 && vm.Selected == null)
-					vm.Selected = vm.Counters[0];
-			};
-			*/
-
 			vm.RequestClose += () => this.Close();
+
+			vm.ConfirmReset = () =>
+			{
+				var result = MessageBox.Show(
+					"This will remove all your current tracked metrics and restore the default set.\n\n" +
+					"This action cannot be undone.\n\n" +
+					"Do you want to continue?",
+					"Reset to Defaults",
+					MessageBoxButton.YesNo,
+					MessageBoxImage.Warning);
+
+				return result == MessageBoxResult.Yes;
+			};
 		}
 
 		private void ButtonFlashHandler(object sender, RoutedEventArgs e)

@@ -19,6 +19,7 @@ namespace PerformanceTrayMonitor.ViewModels
 		private float _max;
 		private bool _showInTray;
 		private string _iconSet = "Activity";
+		private bool _suppressReactiveUpdates;
 
 		private readonly ConfigViewModel _config;
 
@@ -37,9 +38,11 @@ namespace PerformanceTrayMonitor.ViewModels
 					Category = value;
 					OnPropertyChanged(nameof(SelectedCategory));
 
+					if (_suppressReactiveUpdates)
+						return;
+
 					_config.LoadCountersForCategory(value);
 
-					// Validate counter
 					if (_config.CountersInCategory.Any() &&
 						!_config.CountersInCategory.Contains(Counter))
 					{
@@ -47,10 +50,8 @@ namespace PerformanceTrayMonitor.ViewModels
 						OnPropertyChanged(nameof(SelectedCounter));
 					}
 
-					// Rebuild instances
 					_config.LoadInstancesForCounter(Category, Counter);
 
-					// Validate instance
 					if (_config.Instances.Any() &&
 						!_config.Instances.Contains(Instance))
 					{
@@ -70,6 +71,9 @@ namespace PerformanceTrayMonitor.ViewModels
 				{
 					Counter = value;
 					OnPropertyChanged(nameof(SelectedCounter));
+
+					if (_suppressReactiveUpdates)
+						return;
 
 					_config.LoadInstancesForCounter(Category, value);
 
@@ -92,6 +96,9 @@ namespace PerformanceTrayMonitor.ViewModels
 				{
 					Instance = value;
 					OnPropertyChanged(nameof(SelectedInstance));
+
+					if (_suppressReactiveUpdates)
+						return;
 
 					// Validate instance
 					if (_config.Instances.Any() &&
@@ -160,6 +167,8 @@ namespace PerformanceTrayMonitor.ViewModels
 
 		public void LoadFrom(CounterViewModel source)
 		{
+			_suppressReactiveUpdates = true;
+
 			Id = source.Settings.Id;
 			SelectedCategory = source.Category;
 			SelectedCounter = source.Counter;
@@ -169,6 +178,8 @@ namespace PerformanceTrayMonitor.ViewModels
 			Max = source.Max;
 			ShowInTray = source.ShowInTray;
 			IconSet = source.IconSet;
+
+			_suppressReactiveUpdates = false;
 		}
 
 		public CounterSettings ToSettings()
