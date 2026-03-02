@@ -3,40 +3,108 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:PerformanceTrayMonitor.Views"
         Title="Performance"
-        MinWidth="260" MinHeight="100"
-        Width="260" Height="100"
+        MinWidth="150"
+        MinHeight="100"
         SizeToContent="WidthAndHeight"
         WindowStyle="ToolWindow"
-        Topmost="True">
+        Topmost="True"
+        ResizeMode="CanResize"
+        SnapsToDevicePixels="True"
+        UseLayoutRounding="True"
+        TextOptions.TextFormattingMode="Display"
+        TextOptions.TextRenderingMode="ClearType">
 
-    <ScrollViewer>
+    <Window.Resources>
+        <local:ValueToSizeConverter x:Key="ValueToSize"
+                                    MinSize="6"
+                                    MaxSize="14"/>
+    </Window.Resources>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto"
+                  HorizontalScrollBarVisibility="Disabled">
+
         <ItemsControl ItemsSource="{Binding Counters}">
             <ItemsControl.ItemTemplate>
                 <DataTemplate>
 
-                    <Border Margin="4" Padding="4" BorderBrush="Gray" BorderThickness="1">
-                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <Border Margin="4"
+                            Padding="6"
+                            BorderBrush="#555"
+                            BorderThickness="1"
+                            CornerRadius="3">
 
-                            <!-- Optional activity indicator -->
-                            <Ellipse Width="12" Height="12" Margin="0,0,8,0"
-                                     Fill="{Binding CurrentValue, Converter={StaticResource ActivityToBrush}}"/>
+                        <StackPanel>
 
-                            <!-- Always show sparkline -->
-                            <local:Sparkline Width="80" Height="20" Margin="0,0,8,0"
-                                             Values="{Binding History}"/>
+                            <!-- Display Name -->
+                            <TextBlock Text="{Binding DisplayName}"
+                                       FontWeight="Bold"
+                                       Margin="0,0,0,4"/>
 
-                            <!-- Always show numeric value -->
-                            <StackPanel>
-                                <TextBlock Text="{Binding DisplayName}" FontWeight="Bold"/>
-                                <TextBlock Text="{Binding CurrentValue, StringFormat=0.0}" FontSize="11"/>
-                            </StackPanel>
+                            <!-- Dot + Sparkline + Value -->
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <!-- Scaled activity dot -->
+                                <Ellipse Grid.Column="0"
+                                         VerticalAlignment="Center"
+                                         Margin="0,0,8,0"
+                                         Fill="{Binding CurrentValue, Converter={StaticResource ActivityToBrush}}">
+                                    <Ellipse.Width>
+                                        <MultiBinding Converter="{StaticResource ValueToSize}">
+                                            <Binding Path="CurrentValue"/>
+                                            <Binding Path="Min"/>
+                                            <Binding Path="Max"/>
+                                        </MultiBinding>
+                                    </Ellipse.Width>
+                                    <Ellipse.Height>
+                                        <MultiBinding Converter="{StaticResource ValueToSize}">
+                                            <Binding Path="CurrentValue"/>
+                                            <Binding Path="Min"/>
+                                            <Binding Path="Max"/>
+                                        </MultiBinding>
+                                    </Ellipse.Height>
+                                </Ellipse>
+
+                                <!-- Sparkline with numeric overlay -->
+                                <Grid Grid.Column="1"
+                                      Height="24"
+                                      Background="#77000000">
+
+                                    <local:Sparkline Values="{Binding History}"
+                                                     Min="{Binding Min}"
+                                                     Max="{Binding Max}"
+                                                     Opacity="0.85"/>
+
+                                    <TextBlock Text="{Binding CurrentValue, StringFormat=0.0}"
+                                               HorizontalAlignment="Right"
+                                               VerticalAlignment="Center"
+                                               FontWeight="Bold"
+                                               Foreground="#FFFFFFFF"
+                                               Margin="0,0,2,0"
+                                               FontSize="11">
+                                        <TextBlock.Effect>
+                                            <DropShadowEffect Color="Black"
+                                                              BlurRadius="3"
+                                                              ShadowDepth="0"
+                                                              Opacity="0.6"/>
+                                        </TextBlock.Effect>
+                                    </TextBlock>
+
+                                </Grid>
+
+                            </Grid>
 
                         </StackPanel>
+
                     </Border>
 
                 </DataTemplate>
             </ItemsControl.ItemTemplate>
         </ItemsControl>
+
     </ScrollViewer>
 
 </Window>

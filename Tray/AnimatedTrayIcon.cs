@@ -43,24 +43,6 @@ namespace PerformanceTrayMonitor.Configuration
 			BuildMenu();
 
 			_notifyIcon.MouseUp += NotifyIcon_MouseUp;
-			/*
-			_notifyIcon.MouseUp += async (s, e) =>
-			{
-				if (e.Button == MouseButtons.Right)
-				{
-					BuildMenu();
-					await Task.Delay(50); // May be safer
-					_menu.Show(Control.MousePosition);
-				}
-				if (e.Button == MouseButtons.Left)
-				{
-					System.Windows.Application.Current.Dispatcher.Invoke(() =>
-					{
-						_mainVm.TogglePopup();
-					});
-				}
-			};
-			*/
 
 			LoadFrames();
 			Log.Debug($"Frames: {_frames.Count}, Icons: {_icons.Count}");
@@ -89,13 +71,6 @@ namespace PerformanceTrayMonitor.Configuration
 			{
 				BuildMenu();
 				ShowTrayMenu();
-				/*
-				// Delay helps Windows settle the tray icon position
-				await Task.Delay(50);
-
-				// Show menu above the tray icon instead of at cursor
-				_menu.Show(_notifyIcon, new Point(0, -_menu.Height));
-				*/
 			}
 			else if (e.Button == MouseButtons.Left)
 			{
@@ -210,11 +185,6 @@ namespace PerformanceTrayMonitor.Configuration
 			LoadEmbeddedFrames();
 		}
 
-		/*
-		 * The below needs improving;
-		 * Automatic discovery of the *.ico files
-		 * Moving basePath into Paths.cs
-		 */
 		private void LoadEmbeddedFrames()
 		{
 			_frames.Clear();
@@ -319,6 +289,17 @@ namespace PerformanceTrayMonitor.Configuration
 
 			_menu.Items.Clear();
 
+			// Put the configuration option on top, it's the most often used
+			_menu.Items.Add("Configuration", null, (_, _) =>
+			{
+				System.Windows.Application.Current.Dispatcher.Invoke(() =>
+				{
+					_mainVm.ShowConfig();
+				});
+			});
+
+			_menu.Items.Add(new ToolStripSeparator());
+
 			_menu.Items.Add(framesVisible ? "Hide Frames" : "Show Frames", null, (_, _) =>
 			{
 				System.Windows.Application.Current.Dispatcher.Invoke(() =>
@@ -359,16 +340,24 @@ namespace PerformanceTrayMonitor.Configuration
 					});
 				});
 
-			_menu.Items.Add("Configuration", null, (_, _) =>
+			_menu.Items.Add(new ToolStripSeparator());
+
+			// It is custom to put exit low in the menu.
+			_menu.Items.Add("Exit", null, (_, _) =>
 			{
-				System.Windows.Application.Current.Dispatcher.Invoke(() =>
+				// Close the WinForms menu FIRST
+				_menu.Close();
+
+				// Shutdown WPF AFTER the menu is gone
+				System.Windows.Application.Current.Dispatcher.BeginInvoke(new Action(() =>
 				{
-					_mainVm.ShowConfig();
-				});
+					System.Windows.Application.Current.Shutdown();
+				}));
 			});
 
 			_menu.Items.Add(new ToolStripSeparator());
 
+			// The About on the bottom, least used item
 			_menu.Items.Add("About", null, (_, _) =>
 			{
 				System.Windows.Application.Current.Dispatcher.Invoke(() =>
@@ -397,21 +386,6 @@ namespace PerformanceTrayMonitor.Configuration
 					// 4. Show the window
 					about.ShowDialog();
 				});
-			});
-
-			_menu.Items.Add(new ToolStripSeparator());
-
-
-			_menu.Items.Add("Exit", null, (_, _) =>
-			{
-				// Close the WinForms menu FIRST
-				_menu.Close();
-
-				// Shutdown WPF AFTER the menu is gone
-				System.Windows.Application.Current.Dispatcher.BeginInvoke(new Action(() =>
-				{
-					System.Windows.Application.Current.Shutdown();
-				}));
 			});
 		}
 

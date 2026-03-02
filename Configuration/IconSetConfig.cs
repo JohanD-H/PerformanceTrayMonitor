@@ -49,7 +49,6 @@ namespace PerformanceTrayMonitor.Configuration
 			var result = new Dictionary<string, IconSetDefinition>(StringComparer.OrdinalIgnoreCase);
 
 			// Activity (5 frames)
-			// Activity (5 frames)
 			result["Activity"] = new IconSetDefinition
 			{
 				Name = "Activity",
@@ -61,7 +60,6 @@ namespace PerformanceTrayMonitor.Configuration
 				IsEmbedded = true
 			};
 
-			// Activity (5 frames)
 			result["Disk 1"] = new IconSetDefinition
 			{
 				Name = "Disk 1",
@@ -84,7 +82,6 @@ namespace PerformanceTrayMonitor.Configuration
 				IsEmbedded = true
 			};
 
-			// Graphic (5 frames)
 			result["Graphic"] = new IconSetDefinition
 			{
 				Name = "Graphic",
@@ -182,7 +179,6 @@ namespace PerformanceTrayMonitor.Configuration
 					.Select(f => new Uri(f).AbsoluteUri)
 					.ToList();
 
-				//var prefixName = Path.GetFileNameWithoutExtension(frames[0]).Split('-')[0];
 				var prefixGroups = files
 					.Select(f => Path.GetFileNameWithoutExtension(f).Split('-')[0])
 					.Distinct(StringComparer.OrdinalIgnoreCase)
