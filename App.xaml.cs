@@ -19,8 +19,9 @@ namespace PerformanceTrayMonitor
 			{
 #if DEBUG
 				builder.SetMinimumLevel(LogLevel.Debug);
-				builder.AddDebug(); // DebugView
-
+				// VS Output window
+				builder.AddDebug();
+				// DebugView
 				builder.AddTraceSource(
 					new SourceSwitch("sourceSwitch", "Verbose"),
 					new DefaultTraceListener()

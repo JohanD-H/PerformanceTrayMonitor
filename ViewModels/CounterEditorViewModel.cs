@@ -19,6 +19,43 @@ namespace PerformanceTrayMonitor.ViewModels
 		private string _iconSet = "Activity";
 
 		private bool _suppressReactiveUpdates;
+		public bool SuppressChanges => _suppressReactiveUpdates;
+		private int _suppressDepth;
+
+		private sealed class SuppressScope : IDisposable
+		{
+			private readonly CounterEditorViewModel _owner;
+			private bool _disposed;
+
+			public SuppressScope(CounterEditorViewModel owner)
+			{
+				_owner = owner;
+				_owner._suppressDepth++;
+
+				// unified suppression flag
+				_owner._suppressReactiveUpdates = true;
+
+				Log.Debug($"[SUP] ENTER depth={_owner._suppressDepth}");
+			}
+
+			public void Dispose()
+			{
+				if (_disposed) return;
+				_disposed = true;
+
+				_owner._suppressDepth--;
+
+				Log.Debug($"[SUP] EXIT depth={_owner._suppressDepth}");
+
+				if (_owner._suppressDepth == 0)
+					_owner._suppressReactiveUpdates = false;
+			}
+		}
+
+		internal IDisposable BeginSuppress()
+		{
+			return new SuppressScope(this);
+		}
 
 		private readonly ConfigViewModel _config;
 
@@ -35,6 +72,8 @@ namespace PerformanceTrayMonitor.ViewModels
 			get => Category;
 			set
 			{
+				Log.Debug($"[SET] Category: '{Category}' -> '{value}', Suppressed={SuppressChanges}");
+
 				if (_suppressReactiveUpdates)
 				{
 					Log.Debug($"[SC] Suppressed SET Category='{value}'");
@@ -45,27 +84,26 @@ namespace PerformanceTrayMonitor.ViewModels
 
 				if (Category != value)
 				{
-					_suppressReactiveUpdates = true;
+					using (new SuppressScope(this))
+					{
+						Category = value;
+						OnPropertyChanged(nameof(SelectedCategory));
 
-					Category = value;
-					OnPropertyChanged(nameof(SelectedCategory));
+						SelectedCounter = null;
+						SelectedInstance = null;
 
-					SelectedCounter = null;
-					SelectedInstance = null;
+						Log.Debug("[SC] Loading counters...");
+						_config.LoadCountersForCategory(value);
+						Log.Debug($"[SC] Counters loaded: {string.Join(", ", _config.CountersInCategory)}");
 
-					Log.Debug("[SC] Loading counters...");
-					_config.LoadCountersForCategory(value);
-					Log.Debug($"[SC] Counters loaded: {string.Join(", ", _config.CountersInCategory)}");
+						EnsureValidCounterSelection();
 
-					EnsureValidCounterSelection();
+						Log.Debug("[SC] Loading instances...");
+						_config.LoadInstancesForCounter(Category, Counter);
+						Log.Debug($"[SC] Instances loaded: {string.Join(", ", _config.Instances)}");
 
-					Log.Debug("[SC] Loading instances...");
-					_config.LoadInstancesForCounter(Category, Counter);
-					Log.Debug($"[SC] Instances loaded: {string.Join(", ", _config.Instances)}");
-
-					EnsureValidInstanceSelection();
-
-					_suppressReactiveUpdates = false;
+						EnsureValidInstanceSelection();
+					}
 				}
 			}
 		}
@@ -78,6 +116,8 @@ namespace PerformanceTrayMonitor.ViewModels
 			get => Counter;
 			set
 			{
+				Log.Debug($"[SET] Counter: '{Counter}' -> '{value}', Suppressed={SuppressChanges}");
+
 				if (_suppressReactiveUpdates)
 				{
 					Log.Debug("[CT] Suppressed");
@@ -114,6 +154,8 @@ namespace PerformanceTrayMonitor.ViewModels
 			get => Instance;
 			set
 			{
+				Log.Debug($"[SET] Instance: '{Instance}' -> '{value}', Suppressed={SuppressChanges}");
+
 				if (_suppressReactiveUpdates)
 				{
 					Log.Debug("[IN] Suppressed");
@@ -122,10 +164,29 @@ namespace PerformanceTrayMonitor.ViewModels
 
 				Log.Debug($"[IN] SET Instance='{value}', Old='{Instance}'");
 
-				// Ignore WPF's transient empty writes
-				if (string.IsNullOrEmpty(value) && !string.IsNullOrEmpty(Instance))
+				// WPF empty write
+				if (string.IsNullOrEmpty(value))
 				{
-					Log.Debug("[IN] Ignored empty write from WPF");
+					if (!string.IsNullOrEmpty(Instance))
+					{
+						Log.Debug("[IN] First empty write from WPF — clearing Instance");
+						Instance = "";              // <-- IMPORTANT
+						return;
+					}
+
+					// Instance is empty AND WPF is writing empty
+					// If instances exist, auto-select the first one
+					if (_config.Instances.Any())
+					{
+						var first = _config.Instances.First();
+						Log.Debug($"[IN] WPF cleared Instance; auto-selecting '{first}'");
+
+						_instance = first;
+						OnPropertyChanged(nameof(SelectedInstance));
+						return;
+					}
+
+					// No instances available; allow blank
 					return;
 				}
 
@@ -299,28 +360,76 @@ namespace PerformanceTrayMonitor.ViewModels
 
 		private void EnsureValidCounterSelection()
 		{
-			if (_config.CountersInCategory.Any())
+			Log.Debug($"[SC-CHK] EnsureValidCounterSelection: " +
+					  $"Category='{Category}', Counter='{Counter}', " +
+					  $"Counters=[{string.Join(", ", _config.CountersInCategory)}]");
+
+			if (!_config.CountersInCategory.Any())
 			{
-				if (!_config.CountersInCategory.Contains(Counter))
-				{
-					var first = _config.CountersInCategory.First();
-					Log.Debug($"[SC] Auto-selecting counter: '{first}'");
-					SelectedCounter = first;
-				}
+				Log.Debug("[SC-CHK] No counters available.");
+				return;
+			}
+
+			bool isValid = _config.CountersInCategory.Contains(Counter);
+			Log.Debug($"[SC-CHK] Counter valid? {isValid}");
+
+			if (!isValid)
+			{
+				var first = _config.CountersInCategory.First();
+				Log.Debug($"[SC-AUTO] Auto-selecting counter: '{first}'");
+
+				// Bypass setter to avoid suppression
+				_counter = first;
+				OnPropertyChanged(nameof(SelectedCounter));
+			}
+			else
+			{
+				Log.Debug("[SC-CHK] Counter already valid, no auto-select.");
 			}
 		}
 
 		private void EnsureValidInstanceSelection()
 		{
-			if (_config.Instances.Any())
+			Log.Debug($"[IN-CHK] EnsureValidInstanceSelection: " +
+					  $"Category='{Category}', Counter='{Counter}', Instance='{Instance}', " +
+					  $"Instances=[{string.Join(", ", _config.Instances)}]");
+
+			if (!_config.Instances.Any())
 			{
-				if (!_config.Instances.Contains(Instance))
-				{
-					var first = _config.Instances.First();
-					Log.Debug($"Auto-selecting instance: '{first}'");
-					SelectedInstance = first;
-				}
+				Log.Debug("[IN-CHK] No instances available.");
+				return;
 			}
+
+			bool isEmpty = string.IsNullOrEmpty(Instance);
+			bool isValid = _config.Instances.Contains(Instance);
+
+			Log.Debug($"[IN-CHK] Instance empty? {isEmpty}, valid? {isValid}");
+
+			if (isEmpty || !isValid)
+			{
+				var first = _config.Instances.First();
+				Log.Debug($"[IN-AUTO] Auto-selecting instance: '{first}'");
+
+				// Bypass setter to avoid suppression
+				_instance = first;
+				OnPropertyChanged(nameof(SelectedInstance));
+			}
+			else
+			{
+				Log.Debug("[IN-CHK] Instance already valid, no auto-select.");
+			}
+		}
+
+		public void NotifyAll()
+		{
+			OnPropertyChanged(nameof(SelectedCategory));
+			OnPropertyChanged(nameof(SelectedCounter));
+			OnPropertyChanged(nameof(SelectedInstance));
+			OnPropertyChanged(nameof(DisplayName));
+			OnPropertyChanged(nameof(Min));
+			OnPropertyChanged(nameof(Max));
+			OnPropertyChanged(nameof(ShowInTray));
+			OnPropertyChanged(nameof(IconSet));
 		}
 	}
 }

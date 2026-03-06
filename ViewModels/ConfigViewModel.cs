@@ -7,6 +7,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Linq;
 using System.Windows.Input;
+using System.Windows.Threading;
 
 // --------------------------------------------
 // Configuration window
@@ -16,7 +17,8 @@ namespace PerformanceTrayMonitor.ViewModels
 	public class ConfigViewModel : BaseViewModel
 	{
 		private readonly MainViewModel _main;
-
+		
+		private bool _initializingEditor;
 		public ObservableCollection<CounterViewModel> Counters { get; } = new();
 		public ObservableCollection<string> Categories { get; } = new();
 		public ObservableCollection<string> CountersInCategory { get; } = new();
@@ -59,6 +61,7 @@ namespace PerformanceTrayMonitor.ViewModels
 					Instances.Clear();
 					return;
 				}
+				_initializingEditor = true;
 
 				// Temporarily disable reactive logic
 				Editor.PropertyChanged -= Editor_PropertyChanged;
@@ -69,16 +72,23 @@ namespace PerformanceTrayMonitor.ViewModels
 				// Re-enable reactive logic
 				Editor.PropertyChanged += Editor_PropertyChanged;
 
+				HasPendingEdits = false;
 				RemoveCmd.RaiseCanExecuteChanged();
 				ApplyCmd.RaiseCanExecuteChanged();
+
+				// Let WPF finish binding on the next dispatcher tick
+				Dispatcher.CurrentDispatcher.BeginInvoke(new Action(() =>
+				{
+					_initializingEditor = false;
+				}));
 			}
 		}
 
 		private void InitializeCommands()
 		{
 			AddCommand = new RelayCommand(_ => AddNewCounterFromEditor());
-			ApplyCommand = new RelayCommand(_ => ApplyEditorToSelected(), _ => Selected != null && _hasPendingEdits);
-			CancelCommand = new RelayCommand(_ => CancelEdits(), _ => Selected != null && _hasPendingEdits);
+			ApplyCommand = new RelayCommand(_ => ApplyEditorToSelected(), _ => Selected != null && HasPendingEdits);
+			CancelCommand = new RelayCommand(_ => CancelEdits(), _ => Selected != null && HasPendingEdits);
 			RemoveCommand = new RelayCommand(_ => RemoveSelected(), _ => Selected != null);
 			ResetCommand = new RelayCommand(_ => { if (ConfirmReset == null || ConfirmReset()) ResetToDefaults(); }, _ => !IsAtDefaults());
 			SaveCommand = new RelayCommand(_ => Save());
@@ -125,14 +135,17 @@ namespace PerformanceTrayMonitor.ViewModels
 
 		private void Editor_PropertyChanged(object? sender, PropertyChangedEventArgs e)
 		{
-			_hasPendingEdits = true;
-			ApplyCmd.RaiseCanExecuteChanged();
-			CancelCmd.RaiseCanExecuteChanged();
+			Log.Debug($"Editor_PropertyChanged: _initializingEditor={_initializingEditor}");
+
+			if (_initializingEditor)
+				return;
+
+			HasPendingEdits = true;
 
 #if DEBUG
 			if (e.PropertyName is nameof(Editor.SelectedCategory) or nameof(Editor.SelectedCounter) or nameof(Editor.SelectedInstance))
 			{
-				Log.Debug($"Editor changed: Cat='{Editor.Category}', Ctr='{Editor.Counter}', Inst='{Editor.Instance}'");
+				Log.Debug($"Editor_PropertyChanged: Cat='{Editor.Category}', Ctr='{Editor.Counter}', Inst='{Editor.Instance}'");
 			}
 #endif
 		}
@@ -187,7 +200,7 @@ namespace PerformanceTrayMonitor.ViewModels
 			Selected.ShowInTray = settings.ShowInTray;
 			Selected.IconSet = settings.IconSet;
 
-			_hasPendingEdits = false;
+			HasPendingEdits = false;
 			RefreshCommandStates();
 		}
 
@@ -203,7 +216,7 @@ namespace PerformanceTrayMonitor.ViewModels
 
 				Editor.PropertyChanged += Editor_PropertyChanged;
 
-				_hasPendingEdits = false;
+				HasPendingEdits = false;
 				RefreshCommandStates();
 			}
 		}
@@ -263,7 +276,7 @@ namespace PerformanceTrayMonitor.ViewModels
 
 			Selected = Counters.FirstOrDefault();
 
-			_hasPendingEdits = false;
+			HasPendingEdits = false;
 			ApplyCmd.RaiseCanExecuteChanged();
 			CancelCmd.RaiseCanExecuteChanged();
 			ResetCmd.RaiseCanExecuteChanged();
@@ -389,6 +402,53 @@ namespace PerformanceTrayMonitor.ViewModels
 				Log.Debug($"{ex}Failed to load instances for category/counter '{category}'/'{counter}'");
 			}
 		}
+
+		public void RefreshSelectionsAfterLoad()
+		{
+			if (Selected == null || Editor == null)
+				return;
+
+			Log.Debug("[WIN] RefreshSelectionsAfterLoad: Re-applying saved selections");
+			_initializingEditor = true;
+
+			// Reapply the saved values AFTER the UI has populated its ComboBoxes
+			using (var _ = Editor.BeginSuppress())
+			{
+				Editor.SelectedCategory = Selected.Category;
+				Editor.SelectedCounter = Selected.Counter;
+				Editor.SelectedInstance = Selected.Instance;
+			}
+
+			// Trigger UI update
+			Editor.NotifyAll();
+
+			// keep initializing ON until NotifyAll finishes rebinding
+			HasPendingEdits = false;
+
+			// Defer ending initialization
+			Dispatcher.CurrentDispatcher.BeginInvoke(new Action(() =>
+			{
+				_initializingEditor = false;
+			}));
+		}
+
+		public bool HasPendingEdits
+		{
+			get => _hasPendingEdits;
+			private set
+			{
+				Log.Debug($"HasPendingEdits changing: {_hasPendingEdits} -> {value}");
+				if (_hasPendingEdits != value)
+				{
+					_hasPendingEdits = value;
+					OnPropertyChanged();
+
+					ApplyCmd.RaiseCanExecuteChanged();
+					CancelCmd.RaiseCanExecuteChanged();
+				}
+			}
+		}
+
 	}
 
 	public class RelayCommand : ICommand

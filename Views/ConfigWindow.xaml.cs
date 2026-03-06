@@ -18,6 +18,13 @@ namespace PerformanceTrayMonitor.Views
 
 			Log.Debug("ConfigWindow DataContext = " + DataContext?.GetType().Name);
 
+			Loaded += (_, __) =>
+			{
+				// Force the ComboBoxes to apply the DTO values AFTER they have items
+				var vm = (ConfigViewModel)DataContext;
+				vm.RefreshSelectionsAfterLoad();
+			};
+
 			vm.RequestClose += () => this.Close();
 
 			vm.ConfirmReset = () =>

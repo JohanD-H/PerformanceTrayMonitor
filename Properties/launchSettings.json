@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "PerformanceTrayMonitor": {
+      "commandName": "Project",
+      "nativeDebugging": false
+    }
+  }
+}
