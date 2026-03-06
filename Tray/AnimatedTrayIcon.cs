@@ -1,7 +1,6 @@
 ﻿using PerformanceTrayMonitor.Debugging;
 using PerformanceTrayMonitor.ViewModels;
-using PerformanceTrayMonitor.Views;
-using Serilog;
+using PerformanceTrayMonitor.Common;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
@@ -16,6 +15,7 @@ using System.Windows.Threading;
 // Application tray icon animation
 // --------------------------------------------
 namespace PerformanceTrayMonitor.Configuration
+
 {
 	internal sealed class AnimatedTrayIcon : IDisposable
 	{
@@ -23,15 +23,15 @@ namespace PerformanceTrayMonitor.Configuration
 		private readonly DispatcherTimer _timer;
 		private readonly List<Bitmap> _frames = new();
 		private readonly ContextMenuStrip _menu = new();
-		private readonly ConfigViewModel _configVm;
+		private readonly ConfigViewModel _sharedConfigVm;
 		private readonly MainViewModel _mainVm;
 		private readonly List<Icon> _icons = new();
 
 		private int _frameIndex;
 
-		public AnimatedTrayIcon(ConfigViewModel configVm, MainViewModel mainVm)
+		public AnimatedTrayIcon(ConfigViewModel sharedConfigVm, MainViewModel mainVm)
 		{
-			_configVm = configVm;
+			_sharedConfigVm = sharedConfigVm;
 			_mainVm = mainVm;
 
 			_notifyIcon = new NotifyIcon
@@ -39,8 +39,6 @@ namespace PerformanceTrayMonitor.Configuration
 				Visible = true,
 				Text = AppIdentity.AppDescription
 			};
-
-			BuildMenu();
 
 			_notifyIcon.MouseUp += NotifyIcon_MouseUp;
 
@@ -81,76 +79,13 @@ namespace PerformanceTrayMonitor.Configuration
 			}
 		}
 
-		public enum TaskbarEdge
+		private async void ShowTrayMenu()
 		{
-			Bottom,
-			Top,
-			Left,
-			Right
+			// Let Windows settle the tray icon position
+			await Task.Delay(50);
+			// Put the context menu by the cursor
+			_menu.Show(Cursor.Position);
 		}
-
-		public static TaskbarEdge GetTaskbarEdge()
-		{
-			var screen = Screen.PrimaryScreen;
-			var wa = screen.WorkingArea;
-			var sb = screen.Bounds;
-
-			if (wa.Top > sb.Top)
-				return TaskbarEdge.Top;
-			if (wa.Left > sb.Left)
-				return TaskbarEdge.Left;
-			if (wa.Right < sb.Right)
-				return TaskbarEdge.Right;
-
-			return TaskbarEdge.Bottom;
-		}
-
-		public static Point GetTrayIconLocation()
-		{
-			var screen = Screen.PrimaryScreen;
-			var wa = screen.WorkingArea;
-			var sb = screen.Bounds;
-
-			var edge = GetTaskbarEdge();
-
-			return edge switch
-			{
-				TaskbarEdge.Bottom => new Point(wa.Right - 10, wa.Bottom + 1),
-				TaskbarEdge.Top => new Point(wa.Right - 10, wa.Top - 1),
-				TaskbarEdge.Left => new Point(wa.Left - 1, wa.Bottom - 10),
-				TaskbarEdge.Right => new Point(wa.Right + 1, wa.Bottom - 10),
-				_ => new Point(wa.Right - 10, wa.Bottom + 1)
-			};
-		}
-
-		private void ShowTrayMenu()
-		{
-			var edge = GetTaskbarEdge();
-			var trayPos = GetTrayIconLocation();
-
-			// Small delay helps Windows settle the tray icon position
-			Task.Delay(50).Wait();
-
-			switch (edge)
-			{
-				case TaskbarEdge.Bottom:
-					_menu.Show(new Point(trayPos.X - _menu.Width, trayPos.Y - _menu.Height));
-					break;
-
-				case TaskbarEdge.Top:
-					_menu.Show(new Point(trayPos.X - _menu.Width, trayPos.Y));
-					break;
-
-				case TaskbarEdge.Left:
-					_menu.Show(new Point(trayPos.X, trayPos.Y - _menu.Height));
-					break;
-
-				case TaskbarEdge.Right:
-					_menu.Show(new Point(trayPos.X - _menu.Width, trayPos.Y - _menu.Height));
-					break;
-			}
-		}
-
 
 		// ------------------------------------------------------------
 		// FRAME LOADING (EMBEDDED + OPTIONAL EXTERNAL)
@@ -286,11 +221,13 @@ namespace PerformanceTrayMonitor.Configuration
 		{
 			bool framesVisible = DebugIconWindow.IsOpen;   // you can expose a static flag
 			bool countersVisible = _mainVm.PopupIsOpen;    // you already track this
+			bool appIconVisible = _mainVm.ShowAppIcon;
+			bool anyCounterVisible = _mainVm.Counters.Any(c => c.ShowInTray);
 
 			_menu.Items.Clear();
 
 			// Put the configuration option on top, it's the most often used
-			_menu.Items.Add("Configuration", null, (_, _) =>
+			_menu.Items.Add("Configure Metrics", null, (_, _) =>
 			{
 				System.Windows.Application.Current.Dispatcher.Invoke(() =>
 				{
@@ -300,7 +237,7 @@ namespace PerformanceTrayMonitor.Configuration
 
 			_menu.Items.Add(new ToolStripSeparator());
 
-			_menu.Items.Add(framesVisible ? "Hide Frames" : "Show Frames", null, (_, _) =>
+			_menu.Items.Add(framesVisible ? "Close Icon Preview" : "Open Icon Preview", null, (_, _) =>
 			{
 				System.Windows.Application.Current.Dispatcher.Invoke(() =>
 				{
@@ -311,7 +248,7 @@ namespace PerformanceTrayMonitor.Configuration
 				});
 			});
 
-			_menu.Items.Add(countersVisible ? "Hide Counters" : "Show Counters", null, (_, _) =>
+			_menu.Items.Add(countersVisible ? "Close Metrics View" : "Open Metrics View", null, (_, _) =>
 			{
 				System.Windows.Application.Current.Dispatcher.Invoke(() =>
 				{
@@ -319,8 +256,7 @@ namespace PerformanceTrayMonitor.Configuration
 				});
 			});
 
-			bool appIconVisible = _mainVm.ShowAppIcon;
-			bool anyCounterVisible = _mainVm.Counters.Any(c => c.ShowInTray);
+			_menu.Items.Add(new ToolStripSeparator());
 
 			_menu.Items.Add(
 				appIconVisible ? "Hide App Icon" : "Show App Icon",
@@ -376,15 +312,8 @@ namespace PerformanceTrayMonitor.Configuration
 					// Create the instance
 					var about = new PerformanceTrayMonitor.Views.AboutWindow();
 
-					// Set the Owner
-					var main = System.Windows.Application.Current.MainWindow;
-					if (main != null && main != about)
-					{
-						about.Owner = main;
-					}
-
-					// 4. Show the window
-					about.ShowDialog();
+					// Show modeless (fixes centering + transparency + animation)
+					about.Show();
 				});
 			});
 		}

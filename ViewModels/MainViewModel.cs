@@ -1,13 +1,14 @@
+using PerformanceTrayMonitor.Common;
 using PerformanceTrayMonitor.Configuration;
 using PerformanceTrayMonitor.Managers;
 using PerformanceTrayMonitor.Models;
 using PerformanceTrayMonitor.Views;
-using Serilog;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Linq;
+using System.Windows;
 using System.Windows.Threading;
 
 namespace PerformanceTrayMonitor.ViewModels
@@ -23,10 +24,10 @@ namespace PerformanceTrayMonitor.ViewModels
 
 		// The full settings object (global + counters)
 		public SettingsOptions Settings { get; private set; }
-
 		// Shared ConfigViewModel
-		public ConfigViewModel ConfigVm { get; }
-
+		public ConfigViewModel SharedConfigVm { get; }
+		// Popup pinning
+		public bool PopupPinned { get; set; }
 		public bool PopupIsOpen => _popup != null && _popup.IsLoaded;
 
 		// ------------------------------------------------------------
@@ -46,8 +47,8 @@ namespace PerformanceTrayMonitor.ViewModels
 
 			LoadCounters(settings.Counters);
 
-			// ConfigVm now receives the full settings snapshot
-			ConfigVm = new ConfigViewModel(GetSettingsSnapshot(), this);
+			// SharedConfigVm now receives the full settings snapshot
+			SharedConfigVm = new ConfigViewModel(GetSettingsSnapshot(), this);
 
 			_trayIconManager = new TrayIconManager(this);
 
@@ -171,14 +172,17 @@ namespace PerformanceTrayMonitor.ViewModels
 		// ------------------------------------------------------------
 		public void ShowPopup()
 		{
+
 			if (_popup != null && _popup.IsLoaded)
 			{
 				_popup.Activate();
 				return;
 			}
 
+			Log.Debug("MainWindow = " + Application.Current.MainWindow?.GetType().Name);
 			_popup = new PopupWindow
 			{
+				WindowStartupLocation = WindowStartupLocation.CenterScreen,
 				DataContext = this
 			};
 
@@ -197,10 +201,19 @@ namespace PerformanceTrayMonitor.ViewModels
 
 		public void TogglePopup()
 		{
+			PopupPinned = false;
+
 			if (PopupIsOpen)
-				ClosePopup();
+			{
+				if (!PopupPinned)
+					ClosePopup();
+				else
+					_popup.Activate();
+			}
 			else
+			{
 				ShowPopup();
+			}
 		}
 
 		// ------------------------------------------------------------
@@ -214,10 +227,17 @@ namespace PerformanceTrayMonitor.ViewModels
 				return;
 			}
 
-			_configWindow = new ConfigWindow(ConfigVm);
-			_configWindow.Closed += (s, e) => _configWindow = null;
+			Log.Debug("MainWindow = " + Application.Current.MainWindow?.GetType().Name);
 
-			_configWindow.Show();
+			var freshVm = new ConfigViewModel(GetSettingsSnapshot(), this);
+
+			_configWindow = new ConfigWindow(freshVm)
+			{
+				WindowStartupLocation = WindowStartupLocation.CenterScreen
+			};
+
+			_configWindow.Closed += (s, e) => _configWindow = null;
+			_configWindow.ShowDialog();
 		}
 
 		public void ToggleAppIcon()

@@ -1,79 +1,142 @@
-<Window x:Class="PerformanceTrayMonitor.Views.PopupWindow"
+﻿<Window x:Class="PerformanceTrayMonitor.Views.PopupWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:PerformanceTrayMonitor.Views"
-        Title="Performance"
+        xmlns:conv="clr-namespace:PerformanceTrayMonitor.Converters"
+        Title="Metrics View"
         MinWidth="150"
         MinHeight="100"
         SizeToContent="WidthAndHeight"
-        WindowStyle="ToolWindow"
-        Topmost="True"
+        WindowStyle="None"
         ResizeMode="CanResize"
         SnapsToDevicePixels="True"
         UseLayoutRounding="True"
         TextOptions.TextFormattingMode="Display"
-        TextOptions.TextRenderingMode="ClearType">
+        TextOptions.TextRenderingMode="ClearType"
+        Topmost="{Binding PopupPinned}">
 
     <Window.Resources>
-        <local:ValueToSizeConverter x:Key="ValueToSize"
-                                    MinSize="6"
-                                    MaxSize="14"/>
+        <conv:ValueToSizeConverter x:Key="ValueToSize"
+                                   MinSize="6"
+                                   MaxSize="14"/>
     </Window.Resources>
 
-    <ScrollViewer VerticalScrollBarVisibility="Auto"
-                  HorizontalScrollBarVisibility="Disabled">
+    <DockPanel Background="{StaticResource AppWindowGradient}">
 
-        <ItemsControl ItemsSource="{Binding Counters}">
-            <ItemsControl.ItemTemplate>
-                <DataTemplate>
+        <!-- Title Bar -->
+        <Grid x:Name="TitleBar"
+              DockPanel.Dock="Top"
+              Height="28"
+              Background="#444"
+              MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
 
-                    <Border Margin="4"
-                            Padding="6"
-                            BorderBrush="#555"
-                            BorderThickness="1"
-                            CornerRadius="3">
+            <Grid.Style>
+                <Style TargetType="Grid">
+                    <Setter Property="Background" Value="#444"/>
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding PopupPinned}" Value="True">
+                            <Setter Property="Background" Value="#555"/>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Grid.Style>
 
-                        <StackPanel>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
 
-                            <!-- Display Name -->
-                            <TextBlock Text="{Binding DisplayName}"
-                                       FontWeight="Bold"
-                                       Margin="0,0,0,4"/>
+            <TextBlock Text="Metrics View"
+                       VerticalAlignment="Center"
+                       Margin="8,0,0,0"
+                       Foreground="White"/>
 
-                            <!-- Dot + Sparkline + Value -->
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
+            <!-- Pin Button -->
+            <ToggleButton Grid.Column="1"
+                  Width="28"
+                  Height="28"
+                  Margin="0,0,2,0"
+                  IsChecked="{Binding PopupPinned}"
+                  ToolTip="Pin / Unpin">
+                <ToggleButton.Style>
+                    <Style TargetType="ToggleButton">
+                        <Setter Property="Content" Value="📌"/>
+                        <Setter Property="Foreground" Value="White"/>
+                        <Setter Property="Background" Value="Transparent"/>
+                        <Setter Property="BorderBrush" Value="Transparent"/>
+                        <Style.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter Property="Content" Value="📍"/>
+                                <Setter Property="Background" Value="#666"/>
+                            </Trigger>
+                        </Style.Triggers>
+                    </Style>
+                </ToggleButton.Style>
+            </ToggleButton>
 
-                                <!-- Scaled activity dot -->
-                                <Ellipse Grid.Column="0"
-                                         VerticalAlignment="Center"
-                                         Margin="0,0,8,0"
-                                         Fill="{Binding CurrentValue, Converter={StaticResource ActivityToBrush}}">
-                                    <Ellipse.Width>
-                                        <MultiBinding Converter="{StaticResource ValueToSize}">
-                                            <Binding Path="CurrentValue"/>
-                                            <Binding Path="Min"/>
-                                            <Binding Path="Max"/>
-                                        </MultiBinding>
-                                    </Ellipse.Width>
-                                    <Ellipse.Height>
-                                        <MultiBinding Converter="{StaticResource ValueToSize}">
-                                            <Binding Path="CurrentValue"/>
-                                            <Binding Path="Min"/>
-                                            <Binding Path="Max"/>
-                                        </MultiBinding>
-                                    </Ellipse.Height>
-                                </Ellipse>
+            <!-- Close Button -->
+            <Button Grid.Column="2"
+                    Width="28"
+                    Height="28"
+                    Margin="0,0,4,0"
+                    Content="✕"
+                    Foreground="White"
+                    Background="Transparent"
+                    BorderBrush="Transparent"
+                    ToolTip="Close"
+                    Click="CloseButton_Click">
+                <Button.Style>
+                    <Style TargetType="Button">
+                        <Setter Property="Background" Value="Transparent"/>
+                        <Setter Property="Foreground" Value="White"/>
+                        <Setter Property="BorderBrush" Value="Transparent"/>
+                        <Style.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#666"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter Property="Background" Value="#888"/>
+                            </Trigger>
+                        </Style.Triggers>
+                    </Style>
+                </Button.Style>
+            </Button>
+        </Grid>
 
-                                <!-- Sparkline with numeric overlay -->
-                                <Grid Grid.Column="1"
-                                      Height="24"
+        <!-- Content -->
+        <ScrollViewer VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Disabled">
+
+            <ItemsControl ItemsSource="{Binding Counters}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+
+                        <Border Margin="4"
+                                Padding="6"
+                                BorderBrush="#555"
+                                BorderThickness="1"
+                                CornerRadius="3">
+
+                            <StackPanel>
+
+                                <!-- Display Name + Dot -->
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                    <Ellipse Width="10"
+                                             Height="10"
+                                             VerticalAlignment="Center"
+                                             Margin="0,0,6,0"
+                                             Fill="{Binding CurrentValue, Converter={StaticResource ActivityToBrush}}"/>
+                                    <TextBlock Text="{Binding DisplayName}"
+                                               FontWeight="Bold"
+                                               VerticalAlignment="Center"/>
+                                </StackPanel>
+
+                                <!-- Sparkline + Value -->
+                                <Grid Height="24"
                                       Background="#77000000">
 
-                                    <local:Sparkline Values="{Binding History}"
+                                    <local:SparkLine Values="{Binding History}"
                                                      Min="{Binding Min}"
                                                      Max="{Binding Max}"
                                                      Opacity="0.85"/>
@@ -95,16 +158,16 @@
 
                                 </Grid>
 
-                            </Grid>
+                            </StackPanel>
 
-                        </StackPanel>
+                        </Border>
 
-                    </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
 
-                </DataTemplate>
-            </ItemsControl.ItemTemplate>
-        </ItemsControl>
+        </ScrollViewer>
 
-    </ScrollViewer>
+    </DockPanel>
 
 </Window>

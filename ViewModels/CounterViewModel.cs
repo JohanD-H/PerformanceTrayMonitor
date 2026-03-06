@@ -1,5 +1,5 @@
+using PerformanceTrayMonitor.Common;
 using PerformanceTrayMonitor.Models;
-using Serilog;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -171,8 +171,9 @@ namespace PerformanceTrayMonitor.ViewModels
 
 				OnPropertyChanged(nameof(History));
 			}
-			catch
+			catch (Exception ex)
 			{
+				Log.Debug($"{ex}: Error ignored!");
 				// swallow transient errors
 			}
 		}
@@ -187,8 +188,9 @@ namespace PerformanceTrayMonitor.ViewModels
 			{
 				_counter?.Dispose();
 			}
-			catch
+			catch (Exception ex)
 			{
+				Log.Debug($"{ex}: Error ignored!");
 				// ignore disposal errors
 			}
 

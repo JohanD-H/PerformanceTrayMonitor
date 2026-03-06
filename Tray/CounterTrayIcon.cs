@@ -1,12 +1,11 @@
 ﻿using PerformanceTrayMonitor.Configuration;
 using PerformanceTrayMonitor.Models;
 using PerformanceTrayMonitor.ViewModels;
-using Serilog;
+using PerformanceTrayMonitor.Common;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
-using System.Windows;
 using System.Windows.Forms;
 
 // --------------------------------------------
@@ -109,7 +108,7 @@ namespace PerformanceTrayMonitor.Tray
 				}
 				catch (Exception ex)
 				{
-					Log.Error(ex, $"Failed to load icon frame '{uri}' for set '{set.Name}'.");
+					Log.Error($"{ex}Failed to load icon frame '{uri}' for set '{set.Name}'.");
 				}
 			}
 
@@ -196,6 +195,14 @@ namespace PerformanceTrayMonitor.Tray
 
 		private static int GetFrameIndex(double value, double min, double max, int frameCount)
 		{
+			// If there is only 1 frame (icon) don't bother to calculate!
+			if (frameCount <= 1)
+				return 0;
+
+			// Don't want an accidental devision by 0 when normalizing!
+			if (max <= min)
+				return 0; // always show first frame
+
 			double val = Math.Max(min, Math.Min(max, value));
 			//Log.Debug($"val = {val}");
 

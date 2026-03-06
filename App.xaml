@@ -10,6 +10,12 @@
         <!-- Converters available to the whole app -->
         <conv:ActivityToBrushConverter x:Key="ActivityToBrush"/>
 
-    </Application.Resources>
+        <!-- Shared gradient for AboutWindow and ConfigWindow -->
+        <LinearGradientBrush x:Key="AppWindowGradient"
+                             StartPoint="0,0" EndPoint="0,1">
+            <GradientStop Color="#F0F6FF" Offset="0"/>
+            <GradientStop Color="#D0DCEC" Offset="1"/>
+        </LinearGradientBrush>
 
+    </Application.Resources>
 </Application>

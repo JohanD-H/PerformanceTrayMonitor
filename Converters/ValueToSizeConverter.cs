@@ -2,7 +2,7 @@
 using System.Globalization;
 using System.Windows.Data;
 
-namespace PerformanceTrayMonitor.Views
+namespace PerformanceTrayMonitor.Converters
 {
 	public class ValueToSizeConverter : IMultiValueConverter
 	{

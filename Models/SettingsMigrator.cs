@@ -1,5 +1,5 @@
 ﻿using PerformanceTrayMonitor.Configuration;
-using Serilog;
+using PerformanceTrayMonitor.Common;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -83,7 +83,7 @@ namespace PerformanceTrayMonitor.Models
 			}
 			catch (Exception ex)
 			{
-				Log.Warning(ex, "Failed to load versioned settings.");
+				Log.Warning($"{ex} Failed to load versioned settings.");
 			}
 
 			return null;
@@ -103,7 +103,7 @@ namespace PerformanceTrayMonitor.Models
 			}
 			catch (Exception ex)
 			{
-				Log.Warning(ex, "Old DTO list migration failed.");
+				Log.Warning($"{ex} Old DTO list migration failed.");
 				return null;
 			}
 		}
@@ -135,7 +135,7 @@ namespace PerformanceTrayMonitor.Models
 			}
 			catch (Exception ex)
 			{
-				Log.Error(ex, "Old CounterSettings migration failed.");
+				Log.Error($"{ex} Old CounterSettings migration failed.");
 				return null;
 			}
 		}

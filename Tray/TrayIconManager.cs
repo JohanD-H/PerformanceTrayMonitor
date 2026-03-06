@@ -1,8 +1,8 @@
-﻿using PerformanceTrayMonitor.Configuration;
+﻿using PerformanceTrayMonitor.Common;
+using PerformanceTrayMonitor.Configuration;
 using PerformanceTrayMonitor.Models;
 using PerformanceTrayMonitor.Tray;
 using PerformanceTrayMonitor.ViewModels;
-using Serilog;
 using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
@@ -17,7 +17,7 @@ namespace PerformanceTrayMonitor.Managers
 	public sealed class TrayIconManager : IDisposable
 	{
 		private readonly MainViewModel _mainVm;
-		private readonly ConfigViewModel _configVm;
+		private readonly ConfigViewModel _sharedConfigVm;
 
 		private readonly Dictionary<CounterViewModel, CounterTrayIcon> _counterIcons = new();
 		private AnimatedTrayIcon _animatedIcon;
@@ -27,10 +27,10 @@ namespace PerformanceTrayMonitor.Managers
 			Log.Debug($"TrayIconManager created: {GetHashCode()}");
 
 			_mainVm = mainVm;
-			_configVm = mainVm.ConfigVm;
+			_sharedConfigVm = mainVm.SharedConfigVm;
 
 			// Create the animated app icon
-			_animatedIcon = new AnimatedTrayIcon(_configVm, _mainVm);
+			_animatedIcon = new AnimatedTrayIcon(_sharedConfigVm, _mainVm);
 			Log.Debug($"AnimatedTrayIcon created: {_animatedIcon.GetHashCode()}");
 
 			// Create counter icons
@@ -191,7 +191,7 @@ namespace PerformanceTrayMonitor.Managers
 			// Recreate animated app icon (only if enabled)
 			if (_mainVm.ShowAppIcon)
 			{
-				_animatedIcon = new AnimatedTrayIcon(_configVm, _mainVm);
+				_animatedIcon = new AnimatedTrayIcon(_sharedConfigVm, _mainVm);
 				Log.Debug($"AnimatedTrayIcon recreated: {_animatedIcon.GetHashCode()}");
 			}
 			else

@@ -2,7 +2,6 @@
 using System.Globalization;
 using System.Windows.Data;
 using System.Windows.Media;
-using Serilog;
 
 // ---------------------------------------
 // Brush convertor....
@@ -15,7 +14,6 @@ namespace PerformanceTrayMonitor.Converters
 		{
 			if (value is float v)
 			{
-				//Log.Debug($"Value = {v}");
 				if (v > 50) return Brushes.Red;
 				if (v > 20) return Brushes.Orange;
 				if (v > 5) return Brushes.Yellow;

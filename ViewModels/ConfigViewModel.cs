@@ -1,14 +1,10 @@
+using PerformanceTrayMonitor.Common;
 using PerformanceTrayMonitor.Configuration;
-using PerformanceTrayMonitor.Managers;
 using PerformanceTrayMonitor.Models;
-using PerformanceTrayMonitor.Views;
-using Serilog;
 using System;
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
-using System.Diagnostics.Metrics;
 using System.Linq;
 using System.Windows.Input;
 
@@ -31,6 +27,19 @@ namespace PerformanceTrayMonitor.ViewModels
 		);
 		public event Action? RequestClose;
 		private bool _hasPendingEdits;
+		private RelayCommand ApplyCmd => (RelayCommand)ApplyCommand;
+		private RelayCommand CancelCmd => (RelayCommand)CancelCommand;
+		private RelayCommand RemoveCmd => (RelayCommand)RemoveCommand;
+		private RelayCommand ResetCmd => (RelayCommand)ResetCommand;
+		public Func<bool>? ConfirmReset { get; set; } // <-- MUST be above InitializeCommands()
+
+		public ICommand AddCommand { get; private set; }
+		public ICommand ApplyCommand { get; private set; }
+		public ICommand CancelCommand { get; private set; }
+		public ICommand RemoveCommand { get; private set; }
+		public ICommand ResetCommand { get; private set; }
+		public ICommand SaveCommand { get; private set; }
+		public CounterEditorViewModel Editor { get; }
 
 		private CounterViewModel? _selected;
 		public CounterViewModel? Selected
@@ -54,35 +63,26 @@ namespace PerformanceTrayMonitor.ViewModels
 				// Temporarily disable reactive logic
 				Editor.PropertyChanged -= Editor_PropertyChanged;
 
-				// Load lists FIRST
-				LoadCountersForCategory(_selected.Category);
-				LoadInstancesForCounter(_selected.Category, _selected.Counter);
-
 				// Now load the editor (this triggers SelectedCategory/Counter)
 				Editor.LoadFrom(_selected);
 
 				// Re-enable reactive logic
 				Editor.PropertyChanged += Editor_PropertyChanged;
 
-				(RemoveCommand as RelayCommand)?.RaiseCanExecuteChanged();
-				(ApplyCommand as RelayCommand)?.RaiseCanExecuteChanged();
+				RemoveCmd.RaiseCanExecuteChanged();
+				ApplyCmd.RaiseCanExecuteChanged();
 			}
 		}
 
-		public CounterEditorViewModel Editor { get; }
-
-		public ConfigViewModel()
+		private void InitializeCommands()
 		{
-			Editor = new CounterEditorViewModel(this);
+			AddCommand = new RelayCommand(_ => AddNewCounterFromEditor());
+			ApplyCommand = new RelayCommand(_ => ApplyEditorToSelected(), _ => Selected != null && _hasPendingEdits);
+			CancelCommand = new RelayCommand(_ => CancelEdits(), _ => Selected != null && _hasPendingEdits);
+			RemoveCommand = new RelayCommand(_ => RemoveSelected(), _ => Selected != null);
+			ResetCommand = new RelayCommand(_ => { if (ConfirmReset == null || ConfirmReset()) ResetToDefaults(); }, _ => !IsAtDefaults());
+			SaveCommand = new RelayCommand(_ => Save());
 		}
-
-		public ICommand AddCommand { get; }
-		public ICommand ApplyCommand { get; }
-		public ICommand CancelCommand { get; }
-		public ICommand RemoveCommand { get; }
-		public Func<bool>? ConfirmReset { get; set; }
-		public ICommand ResetCommand { get; }
-		public ICommand SaveCommand { get; }
 
 		public ConfigViewModel(SettingsOptions settings, MainViewModel main)
 		{
@@ -115,23 +115,7 @@ namespace PerformanceTrayMonitor.ViewModels
 
 			Editor.PropertyChanged += Editor_PropertyChanged;
 
-			AddCommand = new RelayCommand(_ => AddFromEditor());
-			ApplyCommand = new RelayCommand(
-				_ => ApplyToSelected(),
-				_ => Selected != null && _hasPendingEdits);
-			CancelCommand = new RelayCommand(
-				_ => CancelEdits(),
-				_ => Selected != null && _hasPendingEdits);
-			RemoveCommand = new RelayCommand(_ => Remove(), _ => Selected != null);
-			ResetCommand = new RelayCommand(
-				_ =>
-				{
-					if (ConfirmReset == null || ConfirmReset())
-						ResetToDefaults();
-				},
-				_ => !IsAtDefaults()
-			);
-			SaveCommand = new RelayCommand(_ => Save());
+			InitializeCommands();
 
 			if (Counters.Any())
 				Selected = Counters.First();
@@ -142,37 +126,15 @@ namespace PerformanceTrayMonitor.ViewModels
 		private void Editor_PropertyChanged(object? sender, PropertyChangedEventArgs e)
 		{
 			_hasPendingEdits = true;
-			(ApplyCommand as RelayCommand)?.RaiseCanExecuteChanged();
-			(CancelCommand as RelayCommand)?.RaiseCanExecuteChanged();
+			ApplyCmd.RaiseCanExecuteChanged();
+			CancelCmd.RaiseCanExecuteChanged();
 
-			// CATEGORY CHANGED
-			if (e.PropertyName == nameof(Editor.Category))
+#if DEBUG
+			if (e.PropertyName is nameof(Editor.SelectedCategory) or nameof(Editor.SelectedCounter) or nameof(Editor.SelectedInstance))
 			{
-				LoadCountersForCategory(Editor.Category);
-
-				// Only auto-select if the category actually exists
-				if (CountersInCategory.Any())
-				{
-					Log.Debug($"Counters: Editor.Category = {Editor.Category}, Editor.Counter = {Editor.Counter}");
-					if (!CountersInCategory.Contains(Editor.Counter))
-						Editor.Counter = CountersInCategory.First();
-
-					LoadInstancesForCounter(Editor.Category, Editor.Counter);
-
-					if (Instances.Any() && !Instances.Contains(Editor.Instance))
-						Editor.Instance = Instances.First();
-				}
+				Log.Debug($"Editor changed: Cat='{Editor.Category}', Ctr='{Editor.Counter}', Inst='{Editor.Instance}'");
 			}
-
-			// COUNTER CHANGED
-			if (e.PropertyName == nameof(Editor.Counter))
-			{
-				Log.Debug($"Instances: Editor.Category = {Editor.Category}, Editor.Counter = {Editor.Counter}");
-				LoadInstancesForCounter(Editor.Category, Editor.Counter);
-
-				if (Instances.Any() && !Instances.Contains(Editor.Instance))
-					Editor.Instance = Instances.First();
-			}
+#endif
 		}
 
 		private bool IsAtDefaults()
@@ -195,19 +157,20 @@ namespace PerformanceTrayMonitor.ViewModels
 				cur.IconSet == def.IconSet;
 		}
 
-		private void AddFromEditor()
+		private void AddNewCounterFromEditor()
 		{
 			var settings = Editor.ToSettings();
+			Log.Debug($"settings.DisplayName = {settings.DisplayName}");
 			settings.Id = Guid.NewGuid();
 
 			var vm = new CounterViewModel(settings);
 			Counters.Add(vm);
 			Selected = vm;
 
-			(ResetCommand as RelayCommand)?.RaiseCanExecuteChanged();
+			ResetCmd.RaiseCanExecuteChanged();
 		}
 
-		private void ApplyToSelected()
+		private void ApplyEditorToSelected()
 		{
 			if (Selected == null)
 				return;
@@ -225,9 +188,7 @@ namespace PerformanceTrayMonitor.ViewModels
 			Selected.IconSet = settings.IconSet;
 
 			_hasPendingEdits = false;
-			(ApplyCommand as RelayCommand)?.RaiseCanExecuteChanged();
-			(CancelCommand as RelayCommand)?.RaiseCanExecuteChanged();
-			(ResetCommand as RelayCommand)?.RaiseCanExecuteChanged();
+			RefreshCommandStates();
 		}
 
 		private void CancelEdits()
@@ -238,20 +199,23 @@ namespace PerformanceTrayMonitor.ViewModels
 
 				Editor.LoadFrom(Selected);
 
-				Log.Debug($"Editor.Category = {Editor.Category}, Editor.Counter = {Editor.Counter}");
-				LoadCountersForCategory(Editor.Category);
-				LoadInstancesForCounter(Editor.Category, Editor.Counter);
+				Log.Debug($"Editor.DisplayName = {Editor.DisplayName},Editor.Category = {Editor.Category}, Editor.Counter = {Editor.Counter}");
 
 				Editor.PropertyChanged += Editor_PropertyChanged;
 
 				_hasPendingEdits = false;
-				(ApplyCommand as RelayCommand)?.RaiseCanExecuteChanged();
-				(CancelCommand as RelayCommand)?.RaiseCanExecuteChanged();
-				(ResetCommand as RelayCommand)?.RaiseCanExecuteChanged();
+				RefreshCommandStates();
 			}
 		}
 
-		private void Remove()
+		private void RefreshCommandStates()
+		{
+			ApplyCmd.RaiseCanExecuteChanged();
+			CancelCmd.RaiseCanExecuteChanged();
+			ResetCmd.RaiseCanExecuteChanged();
+		}
+
+		private void RemoveSelected()
 		{
 			if (Selected == null)
 				return;
@@ -270,11 +234,12 @@ namespace PerformanceTrayMonitor.ViewModels
 			else
 				Selected = Counters.Last();
 
-			(ResetCommand as RelayCommand)?.RaiseCanExecuteChanged();
+			ResetCmd.RaiseCanExecuteChanged();
 		}
 
 		private CounterSettings CreateSettingsFromDto(CounterSettingsDto dto)
 		{
+			Log.Debug($"dto.DisplayName = {dto.DisplayName},dto.Category = {dto.Category}, dto.Counter = {dto.Counter}");
 			return new CounterSettings
 			{
 				Id = dto.Id,
@@ -299,20 +264,22 @@ namespace PerformanceTrayMonitor.ViewModels
 			Selected = Counters.FirstOrDefault();
 
 			_hasPendingEdits = false;
-			(ApplyCommand as RelayCommand)?.RaiseCanExecuteChanged();
-			(CancelCommand as RelayCommand)?.RaiseCanExecuteChanged();
-			(ResetCommand as RelayCommand)?.RaiseCanExecuteChanged();
+			ApplyCmd.RaiseCanExecuteChanged();
+			CancelCmd.RaiseCanExecuteChanged();
+			ResetCmd.RaiseCanExecuteChanged();
 		}
 
 		private void Save()
 		{
 			// Always apply editor changes to the selected counter
 			if (Selected != null)
-				ApplyToSelected();
+				ApplyEditorToSelected();
 
+#if DEBUG
 			Log.Debug("SAVE SNAPSHOT:");
 			foreach (var c in Counters)
 				Log.Debug($" {c.DisplayName} | {c.Category} | {c.Counter} | {c.Instance} | Show={c.ShowInTray}");
+#endif
 
 			// Build a new SettingsOptions using the edited counters
 			var newSettings = new SettingsOptions(
@@ -392,7 +359,7 @@ namespace PerformanceTrayMonitor.ViewModels
 			}
 			catch (Exception ex)
 			{
-				Log.Debug(ex, $"Failed to load counters for category '{category}'");
+				Log.Debug($"{ex}Failed to load counters for category '{category}'");
 			}
 		}
 
@@ -419,7 +386,7 @@ namespace PerformanceTrayMonitor.ViewModels
 			}
 			catch (Exception ex)
 			{
-				Log.Debug(ex, $"Failed to load instances for category/counter '{category}'/'{counter}'");
+				Log.Debug($"{ex}Failed to load instances for category/counter '{category}'/'{counter}'");
 			}
 		}
 	}

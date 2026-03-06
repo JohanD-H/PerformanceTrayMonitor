@@ -29,6 +29,9 @@ namespace PerformanceTrayMonitor.Debugging
 
 			var root = new Grid { Margin = new Thickness(10) };
 
+			// Apply shared gradient background
+			root.Background = (Brush)Application.Current.Resources["AppWindowGradient"];
+
 			root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // selector
 			root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // diagnostics card
 			root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) }); // sprite grid

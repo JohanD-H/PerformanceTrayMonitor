@@ -1,6 +1,5 @@
 using System;
 using System.Diagnostics;
-using Serilog;
 
 // ------------------------------------
 // Counter data
@@ -18,12 +17,10 @@ namespace PerformanceTrayMonitor.Models
 				settings.Counter,
 				settings.Instance,
 				readOnly: true);
-			Log.Debug($"Counter = {settings.Counter}");
 		}
 
 		public float NextValue()
 		{
-			Log.Debug($"Next value: {_counter.NextValue}");
 			return _counter.NextValue();
 		}
 

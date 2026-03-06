@@ -1,12 +1,11 @@
+using PerformanceTrayMonitor.Common;
 using PerformanceTrayMonitor.Configuration;
 using PerformanceTrayMonitor.Models;
 using PerformanceTrayMonitor.ViewModels;
-using Serilog;
-using Serilog.Enrichers.WithCaller;
 using System;
-using System.IO;
+using System.Diagnostics;
 using System.Windows;
-using static PerformanceTrayMonitor.Configuration.AppIdentity;
+using Microsoft.Extensions.Logging;
 
 namespace PerformanceTrayMonitor
 {
@@ -16,31 +15,21 @@ namespace PerformanceTrayMonitor
 
 		protected override void OnStartup(StartupEventArgs e)
 		{
-#if DEBUG
+			var loggerFactory = LoggerFactory.Create(builder =>
 			{
-				string TimeStamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
-				string BaseDir = AppDomain.CurrentDomain.BaseDirectory;
+#if DEBUG
+				builder.SetMinimumLevel(LogLevel.Debug);
+				builder.AddDebug(); // DebugView
 
-				DirectoryInfo ProjectRoot = Directory.GetParent(BaseDir).Parent.Parent.Parent;
-
-				string LogFolder = Path.Combine(ProjectRoot.FullName, "Logs");
-				if (!Directory.Exists(LogFolder))
-					Directory.CreateDirectory(LogFolder);
-
-				string LogPath = Path.Combine(LogFolder, $"{AppId}_{TimeStamp}.txt");
-
-				Log.Logger = new LoggerConfiguration()
-					.MinimumLevel.Debug()
-					.Enrich.WithCaller()
-					.WriteTo.File(LogPath,
-						outputTemplate: "{Timestamp:HH:mm:ss} [{Level:u3}] ({Caller:40}) {Message:lj}{NewLine}{Exception}")
-					.CreateLogger();
-			}
+				builder.AddTraceSource(
+					new SourceSwitch("sourceSwitch", "Verbose"),
+					new DefaultTraceListener()
+				);
 #else
-            {
-                Log.Logger = Serilog.Core.Logger.None;
-            }
+				builder.SetMinimumLevel(LogLevel.None);
 #endif
+			});
+			Log.Logger = loggerFactory.CreateLogger("App");
 
 			Log.Debug($"Startup: {GetHashCode()}");
 
@@ -85,7 +74,7 @@ namespace PerformanceTrayMonitor
 			}
 			catch (Exception ex)
 			{
-				Log.Error(ex, "Failed to initialize MainViewModel. Falling back to defaults.");
+				Log.Error($"{ex} Failed to initialize MainViewModel. Falling back to defaults.");
 
 				var defaults = new DefaultSettingsProvider().Create();
 				SettingsStore.Save(defaults);
@@ -111,10 +100,7 @@ namespace PerformanceTrayMonitor
 				SettingsStore.Save(_mainVm.GetSettingsSnapshot());
 			}
 
-#if DEBUG
 			Log.Debug($"Exiting..{GetHashCode()}");
-			Log.CloseAndFlush();
-#endif
 
 			base.OnExit(e);
 		}

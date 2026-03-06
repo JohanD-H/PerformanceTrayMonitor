@@ -1,7 +1,6 @@
 using PerformanceTrayMonitor.Configuration;
-using Serilog;
+using PerformanceTrayMonitor.Common;
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Xml.Serialization;
 using P = PerformanceTrayMonitor.Configuration.Paths;
@@ -44,7 +43,7 @@ namespace PerformanceTrayMonitor.Models
 			}
 			catch (Exception ex)
 			{
-				Log.Error(ex, "Failed to save settings file.");
+				Log.Error($"{ex} Failed to save settings file.");
 			}
 		}
 	}
