@@ -108,7 +108,8 @@
         <ScrollViewer VerticalScrollBarVisibility="Auto"
                       HorizontalScrollBarVisibility="Disabled">
 
-            <ItemsControl ItemsSource="{Binding Counters}">
+            <ItemsControl x:Name="MetricsList"
+                          ItemsSource="{Binding Counters}">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
 
@@ -127,9 +128,17 @@
                                              VerticalAlignment="Center"
                                              Margin="0,0,6,0"
                                              Fill="{Binding CurrentValue, Converter={StaticResource ActivityToBrush}}"/>
-                                    <TextBlock Text="{Binding DisplayName}"
+                                    <TextBlock x:Name="DisplayNameBlock"
+                                               Text="{Binding DisplayName}"
                                                FontWeight="Bold"
-                                               VerticalAlignment="Center"/>
+                                               VerticalAlignment="Center">
+                                        <TextBlock.Effect>
+                                            <DropShadowEffect Color="Black"
+                                                              BlurRadius="2"
+                                                              ShadowDepth="0"
+                                                              Opacity="0.35"/>
+                                        </TextBlock.Effect>
+                                    </TextBlock>
                                 </StackPanel>
 
                                 <!-- Sparkline + Value -->
