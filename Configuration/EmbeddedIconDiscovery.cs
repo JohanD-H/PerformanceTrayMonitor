@@ -10,7 +10,6 @@ namespace PerformanceTrayMonitor.Configuration
 		{
 			var result = new Dictionary<string, IconSetDefinition>(StringComparer.OrdinalIgnoreCase);
 
-			// Fallback set — ALWAYS present
 			result["Activity"] = Build("Activity", "activity", 5);
 
 			result["Disk 1"] = Build("Disk 1", "disk", 5, "Disk-1");
@@ -31,13 +30,17 @@ namespace PerformanceTrayMonitor.Configuration
 
 			var frames = Enumerable.Range(1, count)
 				.Select(i =>
-					$"/{Paths.EmbeddedIconsRoot}/{Paths.CounterIconsFolder}/{folder}/{prefix}-{i}.ico")
+					new Uri(
+						$"pack://application:,,,/{Paths.EmbeddedIconsRoot}/{Paths.CounterIconsFolder}/{folder}/{prefix}-{i}.ico",
+						UriKind.Absolute
+					).AbsoluteUri
+				)
 				.ToList();
 
 			return new IconSetDefinition
 			{
 				Name = name,
-				Prefix = prefix,
+				Prefix = prefix.Trim(),
 				Frames = frames,
 				IsEmbedded = true
 			};

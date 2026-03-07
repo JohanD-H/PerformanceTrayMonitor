@@ -1,4 +1,5 @@
 ﻿using PerformanceTrayMonitor.Configuration;
+using PerformanceTrayMonitor.Common;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -22,9 +23,10 @@ namespace PerformanceTrayMonitor.Debugging
 
 		public DebugIconWindow()
 		{
-			Title = "Icon Debugger";
-			Width = 900;
-			Height = 700;
+			Title = "Icon Preview";
+			SizeToContent = SizeToContent.WidthAndHeight;
+			MinWidth = 400;
+			MinHeight = 300;
 			IsOpen = true;
 
 			var root = new Grid { Margin = new Thickness(10) };
@@ -41,8 +43,10 @@ namespace PerformanceTrayMonitor.Debugging
 			// ---------------------------------------------------------
 			_setSelector = new ComboBox
 			{
-				Width = 250,
-				Margin = new Thickness(0, 0, 0, 10),
+				Width = 180,
+				FontSize = 13,
+				Padding = new Thickness(4, 2, 4, 2),
+				Margin = new Thickness(0, 0, 0, 6),
 				ItemsSource = IconSetConfig.IconSets.Keys.OrderBy(k => k)
 			};
 
@@ -62,7 +66,7 @@ namespace PerformanceTrayMonitor.Debugging
 			_diagCard = new Border
 			{
 				Padding = new Thickness(12),
-				Margin = new Thickness(0, 0, 0, 10),
+				Margin = new Thickness(0, 0, 0, 8),
 				CornerRadius = new CornerRadius(6),
 				BorderThickness = new Thickness(2)
 			};
@@ -74,13 +78,13 @@ namespace PerformanceTrayMonitor.Debugging
 			{
 				FontWeight = FontWeights.Bold,
 				FontSize = 16,
-				Margin = new Thickness(0, 0, 0, 6)
+				Margin = new Thickness(0, 0, 0, 4)
 			};
 
 			_diagMeta = new TextBlock
 			{
 				TextWrapping = TextWrapping.Wrap,
-				Margin = new Thickness(0, 0, 0, 6)
+				Margin = new Thickness(0, 0, 0, 4)
 			};
 
 			_diagErrors = new Expander
@@ -103,9 +107,9 @@ namespace PerformanceTrayMonitor.Debugging
 			_spriteGrid = new WrapPanel
 			{
 				Orientation = Orientation.Horizontal,
-				ItemWidth = 48,
-				ItemHeight = 48,
-				Margin = new Thickness(0, 10, 0, 0)
+				ItemWidth = 32,
+				ItemHeight = 32,
+				Margin = new Thickness(0, 6, 0, 0)
 			};
 
 			var scroll = new ScrollViewer
@@ -113,6 +117,7 @@ namespace PerformanceTrayMonitor.Debugging
 				Content = _spriteGrid,
 				VerticalScrollBarVisibility = ScrollBarVisibility.Auto
 			};
+			scroll.Padding = new Thickness(2);
 
 			Grid.SetRow(scroll, 2);
 			root.Children.Add(scroll);
@@ -137,6 +142,7 @@ namespace PerformanceTrayMonitor.Debugging
 		// ---------------------------------------------------------
 		private void SetSelector_SelectionChanged(object sender, SelectionChangedEventArgs e)
 		{
+			Log.Debug($"SetSelector_SelectionChanged _setSelector.SelectedItem = {_setSelector.SelectedItem}");
 			if (_setSelector.SelectedItem is not string setName)
 				return;
 
@@ -184,29 +190,29 @@ namespace PerformanceTrayMonitor.Debugging
 
 			foreach (var uri in set.Frames)
 			{
+				Log.Debug($"SetSelector_SelectionChanged uri = {uri}");
 				BitmapImage bmp = null;
 
 				try
 				{
-					if (uri.StartsWith("/"))
+					using var stream = IconLoader.TryOpenStream(set, uri);
+
+					if (stream != null)
 					{
-						var info = Application.GetResourceStream(new Uri(uri, UriKind.Relative));
-						if (info != null)
-						{
-							bmp = new BitmapImage();
-							bmp.BeginInit();
-							bmp.StreamSource = info.Stream;
-							bmp.CacheOption = BitmapCacheOption.OnLoad;
-							bmp.EndInit();
-						}
+						bmp = new BitmapImage();
+						bmp.BeginInit();
+						bmp.StreamSource = stream;
+						bmp.CacheOption = BitmapCacheOption.OnLoad;
+						bmp.EndInit();
 					}
 					else
 					{
-						bmp = new BitmapImage(new Uri(uri));
+						Log.Debug($"SetSelector_SelectionChanged: failed to load {uri}");
 					}
 				}
-				catch
+				catch (Exception ex)
 				{
+					Log.Debug(ex, $"Skipping IconSet {uri}");
 					bmp = null;
 				}
 
@@ -215,15 +221,16 @@ namespace PerformanceTrayMonitor.Debugging
 					Width = 48,
 					Height = 48,
 					Margin = new Thickness(4),
-					BorderBrush = Brushes.Gray,
-					BorderThickness = new Thickness(1),
+					BorderBrush = new SolidColorBrush(Color.FromRgb(0xCC, 0xCC, 0xCC)),
+					BorderThickness = new Thickness(0.5),
 					ToolTip = uri,
+					CornerRadius = new CornerRadius(3),
 					Background = Brushes.Transparent
 				};
 
 				border.MouseEnter += (_, __) =>
 				{
-					border.Background = new SolidColorBrush(Color.FromRgb(0xD0, 0xE8, 0xFF)); // light blue
+					border.Background = new SolidColorBrush(Color.FromRgb(0xEE, 0xF2, 0xF7)); // light blue
 				};
 
 				border.MouseLeave += (_, __) =>

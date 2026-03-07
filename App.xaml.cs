@@ -39,7 +39,9 @@ namespace PerformanceTrayMonitor
 			// -----------------------------------------
 			// Load settings (with migration)
 			// -----------------------------------------
+			Log.Debug($"Settings loading...");
 			SettingsOptions settings = SettingsStore.Load();
+			Log.Debug($"Settings loaded..., count = {settings.Counters.Count}");
 
 			// -----------------------------------------
 			// If settings contain no counters, use defaults

@@ -10,7 +10,7 @@
         Background="Transparent"
         AllowsTransparency="True"
         WindowStyle="None"
-        Icon="/Views/app.ico">
+        Icon="/PerformanceTrayMonitor.ico">
 
     <Border CornerRadius="10"
             BorderBrush="#33000000"
@@ -35,7 +35,7 @@
                             Margin="0 0 0 8"
                             VerticalAlignment="Center">
 
-                    <Image Source="/Views/app.png"
+                    <Image Source="/PerformanceTrayMonitor.png"
                            Width="20"
                            Height="20"
                            Margin="0 0 8 0"

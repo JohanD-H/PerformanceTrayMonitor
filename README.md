@@ -125,6 +125,14 @@ Metrics config
 		Icon testing and validation tool
 
 
+.NET:
+
+	Debugging commands:
+		List .NET runtimes:
+			dotnet --list-runtimes
+		Print .NET (silent) exceptions (for PerformanceTrayMonitor in this case):
+			dotnet .\PerformanceTrayMonitor.dll
+
 More to come ...
 
 

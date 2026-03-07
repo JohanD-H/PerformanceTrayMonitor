@@ -78,37 +78,36 @@ namespace PerformanceTrayMonitor.Tray
 		{
 			var icons = new List<Icon>();
 
-			foreach (var uri in set.Frames)
+			foreach (var frame in set.Frames)
 			{
 				try
 				{
-					if (uri.StartsWith("/"))
+					if (set.IsEmbedded)
 					{
-						// Embedded WPF Resource (relative pack URI)
-						var resourceUri = new Uri(uri, UriKind.Relative);
-						var streamInfo = System.Windows.Application.GetResourceStream(resourceUri);
+						// Embedded icon via pack URI
+						var uri = new Uri(frame, UriKind.Absolute);
+						var streamInfo = System.Windows.Application.GetResourceStream(uri);
 
-						if (streamInfo != null)
+						if (streamInfo == null)
 						{
-							using var s = streamInfo.Stream;
-							icons.Add(new Icon(s));
+							Log.Error($"Embedded icon not found: {frame}");
+							continue;
 						}
-						else
-						{
-							Log.Error($"Embedded icon not found: {uri}");
-						}
+
+						using var s = streamInfo.Stream;
+						icons.Add(new Icon(s));
 					}
 					else
 					{
-						// External file
-						var localPath = new Uri(uri).LocalPath;
+						// External icon on disk
+						var localPath = new Uri(frame, UriKind.Absolute).LocalPath;
 						using var fs = new FileStream(localPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
 						icons.Add(new Icon(fs));
 					}
 				}
 				catch (Exception ex)
 				{
-					Log.Error($"{ex}Failed to load icon frame '{uri}' for set '{set.Name}'.");
+					Log.Error($"{ex} Failed to load icon frame '{frame}' for set '{set.Name}'.");
 				}
 			}
 

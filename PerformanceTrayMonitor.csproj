@@ -7,7 +7,7 @@
     <UseWindowsForms>true</UseWindowsForms>
 
     <!-- Windows requires the app icon to be Content -->
-    <ApplicationIcon>Resources\Icons\App\app.ico</ApplicationIcon>
+    <ApplicationIcon>PerformanceTrayMonitor.ico</ApplicationIcon>
 
     <Nullable>enable</Nullable>
     <Title>PerformanceTrayMonitor</Title>
@@ -21,6 +21,13 @@
     <AssemblyVersion>1.0.*</AssemblyVersion>
     <FileVersion>1.0.*</FileVersion>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="Icons\Demo\**" />
+    <EmbeddedResource Remove="Icons\Demo\**" />
+    <None Remove="Icons\Demo\**" />
+    <Page Remove="Icons\Demo\**" />
+  </ItemGroup>
 
   <ItemGroup>
     <None Remove="Resources\Icons\Counter\Activity\Activity-1.ico" />
@@ -53,14 +60,13 @@
     <None Remove="Resources\Icons\Counter\WiFi-1\WiFi-3.ico" />
     <None Remove="Resources\Icons\Counter\WiFi-1\WiFi-4.ico" />
     <None Remove="Resources\Icons\Counter\WiFi-1\WiFi-5.ico" />
-    <None Remove="Views\app.ico" />
-    <None Remove="Views\app.png" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Page Remove="PerformanceTrayMonitor.xaml" />
   </ItemGroup>
 
   <!-- App icon must be Content -->
-  <ItemGroup>
-    <Content Include="Resources\Icons\App\app.ico" />
-  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.3" />
@@ -72,10 +78,24 @@
   <ItemGroup>
 
     <!-- Animated App Frames -->
-    <Resource Include="Resources\Icons\App\Animated\bubble-1.ico" />
-    <Resource Include="Resources\Icons\App\Animated\bubble-2.ico" />
-    <Resource Include="Resources\Icons\App\Animated\bubble-3.ico" />
-    <Resource Include="Resources\Icons\App\Animated\bubble-4.ico" />
+    <Resource Include="PerformanceTrayMonitor.ico">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </Resource>
+    <Resource Include="PerformanceTrayMonitor.png">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </Resource>
+    <Resource Include="Resources\Icons\App\Animated\bubble-1.ico">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </Resource>
+    <Resource Include="Resources\Icons\App\Animated\bubble-2.ico">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </Resource>
+    <Resource Include="Resources\Icons\App\Animated\bubble-3.ico">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </Resource>
+    <Resource Include="Resources\Icons\App\Animated\bubble-4.ico">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </Resource>
     <Resource Include="Resources\Icons\Counter\Activity\activity-1.ico" />
     <Resource Include="Resources\Icons\Counter\Activity\activity-2.ico" />
     <Resource Include="Resources\Icons\Counter\Activity\activity-3.ico" />
@@ -125,14 +145,11 @@
     <Resource Include="Resources\Icons\Counter\WiFi-1\wifi-3.ico" />
     <Resource Include="Resources\Icons\Counter\WiFi-1\wifi-4.ico" />
     <Resource Include="Resources\Icons\Counter\WiFi-1\wifi-5.ico" />
-    <Resource Include="Views\app.ico" />
-    <Resource Include="Views\app.png" />
 
   </ItemGroup>
 
   <ItemGroup>
     <Folder Include="Resources\Icons\CustomSet\" />
-    <Folder Include="Logs\" />
   </ItemGroup>
 
   <ItemGroup>
@@ -156,13 +173,32 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Update="Icons\Thumb\thumb-1.ico">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="Icons\Thumb\thumb-2.ico">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="Icons\Thumb\thumb-3.ico">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="Icons\Thumb\thumb-4.ico">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <None Update="LICENSE.txt">
       <Pack>True</Pack>
       <PackagePath>\</PackagePath>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Update="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>
       <LastGenOutput>Settings.Designer.cs</LastGenOutput>
+    </None>
+    <None Update="README.md">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="THIRD-PARTY-NOTICES.txt">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
 

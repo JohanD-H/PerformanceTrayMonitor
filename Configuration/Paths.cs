@@ -17,16 +17,9 @@ namespace PerformanceTrayMonitor.Configuration
 			Path.Combine(AppDirectory, $"{AppIdentity.AppId}.json");
 
 		// Base directory of the project (three levels up from /bin/)
-		internal static readonly string BaseDirectory =
-			new DirectoryInfo(AppDirectory).Parent.Parent.Parent.ToString();
-
-		// Logs folder (sibling to /bin/)
-		internal static readonly string LogsDirectory =
-			Path.Combine(BaseDirectory, "Logs");
-
-		// Temporary working directory inside the app folder
-		internal static readonly string TempDirectory =
-			Path.Combine(AppDirectory, "Temp");
+		//internal static readonly string BaseDirectory =
+		//	new DirectoryInfo(AppDirectory).Parent.Parent.Parent.ToString();
+		internal static readonly string BaseDirectory = AppDirectory.ToString();
 
 		// -------------------------------------------------------
 		// Icon folder structure

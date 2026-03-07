@@ -15,6 +15,7 @@ namespace PerformanceTrayMonitor.Configuration
 		{
 			try
 			{
+				Log.Debug($"VALIDATING Name = {set.Name}");
 				return
 					HasMinimumFrames(set) &&
 					HasMaximumFrames(set) &&
@@ -37,6 +38,8 @@ namespace PerformanceTrayMonitor.Configuration
 				Log.Error($"Icon set '{set.Name}' rejected: requires at least {MinFrames} frames.");
 				return false;
 			}
+			Log.Debug("HasMinimumFrames OK");
+
 			return true;
 		}
 
@@ -47,6 +50,8 @@ namespace PerformanceTrayMonitor.Configuration
 				Log.Error($"Icon set '{set.Name}' rejected: contains {set.Frames.Count} frames, maximum allowed is {MaxFrames}.");
 				return false;
 			}
+			Log.Debug("HasMaximumFrames OK");
+
 			return true;
 		}
 
@@ -62,6 +67,7 @@ namespace PerformanceTrayMonitor.Configuration
 				Log.Error($"Icon set '{set.Name}' rejected: inconsistent prefixes ({string.Join(", ", prefixes)}).");
 				return false;
 			}
+			Log.Debug("HasConsistentPrefix OK");
 
 			return true;
 		}
@@ -88,6 +94,7 @@ namespace PerformanceTrayMonitor.Configuration
 				Log.Error($"Icon set '{set.Name}' rejected: frame numbers must be 1..{indices.Count}.");
 				return false;
 			}
+			Log.Debug("HasContinuousIndices OK");
 
 			return true;
 		}
@@ -98,24 +105,11 @@ namespace PerformanceTrayMonitor.Configuration
 			{
 				try
 				{
-					if (uri.StartsWith("/"))
+					using var stream = IconLoader.TryOpenStream(set, uri);
+					if (stream == null)
 					{
-						var resourceUri = new Uri(uri, UriKind.Relative);
-						var streamInfo = Application.GetResourceStream(resourceUri);
-						if (streamInfo == null)
-						{
-							Log.Error($"Icon set '{set.Name}' rejected: embedded frame '{uri}' not found.");
-							return false;
-						}
-					}
-					else
-					{
-						var path = new Uri(uri).LocalPath;
-						if (!File.Exists(path))
-						{
-							Log.Error($"Icon set '{set.Name}' rejected: file '{path}' missing.");
-							return false;
-						}
+						Log.Error($"Icon set '{set.Name}' rejected: frame '{uri}' missing or unreadable.");
+						return false;
 					}
 				}
 				catch (Exception ex)
@@ -125,6 +119,7 @@ namespace PerformanceTrayMonitor.Configuration
 				}
 			}
 
+			Log.Debug("FramesAreLoadable OK");
 			return true;
 		}
 
@@ -137,28 +132,11 @@ namespace PerformanceTrayMonitor.Configuration
 			{
 				try
 				{
-					Stream stream;
-
-					if (uri.StartsWith("/"))
+					using var stream = IconLoader.TryOpenStream(set, uri);
+					if (stream == null)
 					{
-						var resourceUri = new Uri(uri, UriKind.Relative);
-						var streamInfo = Application.GetResourceStream(resourceUri);
-						if (streamInfo == null)
-						{
-							Log.Error($"Icon set '{set.Name}' rejected: embedded frame '{uri}' not found.");
-							return false;
-						}
-						stream = streamInfo.Stream;
-					}
-					else
-					{
-						var path = new Uri(uri).LocalPath;
-						if (!File.Exists(path))
-						{
-							Log.Error($"Icon set '{set.Name}' rejected: file '{path}' missing.");
-							return false;
-						}
-						stream = File.OpenRead(path);
+						Log.Error($"Icon set '{set.Name}' rejected: frame '{uri}' missing or unreadable.");
+						return false;
 					}
 
 					using var icon = new System.Drawing.Icon(stream);
@@ -170,8 +148,10 @@ namespace PerformanceTrayMonitor.Configuration
 					}
 					else if (icon.Width != width || icon.Height != height)
 					{
-						Log.Error($"Icon set '{set.Name}' rejected: inconsistent dimensions. " +
-								  $"Expected {width}x{height}, found {icon.Width}x{icon.Height}.");
+						Log.Error(
+							$"Icon set '{set.Name}' rejected: inconsistent dimensions. " +
+							$"Expected {width}x{height}, found {icon.Width}x{icon.Height}."
+						);
 						return false;
 					}
 				}
@@ -182,6 +162,7 @@ namespace PerformanceTrayMonitor.Configuration
 				}
 			}
 
+			Log.Debug("FramesHaveConsistentDimensions OK");
 			return true;
 		}
 	}

@@ -6,7 +6,7 @@
         MinWidth="600" MinHeight="420"
         Width="600" Height="420"
         ResizeMode="CanResizeWithGrip"
-        Icon="/Views/app.ico"
+        Icon="/PerformanceTrayMonitor.ico"
         SizeToContent="Height">
 
     <Window.Resources>

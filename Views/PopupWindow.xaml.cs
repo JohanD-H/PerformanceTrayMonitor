@@ -1,5 +1,4 @@
-﻿using PerformanceTrayMonitor.Common;
-using System;
+﻿using System;
 using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
@@ -30,7 +29,6 @@ namespace PerformanceTrayMonitor.Views
 				{
 					if (MetricsList.ItemContainerGenerator.Status == System.Windows.Controls.Primitives.GeneratorStatus.ContainersGenerated)
 					{
-						Log.Debug($"ApplyAccentColors()..");
 						ApplyAccentColors();
 					}
 				};
@@ -88,15 +86,13 @@ namespace PerformanceTrayMonitor.Views
 
 		private void CloseButton_Click(object sender, RoutedEventArgs e)
 		{
-			Close(); // triggers your fade-out OnClosing override
+			Close(); // triggers fade-out OnClosing override
 		}
 
 		private void ApplyAccentColors()
 		{
 			Dispatcher.BeginInvoke(new Action(() =>
 			{
-				Log.Debug($"Dispatching ApplyAccentColorsCore()..");
-
 				ApplyAccentColorsCore();
 			}), DispatcherPriority.Loaded);
 		}
@@ -187,8 +183,6 @@ namespace PerformanceTrayMonitor.Views
 
 		private MediaColor HslToColor(double h, double s, double l)
 		{
-			Log.Debug($"HslToColor h = {h}, s = {s}, l = {l}");
-
 			h /= 360.0;
 
 			double r = l, g = l, b = l;

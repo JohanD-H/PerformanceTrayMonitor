@@ -76,27 +76,16 @@ namespace PerformanceTrayMonitor.Configuration
 
 				foreach (var uri in set.Frames)
 				{
-					Stream stream;
+					using var stream = IconLoader.TryOpenStream(set, uri);
 
-					if (uri.StartsWith("/"))
+					if (stream == null)
 					{
-						var info = Application.GetResourceStream(new Uri(uri, UriKind.Relative));
-						if (info == null)
-						{
-							diag.Errors.Add($"Embedded frame missing: {uri}");
-							continue;
-						}
-						stream = info.Stream;
-					}
-					else
-					{
-						var path = new Uri(uri).LocalPath;
-						if (!File.Exists(path))
-						{
-							diag.Errors.Add($"File missing: {path}");
-							continue;
-						}
-						stream = File.OpenRead(path);
+						diag.Errors.Add(
+							set.IsEmbedded
+								? $"Embedded frame missing: {uri}"
+								: $"File missing: {new Uri(uri, UriKind.Absolute).LocalPath}"
+						);
+						continue;
 					}
 
 					using var icon = new System.Drawing.Icon(stream);
@@ -108,7 +97,9 @@ namespace PerformanceTrayMonitor.Configuration
 					}
 					else if (icon.Width != w || icon.Height != h)
 					{
-						diag.Errors.Add($"Inconsistent dimensions: expected {w}x{h}, found {icon.Width}x{icon.Height}");
+						diag.Errors.Add(
+							$"Inconsistent dimensions: expected {w}x{h}, found {icon.Width}x{icon.Height}"
+						);
 					}
 				}
 
