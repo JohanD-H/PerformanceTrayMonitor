@@ -1,7 +1,9 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
@@ -15,6 +17,7 @@ namespace PerformanceTrayMonitor.Views
 	public partial class PopupWindow : Window
 	{
 		private bool _isClosingAnimated;
+		private readonly Dictionary<object, (TextBlock NameBlock, Ellipse Dot)> _visualCache = new();
 
 		public PopupWindow()
 		{
@@ -27,13 +30,19 @@ namespace PerformanceTrayMonitor.Views
 
 				MetricsList.ItemContainerGenerator.StatusChanged += (_, __) =>
 				{
-					if (MetricsList.ItemContainerGenerator.Status == System.Windows.Controls.Primitives.GeneratorStatus.ContainersGenerated)
+					if (MetricsList.ItemContainerGenerator.Status ==
+						GeneratorStatus.ContainersGenerated)
 					{
-						ApplyAccentColors();
+						Dispatcher.BeginInvoke(new Action(() =>
+						{
+							BuildVisualCache();
+							ApplyAccentColors();
+						}), DispatcherPriority.Loaded);
 					}
 				};
 			};
 		}
+
 
 		// ------------------------------------------------------------
 		// Now animate AFTER content is rendered
@@ -64,18 +73,41 @@ namespace PerformanceTrayMonitor.Views
 			e.Cancel = true;
 			_isClosingAnimated = true;
 
-			var fadeOut = new DoubleAnimation(Opacity, 0, TimeSpan.FromMilliseconds(150))
+			var duration = TimeSpan.FromMilliseconds(150);
+			var ease = new QuadraticEase { EasingMode = EasingMode.EaseIn };
+
+			// Fade-out
+			var fadeOut = new DoubleAnimation(Opacity, 0, duration)
 			{
-				EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseIn }
+				EasingFunction = ease
+			};
+
+			// Scale-out X
+			var scaleX = new DoubleAnimation(1.0, 0.98, duration)
+			{
+				EasingFunction = ease
+			};
+
+			// Scale-out Y
+			var scaleY = new DoubleAnimation(1.0, 0.98, duration)
+			{
+				EasingFunction = ease
 			};
 
 			fadeOut.Completed += (_, _) =>
 			{
+				// Clear transform animations so next open starts cleanly
+				Root.RenderTransform.BeginAnimation(ScaleTransform.ScaleXProperty, null);
+				Root.RenderTransform.BeginAnimation(ScaleTransform.ScaleYProperty, null);
+
+				// Clear opacity animation and close
 				BeginAnimation(Window.OpacityProperty, null);
 				Close();
 			};
 
 			BeginAnimation(Window.OpacityProperty, fadeOut);
+			Root.RenderTransform.BeginAnimation(ScaleTransform.ScaleXProperty, scaleX);
+			Root.RenderTransform.BeginAnimation(ScaleTransform.ScaleYProperty, scaleY);
 		}
 
 		private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
@@ -91,43 +123,55 @@ namespace PerformanceTrayMonitor.Views
 
 		private void ApplyAccentColors()
 		{
-			Dispatcher.BeginInvoke(new Action(() =>
-			{
+			//Dispatcher.BeginInvoke(new Action(() =>
+			//{
 				ApplyAccentColorsCore();
-			}), DispatcherPriority.Loaded);
+			//}), DispatcherPriority.Loaded);
 		}
 
 		private void ApplyAccentColorsCore()
 		{
-			foreach (var item in MetricsList.Items)
+			foreach (var kvp in _visualCache)
 			{
-				var container = (FrameworkElement)MetricsList.ItemContainerGenerator.ContainerFromItem(item);
-				if (container == null)
-					continue;
+				var (displayNameBlock, dot) = kvp.Value;
 
-				var displayNameBlock = FindChild<TextBlock>(container, tb => tb.Name == "DisplayNameBlock");
-				var dot = FindChild<Ellipse>(container);
+				var name = displayNameBlock.Text;
+				var (brush, shadowOpacity) = GetSoftColorFor(name);
 
-				if (displayNameBlock != null)
+				displayNameBlock.Foreground = brush;
+
+				displayNameBlock.Effect = new DropShadowEffect
 				{
-					var name = displayNameBlock.Text;
-					var (brush, shadowOpacity) = GetSoftColorFor(name);
-					displayNameBlock.Foreground = brush;
+					Color = Colors.Black,
+					BlurRadius = 1.5,
+					ShadowDepth = 0,
+					Opacity = shadowOpacity
+				};
 
-					displayNameBlock.Effect = new DropShadowEffect
-					{
-						Color = Colors.Black,
-						BlurRadius = 1.5,
-						ShadowDepth = 0,
-						Opacity = shadowOpacity
-					};
-
-					// Optional: color the dot too
-					// dot.Fill = brush;
-				}
+				// dot.Fill = brush; // optional
 			}
 		}
 
+		private void BuildVisualCache()
+		{
+			_visualCache.Clear();
+
+			foreach (var item in MetricsList.Items)
+			{
+				var container = (FrameworkElement)MetricsList
+					.ItemContainerGenerator
+					.ContainerFromItem(item);
+
+				if (container == null)
+					continue;
+
+				var nameBlock = FindChild<TextBlock>(container, tb => tb.Name == "DisplayNameBlock");
+				var dot = FindChild<Ellipse>(container);
+
+				if (nameBlock != null)
+					_visualCache[item] = (nameBlock, dot);
+			}
+		}
 
 		private T? FindChild<T>(DependencyObject parent, Func<T, bool>? predicate = null) where T : DependencyObject
 		{

@@ -1,11 +1,12 @@
+using Microsoft.Extensions.Logging;
 using PerformanceTrayMonitor.Common;
 using PerformanceTrayMonitor.Configuration;
 using PerformanceTrayMonitor.Models;
 using PerformanceTrayMonitor.ViewModels;
+using PerformanceTrayMonitor.Views;
 using System;
 using System.Diagnostics;
 using System.Windows;
-using Microsoft.Extensions.Logging;
 
 namespace PerformanceTrayMonitor
 {
@@ -35,6 +36,15 @@ namespace PerformanceTrayMonitor
 			Log.Debug($"Startup: {GetHashCode()}");
 
 			base.OnStartup(e);
+
+			// Create the hidden main window
+			var hidden = new HiddenMainWindow();
+			
+			// Set it as the real MainWindow
+			Application.Current.MainWindow = hidden;
+
+			// Show the hidden main window
+			hidden.Show();
 
 			// -----------------------------------------
 			// Load settings (with migration)

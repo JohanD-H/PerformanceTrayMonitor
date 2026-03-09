@@ -1,0 +1,12 @@
+<Window x:Class="PerformanceTrayMonitor.Views.HiddenMainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        ShowInTaskbar="False"
+        WindowStyle="None"
+        ResizeMode="NoResize"
+        Width="0"
+        Height="0"
+        AllowsTransparency="True"
+        Background="Transparent"
+        Visibility="Collapsed">
+</Window>

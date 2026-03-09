@@ -13,15 +13,29 @@
         UseLayoutRounding="True"
         TextOptions.TextFormattingMode="Display"
         TextOptions.TextRenderingMode="ClearType"
-        Topmost="{Binding PopupPinned}">
+        Topmost="{Binding PopupPinned}"
+        Opacity="0">
 
+    <!-- Resources -->
     <Window.Resources>
+
         <conv:ValueToSizeConverter x:Key="ValueToSize"
                                    MinSize="6"
                                    MaxSize="14"/>
+
+        <!-- Smooth easing -->
+        <QuadraticEase x:Key="EaseOut" EasingMode="EaseOut"/>
+
     </Window.Resources>
 
-    <DockPanel Background="{StaticResource AppWindowGradient}">
+    <!-- Main Layout -->
+    <DockPanel x:Name="Root"
+               Background="{StaticResource AppWindowGradient}"
+               RenderTransformOrigin="0.5,0.5">
+
+        <DockPanel.RenderTransform>
+            <ScaleTransform ScaleX="0.98" ScaleY="0.98"/>
+        </DockPanel.RenderTransform>
 
         <!-- Title Bar -->
         <Grid x:Name="TitleBar"
@@ -54,11 +68,11 @@
 
             <!-- Pin Button -->
             <ToggleButton Grid.Column="1"
-                  Width="28"
-                  Height="28"
-                  Margin="0,0,2,0"
-                  IsChecked="{Binding PopupPinned}"
-                  ToolTip="Pin / Unpin">
+                          Width="28"
+                          Height="28"
+                          Margin="0,0,2,0"
+                          IsChecked="{Binding PopupPinned}"
+                          ToolTip="Pin / Unpin">
                 <ToggleButton.Style>
                     <Style TargetType="ToggleButton">
                         <Setter Property="Content" Value="📌"/>

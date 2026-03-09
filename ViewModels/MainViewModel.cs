@@ -27,7 +27,8 @@ namespace PerformanceTrayMonitor.ViewModels
 		// Shared ConfigViewModel
 		public ConfigViewModel SharedConfigVm { get; }
 		// Popup pinning
-		public bool PopupPinned { get; set; }
+		//public bool PopupPinned { get; set; }
+		private bool _popupPinned;
 		public bool PopupIsOpen => _popup != null && _popup.IsLoaded;
 
 		// ------------------------------------------------------------
@@ -183,7 +184,8 @@ namespace PerformanceTrayMonitor.ViewModels
 			_popup = new PopupWindow
 			{
 				WindowStartupLocation = WindowStartupLocation.CenterScreen,
-				DataContext = this
+				DataContext = this,
+				Owner = Application.Current.MainWindow   // <-- now valid and correct
 			};
 
 			_popup.Closed += (s, e) => _popup = null;
@@ -201,8 +203,6 @@ namespace PerformanceTrayMonitor.ViewModels
 
 		public void TogglePopup()
 		{
-			PopupPinned = false;
-
 			if (PopupIsOpen)
 			{
 				if (!PopupPinned)
@@ -268,5 +268,34 @@ namespace PerformanceTrayMonitor.ViewModels
 				return null;
 			}
 		}
+
+		public bool PopupPinned
+		{
+			get => _popupPinned;
+			set
+			{
+				if (_popupPinned != value)
+				{
+					_popupPinned = value;
+					OnPropertyChanged();
+
+					if (_popup != null)
+					{
+						if (_popupPinned)
+						{
+							// Reassert global topmost
+							_popup.Topmost = false;
+							_popup.Topmost = true;
+							_popup.Activate();
+						}
+						else
+						{
+							_popup.Topmost = false;
+						}
+					}
+				}
+			}
+		}
+
 	}
 }
