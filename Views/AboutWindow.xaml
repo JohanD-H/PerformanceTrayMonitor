@@ -1,4 +1,4 @@
-<Window x:Class="PerformanceTrayMonitor.Views.AboutWindow"
+﻿<Window x:Class="PerformanceTrayMonitor.Views.AboutWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:PerformanceTrayMonitor.Views"
@@ -6,11 +6,13 @@
         ResizeMode="NoResize"
         WindowStartupLocation="CenterScreen"
         Width="420"
-        Height="260"
+        Height="270"
         Background="Transparent"
         AllowsTransparency="True"
         WindowStyle="None"
-        Icon="/PerformanceTrayMonitor.ico">
+        Icon="/PerformanceTrayMonitor.ico"
+        Opacity="0"
+        MouseLeftButtonDown="Window_MouseLeftButtonDown">
 
     <Border CornerRadius="10"
             BorderBrush="#33000000"
@@ -18,9 +20,52 @@
             Background="#F8FFFFFF"
             SnapsToDevicePixels="True">
 
-        <Grid Background="{StaticResource AppWindowGradient}">
+        <Border.Effect>
+            <DropShadowEffect BlurRadius="12"
+                              ShadowDepth="0"
+                              Opacity="0.25"/>
+        </Border.Effect>
 
-            <!-- Ambient sparkline -->
+        <!-- Root panel for scale animation -->
+        <Grid x:Name="Root"
+              Background="{StaticResource AppWindowGradient}"
+              RenderTransformOrigin="0.5,0.5">
+
+            <Grid.RenderTransform>
+                <ScaleTransform ScaleX="0.98" ScaleY="0.98"/>
+            </Grid.RenderTransform>
+
+            <Button Content="✕"
+                    Width="26"
+                    Height="26"
+                    HorizontalAlignment="Right"
+                    VerticalAlignment="Top"
+                    Margin="0 6 6 0"
+                    Background="Transparent"
+                    BorderBrush="Transparent"
+                    Foreground="#555"
+                    FontWeight="Bold"
+                    Click="OkButton_Click"
+                    ToolTip="Close">
+                <Button.Style>
+                    <Style TargetType="Button">
+                        <Setter Property="Background" Value="Transparent"/>
+                        <Setter Property="Foreground" Value="#555"/>
+                        <Setter Property="BorderBrush" Value="Transparent"/>
+                        <Style.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#666"/>
+                                <Setter Property="Foreground" Value="White"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter Property="Background" Value="#888"/>
+                            </Trigger>
+                        </Style.Triggers>
+                    </Style>
+                </Button.Style>
+            </Button>
+
+            <!-- Ambient sparkline (unchanged!) -->
             <local:SparkLine x:Name="BackgroundSparkline"
                              Stroke="{x:Static Brushes.DeepSkyBlue}"
                              StrokeThickness="2"
@@ -29,8 +74,10 @@
                              Margin="0"/>
 
             <!-- Content -->
-            <StackPanel Margin="20" VerticalAlignment="Center">
+            <StackPanel Margin="20"
+                        VerticalAlignment="Center">
 
+                <!-- Title row -->
                 <StackPanel Orientation="Horizontal"
                             Margin="0 0 0 8"
                             VerticalAlignment="Center">
@@ -38,39 +85,65 @@
                     <Image Source="/PerformanceTrayMonitor.png"
                            Width="20"
                            Height="20"
-                           Margin="0 0 8 0"
                            SnapsToDevicePixels="True"
                            UseLayoutRounding="True"/>
 
-                    <TextBlock Text="Performance Tray Monitor"
+                    <TextBlock x:Name="TitleText"
+                               Text="Performance Tray Monitor"
                                FontSize="20"
                                FontWeight="Bold"
                                Foreground="#222"/>
                 </StackPanel>
 
+                <!-- Version -->
                 <TextBlock x:Name="VersionTextBlock"
                            FontSize="14"
                            Foreground="#444"
                            Margin="0 0 0 12"
                            Text="Version ..." />
 
-                <TextBlock Text="Created by Johan. Animation concepts inspired by Copilot."
+                <!-- Credits -->
+                <TextBlock Text="Created by Johan, animation concepts inspired by Copilot."
                            TextWrapping="Wrap"
                            FontSize="13"
                            Foreground="#444"
                            Margin="0 0 0 12"/>
 
+                <!-- Email -->
+                <TextBlock FontSize="12"
+                           Foreground="#444"
+                           Margin="0 0 0 2">
+                    email:
+                    <Hyperlink NavigateUri="mailto:johandh.apps@gmail.com"
+                               RequestNavigate="Hyperlink_RequestNavigate">
+                        johandh.apps@gmail.com
+                    </Hyperlink>
+                </TextBlock>
+
+                <!-- GitHub link -->
+                <TextBlock FontSize="12"
+                           Foreground="#444"
+                           Margin="0 0 0 12">
+                    GitHub:
+                    <Hyperlink NavigateUri="https://github.com/JohanD-H/PerformanceTrayMonitor"
+                               RequestNavigate="Hyperlink_RequestNavigate">
+                        JohanD-H/PerformanceTrayMonitor
+                    </Hyperlink>
+                </TextBlock>
+
+                <!-- Description -->
                 <TextBlock Text="A lightweight, animated performance monitor for the Windows system tray."
                            TextWrapping="Wrap"
                            FontSize="13"
                            Foreground="#444"
                            Margin="0 0 0 20"/>
 
+                <!-- OK button -->
                 <Button Content="OK"
                         Width="80"
                         HorizontalAlignment="Center"
                         Padding="6 2"
-                        Margin="0 14 0 0"
+                        Margin="0 10 0 0"
                         Click="OkButton_Click"/>
             </StackPanel>
 
