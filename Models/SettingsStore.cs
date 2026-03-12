@@ -27,12 +27,26 @@ namespace PerformanceTrayMonitor.Models
 			}
 
 			Log.Debug($"Saving settings to: {P.SettingsFile}");
+			Log.Debug($"Saving Counters = {options.Counters}");
+			Log.Debug($"Saving ShowAppIcon = {options.ShowAppIcon}");
+			Log.Debug($"Saving PopupPinned = {options.PopupPinned}");
+			Log.Debug($"Saving PopupMonitorId = {options.PopupMonitorId}");
+			Log.Debug($"Saving PopupX = {options.PopupX}");
+			Log.Debug($"Saving PopupY = {options.PopupY}");
+			Log.Debug($"Saving PopupDpi = {options.PopupDpi}");
+			Log.Debug($"Saving PopupWasOpen = {options.PopupWasOpen}");
 
 			var file = new SettingsFile
 			{
 				Version = SettingsOptions.CurrentVersion,
 				Counters = options.Counters,
-				ShowAppIcon = options.ShowAppIcon
+				ShowAppIcon = options.ShowAppIcon,
+				PopupPinned = options.PopupPinned,
+				PopupMonitorId = options.PopupMonitorId,
+				PopupX = options.PopupX ?? 0,
+				PopupY = options.PopupY ?? 0,
+				PopupDpi = options.PopupDpi ?? 96,
+				PopupWasOpen = options.PopupWasOpen
 			};
 
 			try

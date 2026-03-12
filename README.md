@@ -10,28 +10,37 @@ Description:
 	Right clicking will show the defined performance metrics.
 
 	The icon menu has:
-	Configuration:	To Add/Edit/Remove counters
-	Show frames:	Shows the found icon sets (mostly for debugging icon issues).
-	Show counters:	Display all defnited counters in a windows, this window automatically updates all counters.
-	Hide App icon:	If any counter tray icons are active you can hide the app icon, this will persist over restarts!
-					To get the app icon back left-click on any counter tray icon!
-	Exit:			Save setttings and exit the app
-	About:			About.
+		Configur Metrics:			To Add/Edit/Remove counters
+		Open/Close Icon Preview:	Shows the found icon sets (mostly for debugging icon issues).
+		Open/Close Metrics View:	Display all defnited counters in a windows, this window automatically updates all counters.
+		Hide/Show App icon:			If any counter tray icons are active you can hide the app icon, this will persist over restarts!
+									To get the app icon back left-click on any counter tray icon!
+		Exit:						Save setttings and exit the app
+		About:						About
 
 	On startup, when no settings file exists a default Disk Activity metric is defined (but no taskbar icon is shown).
 
 Building
 
-	For building, use: Microsoft Visual Studio Community 2022 edition (latest)
+	For building, I use: Microsoft Visual Studio Community 2022 edition (latest)
 
 		Required packages:
 			Microsoft.Extensions.Logging
 			Microsoft.Extensions.Logging.Debug
 			Microsoft.Extensions.Logging.TraceSource
-		To install use: Nuget commands (Tools > NuGet Package Manager > Package Manager Console):
+		
+	To install these packages, use: Nuget commands (Tools > NuGet Package Manager > Package Manager Console):
 			Install-Package Microsoft.Extensions.Logging
 			Install-Package Microsoft.Extensions.Logging.Debug
 			Install-Package Microsoft.Extensions.Logging.TraceSource
+
+	Build the app.
+
+Installation:
+
+	Unpack the <release>.zip file into a subdirectory in your root C:\, %USERPROFILE%, or %APPDATA%.
+	Do NOT install the app into %ProgramFiles% or %ProgramFiles(x86)%! 
+	The app saves it'ssettings in PerformanceTrayMonitor.json, using %ProgramFiles% or %ProgramFiles(x86)% would cause a write protection error!
 
 Code Structure...
 
@@ -124,6 +133,15 @@ Metrics config
 		Shows IconSets and validates them
 		Icon testing and validation tool
 
+IconSet(s):
+	
+	You can install addition (custom) .ico files into a <app directory>\Icons\<subdirectory name, a.k.a IconSet name.
+	The requirements are, at least two .ico files are required, the filename part must end on -1 for the first file, -2 for the seconds, etc. upto -10.
+	The maximun number of .ico files is 10.
+	The formula for determining which .ico file to use: (max - min) * ((max / (n - 1) ) / 100) * (n - 1) + min
+		Where:	n = the .ico number (1, 2,...10)
+				min and max are the lower and upper value limits defined in the metric configuration!
+	A demonstration IconSet is defined into the Icons directory named Thumb.
 
 .NET:
 
@@ -132,7 +150,11 @@ Metrics config
 			dotnet --list-runtimes
 		Print .NET (silent) exceptions (for PerformanceTrayMonitor in this case):
 			dotnet .\PerformanceTrayMonitor.dll
+Changes:
+
+	v1.0.9564	Initial release
+	v1.0.9565	Fixed wrong UI URI, set to pack URI!
+	v1.1.9567	Store Metric view windows position in .json (with all the bagage that comes with that). 
+				Was not happy with the UI logic, totally rewrote that code.
 
 More to come ...
-
-

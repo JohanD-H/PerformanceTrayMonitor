@@ -83,7 +83,7 @@
                          MinHeight="200">
                     <ListBox.ItemTemplate>
                         <DataTemplate>
-                            <TextBlock Text="{Binding DisplayNameProxy}"/>
+                            <TextBlock Text="{Binding DisplayName}"/>
                         </DataTemplate>
                     </ListBox.ItemTemplate>
                 </ListBox>
@@ -132,19 +132,26 @@
             <!-- Category -->
             <TextBlock Text="Category"/>
             <ComboBox ItemsSource="{Binding Categories}"
-                      SelectedItem="{Binding Editor.SelectedCategory, Mode=TwoWay}"
+                      SelectedValuePath="."
+                      SelectedValue="{Binding Editor.SelectedCategory, Mode=TwoWay}"
                       Margin="0,0,0,8"/>
 
             <!-- Counter -->
             <TextBlock Text="Counter"/>
-            <ComboBox ItemsSource="{Binding CountersInCategory}"
-                      SelectedItem="{Binding Editor.SelectedCounter, Mode=TwoWay}"
+            <TextBlock Text="{Binding Editor.SelectedCounter}" />
+            <ComboBox x:Name="CounterComboBox"
+                      ItemsSource="{Binding CountersInCategory}"
+                      SelectedValuePath="."
+                      SelectedValue="{Binding Editor.SelectedCounter, Mode=TwoWay}"
                       Margin="0,0,0,8"/>
 
             <!-- Instance -->
             <TextBlock Text="Instance"/>
-            <ComboBox ItemsSource="{Binding Instances}"
-                      SelectedItem="{Binding Editor.SelectedInstance, Mode=TwoWay}"
+            <TextBlock Text="{Binding Editor.SelectedInstance}" />
+            <ComboBox x:Name="InstanceComboBox"
+                      ItemsSource="{Binding Instances}"
+                      SelectedValuePath="."
+                      SelectedValue="{Binding Editor.SelectedInstance, Mode=TwoWay}"
                       Margin="0,0,0,8"/>
 
             <!-- Min / Max -->

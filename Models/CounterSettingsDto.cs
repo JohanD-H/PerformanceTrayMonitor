@@ -10,9 +10,17 @@ namespace PerformanceTrayMonitor.Models
 	[XmlRoot("Settings")]
 	public class SettingsFile
 	{
-		public int Version { get; set; } = 2;
+		public int Version { get; set; } = 3;
 
-		public bool ShowAppIcon { get; set; } = true;   // NEW
+		public bool ShowAppIcon { get; set; } = true;
+
+		// NEW FOR VERSION 3
+		public bool PopupPinned { get; set; }
+		public string PopupMonitorId { get; set; }
+		public double PopupX { get; set; }
+		public double PopupY { get; set; }
+		public double PopupDpi { get; set; }
+		public bool PopupWasOpen { get; set; }
 
 		[XmlArray("Counters")]
 		[XmlArrayItem("Counter")]

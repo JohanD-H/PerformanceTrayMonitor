@@ -1,200 +1,92 @@
 using PerformanceTrayMonitor.Common;
 using PerformanceTrayMonitor.Models;
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 
-// ----------------------------------------
-// Show counter in config window
-// ----------------------------------------
 namespace PerformanceTrayMonitor.ViewModels
 {
 	public class CounterViewModel : BaseViewModel, IDisposable
 	{
-		private readonly CounterSettings _settings;
-		private PerformanceCounter? _counter;
-		private bool _disposed;
-
-		public string DisplayNameProxy => $"{DisplayName} ({Category})";
-
-		public CounterSettings Settings => _settings;
+		public CounterSettings Settings { get; private set; }
+		private PerformanceCounter? _internalCounter;
+		private float _currentValue;
 
 		public CounterViewModel(CounterSettings settings)
 		{
-			_settings = settings;
+			Settings = settings;
+			AttachCounter(CreateInternalCounter(settings));
 		}
 
-		public string Category
-		{
-			get => _settings.Category;
-			set
-			{
-				if (_settings.Category != value)
-				{
-					_settings.Category = value;
-					OnPropertyChanged();
-					OnPropertyChanged(nameof(DisplayNameProxy));
-				}
-			}
-		}
+		public string Category => Settings.Category;
+		public string Counter => Settings.Counter;
+		public string Instance => Settings.Instance;
+		public string DisplayName => string.IsNullOrWhiteSpace(Settings.DisplayName) ? Settings.Counter : Settings.DisplayName;
+		public float Min => Settings.Min;
+		public float Max => Settings.Max;
+		public bool ShowInTray => Settings.ShowInTray;
+		public string IconSet => Settings.IconSet;
 
-		public string Counter
-		{
-			get => _settings.Counter;
-			set
-			{
-				if (_settings.Counter != value)
-				{
-					_settings.Counter = value;
-					OnPropertyChanged();
-				}
-			}
-		}
-
-		public string Instance
-		{
-			get => _settings.Instance;
-			set
-			{
-				if (_settings.Instance != value)
-				{
-					_settings.Instance = value;
-					OnPropertyChanged();
-				}
-			}
-		}
-
-		public string DisplayName
-		{
-			get => _settings.DisplayName;
-			set
-			{
-				if (_settings.DisplayName != value)
-				{
-					_settings.DisplayName = value;
-					OnPropertyChanged();
-					OnPropertyChanged(nameof(DisplayNameProxy));
-				}
-			}
-		}
-
-		public float Min
-		{
-			get => _settings.Min;
-			set
-			{
-				if (_settings.Min != value)
-				{
-					_settings.Min = value;
-					OnPropertyChanged();
-				}
-			}
-		}
-
-		public float Max
-		{
-			get => _settings.Max;
-			set
-			{
-				if (_settings.Max != value)
-				{
-					_settings.Max = value;
-					OnPropertyChanged();
-				}
-			}
-		}
-
-		public bool ShowInTray
-		{
-			get => _settings.ShowInTray;
-			set
-			{
-				if (_settings.ShowInTray != value)
-				{
-					_settings.ShowInTray = value;
-					OnPropertyChanged();
-				}
-			}
-		}
-
-		public string IconSet
-		{
-			get => _settings.IconSet;
-			set
-			{
-				if (_settings.IconSet != value)
-				{
-					_settings.IconSet = value;
-					OnPropertyChanged();
-				}
-			}
-		}
-
-		public void AttachCounter(PerformanceCounter? counter)
-		{
-			// Dispose any previous counter before replacing
-			_counter?.Dispose();
-			_counter = counter;
-		}
-
-		private float _currentValue;
 		public float CurrentValue
 		{
 			get => _currentValue;
-			private set
-			{
-				if (_currentValue != value)
-				{
-					_currentValue = value;
-					OnPropertyChanged();
-				}
-			}
+			set { _currentValue = value; OnPropertyChanged(); }
 		}
 
-		private readonly List<float> _history = new();
-		private const int MaxHistory = 60;
+		public void UpdateFromSettings(CounterSettings incoming)
+		{
+			// Update the data
+			Settings.Category = incoming.Category;
+			Settings.Counter = incoming.Counter;
+			Settings.Instance = incoming.Instance;
+			Settings.DisplayName = incoming.DisplayName;
+			Settings.Min = incoming.Min;
+			Settings.Max = incoming.Max;
+			Settings.ShowInTray = incoming.ShowInTray;
+			Settings.IconSet = incoming.IconSet;
 
-		public IReadOnlyList<float> History => _history;
+			// Re-hook the Windows counter because the Category/Instance changed
+			AttachCounter(CreateInternalCounter(Settings));
+
+			// Tell WPF to refresh everything
+			OnPropertyChanged(string.Empty);
+		}
+
 
 		public void Update()
 		{
-			if (_disposed || _counter == null)
-				return;
-
 			try
 			{
-				CurrentValue = _counter.NextValue();
-
-				_history.Add(CurrentValue);
-				if (_history.Count > MaxHistory)
-					_history.RemoveAt(0);
-
-				OnPropertyChanged(nameof(History));
+				if (_internalCounter != null)
+				{
+					CurrentValue = _internalCounter.NextValue();
+				}
 			}
-			catch (Exception ex)
-			{
-				Log.Debug($"{ex}: Error ignored!");
-				// swallow transient errors
-			}
+			catch { /* Counter might have vanished/stopped */ }
 		}
+
+		public void AttachCounter(PerformanceCounter? pc)
+		{
+			_internalCounter?.Dispose();
+			_internalCounter = pc;
+			// Prime it
+			try { _internalCounter?.NextValue(); } catch { }
+		}
+
+		private PerformanceCounter? CreateInternalCounter(CounterSettings s)
+		{
+			try
+			{
+				if (string.IsNullOrEmpty(s.Instance))
+					return new PerformanceCounter(s.Category, s.Counter, readOnly: true);
+
+				return new PerformanceCounter(s.Category, s.Counter, s.Instance, readOnly: true);
+			}
+			catch { return null; }
+		}
+
 		public void Dispose()
 		{
-			if (_disposed)
-				return;
-
-			_disposed = true;
-
-			try
-			{
-				_counter?.Dispose();
-			}
-			catch (Exception ex)
-			{
-				Log.Debug($"{ex}: Error ignored!");
-				// ignore disposal errors
-			}
-
-			_counter = null;
+			_internalCounter?.Dispose();
 		}
 	}
 }

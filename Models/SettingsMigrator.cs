@@ -66,19 +66,66 @@ namespace PerformanceTrayMonitor.Models
 
 				var file = (SettingsFile)serializer.Deserialize(fs);
 
+				// -------------------------------
+				// VERSION 3 (current)
+				// -------------------------------
 				if (file.Version == SettingsOptions.CurrentVersion)
 				{
-					Log.Debug("Loaded settings (version 2)");
+					Log.Debug($"Loaded settings (version {SettingsOptions.CurrentVersion})");
+
+					file.Counters ??= new List<CounterSettingsDto>();
+
+					Log.Debug($"Loaded Counters = {file.Counters}");
+					Log.Debug($"Loaded ShowAppIcon = {file.ShowAppIcon}");
+					Log.Debug($"Loaded PopupPinned = {file.PopupPinned}");
+					Log.Debug($"Loaded PopupMonitorId = {file.PopupMonitorId}");
+					Log.Debug($"Loaded PopupX = {file.PopupX}");
+					Log.Debug($"Loaded PopupY = {file.PopupY}");
+					Log.Debug($"Loaded PopupDpi = {file.PopupDpi}");
+					Log.Debug($"Loaded PopupWasOpen = {file.PopupWasOpen}");
+
+					return new SettingsOptions(
+						file.Counters,
+						file.ShowAppIcon,
+						SettingsOptions.CurrentVersion
+					)
+					{
+						PopupPinned = file.PopupPinned,
+						PopupMonitorId = file.PopupMonitorId,
+						PopupX = file.PopupX,
+						PopupY = file.PopupY,
+						PopupDpi = file.PopupDpi,
+						PopupWasOpen = file.PopupWasOpen
+					};
+				}
+
+				// -------------------------------
+				// VERSION 2 → migrate to version 3
+				// -------------------------------
+				if (file.Version == 2)
+				{
+					Log.Debug("Migrating settings from v2 to v3");
 
 					file.Counters ??= new List<CounterSettingsDto>();
 
 					return new SettingsOptions(
 						file.Counters,
 						file.ShowAppIcon,
-						SettingsOptions.CurrentVersion
-					);
+						3
+					)
+					{
+						PopupPinned = false,
+						PopupMonitorId = null,
+						PopupX = null,
+						PopupY = null,
+						PopupDpi = null,
+						PopupWasOpen = false
+					};
 				}
 
+				// -------------------------------
+				// Unknown version
+				// -------------------------------
 				Log.Warning($"Unknown settings version {file.Version}, attempting migration...");
 			}
 			catch (Exception ex)

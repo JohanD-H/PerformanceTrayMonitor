@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using PerformanceTrayMonitor.Common;
 using PerformanceTrayMonitor.Configuration;
 using PerformanceTrayMonitor.Models;
+using PerformanceTrayMonitor.Properties;
 using PerformanceTrayMonitor.ViewModels;
 using PerformanceTrayMonitor.Views;
 using System;
@@ -84,6 +85,12 @@ namespace PerformanceTrayMonitor
 				// Start tray icons, UI, etc.
 				// -----------------------------------------
 				_mainVm.Start();
+				// Restore PopupWindow, if it was OPEN and PINNED on close!
+				Log.Debug($"OnStartup: PopupPinned = {settings.PopupPinned}, PopupWasOpen = {settings.PopupWasOpen}");
+				if (settings.PopupPinned && settings.PopupWasOpen)
+				{
+					_mainVm.ShowPopup();
+				}
 			}
 			catch (Exception ex)
 			{
@@ -109,6 +116,9 @@ namespace PerformanceTrayMonitor
 				foreach (var vm in _mainVm.Counters)
 					vm.Dispose();
 
+				// Save the PopupWindow state!
+				//Log.Debug($"OnExit: PopupIsOpen = {_mainVm.PopupIsOpen}");
+				//_mainVm.Settings.PopupWasOpen = _mainVm.PopupIsOpen;
 				// Save full settings (global + counters)
 				SettingsStore.Save(_mainVm.GetSettingsSnapshot());
 			}

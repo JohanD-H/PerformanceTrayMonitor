@@ -1,4 +1,4 @@
-using PerformanceTrayMonitor.Common;
+﻿using PerformanceTrayMonitor.Common;
 using PerformanceTrayMonitor.Configuration;
 using PerformanceTrayMonitor.Managers;
 using PerformanceTrayMonitor.Models;
@@ -9,6 +9,8 @@ using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Linq;
 using System.Windows;
+using System.Windows.Controls.Primitives;
+using System.Windows.Forms;
 using System.Windows.Threading;
 
 namespace PerformanceTrayMonitor.ViewModels
@@ -39,6 +41,7 @@ namespace PerformanceTrayMonitor.ViewModels
 			Log.Debug($"MainViewModel created: {GetHashCode()}");
 
 			Settings = settings;
+			_popupPinned = settings.PopupPinned;
 
 			_timer = new DispatcherTimer
 			{
@@ -118,6 +121,14 @@ namespace PerformanceTrayMonitor.ViewModels
 		// ------------------------------------------------------------
 		public SettingsOptions GetSettingsSnapshot()
 		{
+			Log.Debug($"GetSettingsSnapshot: ShowAppIcon = {this.ShowAppIcon}");
+			Log.Debug($"GetSettingsSnapshot: PopupPinned = {this.Settings.PopupPinned}");
+			Log.Debug($"GetSettingsSnapshot: PopupMonitorId = {this.Settings.PopupMonitorId}");
+			Log.Debug($"GetSettingsSnapshot: PopupX = {this.Settings.PopupX}");
+			Log.Debug($"GetSettingsSnapshot: PopupY = {this.Settings.PopupY}");
+			Log.Debug($"GetSettingsSnapshot: PopupDpi = {this.Settings.PopupDpi}");
+			Log.Debug($"GetSettingsSnapshot: PopupWasOpen = {this.Settings.PopupWasOpen}");
+
 			return new SettingsOptions(
 				Counters.Select(c => new CounterSettingsDto
 				{
@@ -131,8 +142,17 @@ namespace PerformanceTrayMonitor.ViewModels
 					ShowInTray = c.ShowInTray,
 					IconSet = c.IconSet
 				}).ToList(),
-				this.ShowAppIcon
-			);
+				this.ShowAppIcon,
+				SettingsOptions.CurrentVersion
+			)
+			{
+				PopupPinned = this.Settings.PopupPinned,
+				PopupMonitorId = this.Settings.PopupMonitorId,
+				PopupX = this.Settings.PopupX,
+				PopupY = this.Settings.PopupY,
+				PopupDpi = this.Settings.PopupDpi,
+				PopupWasOpen = this.Settings.PopupWasOpen
+			};
 		}
 
 		// ------------------------------------------------------------
@@ -173,23 +193,64 @@ namespace PerformanceTrayMonitor.ViewModels
 		// ------------------------------------------------------------
 		public void ShowPopup()
 		{
-
 			if (_popup != null && _popup.IsLoaded)
 			{
 				_popup.Activate();
 				return;
 			}
 
-			Log.Debug("MainWindow = " + Application.Current.MainWindow?.GetType().Name);
+			Log.Debug("MainWindow = " + System.Windows.Application.Current.MainWindow?.GetType().Name);
+
 			_popup = new PopupWindow
 			{
-				WindowStartupLocation = WindowStartupLocation.CenterScreen,
+				WindowStartupLocation = Settings.PopupPinned
+					? WindowStartupLocation.Manual
+					: WindowStartupLocation.CenterScreen,
+
 				DataContext = this,
-				Owner = Application.Current.MainWindow   // <-- now valid and correct
+				Owner = Settings.PopupPinned ? null : System.Windows.Application.Current.MainWindow
 			};
 
+			// PRE-POSITION BEFORE SHOWING
+			if (Settings.PopupPinned)
+			{
+				// Find the correct monitor
+				var screen = Screen.AllScreens.FirstOrDefault(s => s.DeviceName == Settings.PopupMonitorId)
+							 ?? Screen.PrimaryScreen;
+
+				// Convert saved DPI → current DPI
+				double savedDpi = Settings.PopupDpi ?? 96;
+				double currentDpi = 96;
+
+				var source = PresentationSource.FromVisual(System.Windows.Application.Current.MainWindow);
+				if (source?.CompositionTarget != null)
+					currentDpi = 96.0 * source.CompositionTarget.TransformToDevice.M11;
+
+				double scale = currentDpi / savedDpi;
+
+				double x = Settings.PopupX ?? 0;
+				double y = Settings.PopupY ?? 0;
+
+				_popup.Left = x * scale;
+				_popup.Top = y * scale;
+			}
+
 			_popup.Closed += (s, e) => _popup = null;
+
+			// NOW show the window — AFTER positioning
 			_popup.Show();
+
+			// Final correction after layout
+			_popup.Loaded += (s, e) =>
+			{
+				_popup.Dispatcher.InvokeAsync(
+					() => RestorePopupPosition(_popup),
+					DispatcherPriority.ApplicationIdle
+				);
+			};
+
+			Settings.PopupWasOpen = true;
+			//SettingsStore.Save(Settings);
 		}
 
 		public void ClosePopup()
@@ -198,6 +259,8 @@ namespace PerformanceTrayMonitor.ViewModels
 			{
 				_popup.Close();
 				_popup = null;
+				Settings.PopupWasOpen = false;
+				Log.Debug($"PopupWasOpen = {Settings.PopupWasOpen}");
 			}
 		}
 
@@ -205,6 +268,7 @@ namespace PerformanceTrayMonitor.ViewModels
 		{
 			if (PopupIsOpen)
 			{
+				Log.Debug($"TogglePopup: PopupPinned = {PopupPinned}");
 				if (!PopupPinned)
 					ClosePopup();
 				else
@@ -227,9 +291,10 @@ namespace PerformanceTrayMonitor.ViewModels
 				return;
 			}
 
-			Log.Debug("MainWindow = " + Application.Current.MainWindow?.GetType().Name);
+			Log.Debug("MainWindow = " + System.Windows.Application.Current.MainWindow?.GetType().Name);
 
 			var freshVm = new ConfigViewModel(GetSettingsSnapshot(), this);
+			//var freshVm = new ConfigViewModel(Settings, this);
 
 			_configWindow = new ConfigWindow(freshVm)
 			{
@@ -248,7 +313,7 @@ namespace PerformanceTrayMonitor.ViewModels
 			_trayIconManager.RebuildAllIcons();
 
 			// Save settings
-			SettingsStore.Save(Settings);
+			//SettingsStore.Save(Settings);
 		}
 
 		// ------------------------------------------------------------
@@ -277,25 +342,91 @@ namespace PerformanceTrayMonitor.ViewModels
 				if (_popupPinned != value)
 				{
 					_popupPinned = value;
+					Log.Debug($"PopupPinned: _popupPinned = {_popupPinned}, PopupWasOpen = {Settings.PopupWasOpen}");
+					Settings.PopupPinned = value;
 					OnPropertyChanged();
 
 					if (_popup != null)
 					{
 						if (_popupPinned)
 						{
-							// Reassert global topmost
 							_popup.Topmost = false;
 							_popup.Topmost = true;
 							_popup.Activate();
+
+							SavePopupPosition();
 						}
 						else
 						{
 							_popup.Topmost = false;
+							Settings.PopupWasOpen = false;
 						}
 					}
+
+					Log.Debug($"PopupPinned: PopupPinned = {Settings.PopupPinned}");
+					//SettingsStore.Save(Settings);   // <-- CRITICAL
 				}
 			}
 		}
 
+		private void SavePopupPosition()
+		{
+			if (_popup == null)
+				return;
+
+			var screen = System.Windows.Forms.Screen.FromHandle(
+				new System.Windows.Interop.WindowInteropHelper(_popup).Handle);
+
+			Settings.PopupPinned = true;
+			Settings.PopupMonitorId = screen.DeviceName;
+
+			// Save raw device pixels
+			Settings.PopupX = _popup.Left;
+			Settings.PopupY = _popup.Top;
+
+			// Save DPI
+			var source = PresentationSource.FromVisual(_popup);
+			if (source?.CompositionTarget != null)
+			{
+				Settings.PopupDpi = 96.0 * source.CompositionTarget.TransformToDevice.M11;
+			}
+
+			//SettingsStore.Save(Settings);
+		}
+
+		private void RestorePopupPosition(Window popup)
+		{
+			Log.Debug($"RestorePopupPosition: PopupPinned = {Settings.PopupPinned}");
+			if (!Settings.PopupPinned)
+				return;
+
+			// Find the monitor
+			var screens = System.Windows.Forms.Screen.AllScreens;
+			var screen = screens.FirstOrDefault(s => s.DeviceName == Settings.PopupMonitorId)
+					  ?? System.Windows.Forms.Screen.PrimaryScreen;
+
+			// DPI scaling
+			double savedDpi = Settings.PopupDpi ?? 96.0;
+			double currentDpi = 96.0;
+
+			var source = PresentationSource.FromVisual(popup);
+			if (source?.CompositionTarget != null)
+				currentDpi = 96.0 * source.CompositionTarget.TransformToDevice.M11;
+
+			double scale = currentDpi / savedDpi;
+
+			double x = (Settings.PopupX ?? 0) * scale;
+			double y = (Settings.PopupY ?? 0) * scale;
+
+			// Clamp inside working area
+			var wa = screen.WorkingArea;
+			x = Math.Max(wa.Left, Math.Min(x, wa.Right - popup.Width));
+			y = Math.Max(wa.Top, Math.Min(y, wa.Bottom - popup.Height));
+
+			popup.WindowStartupLocation = WindowStartupLocation.Manual;
+			popup.Left = x;
+			popup.Top = y;
+			Log.Debug($"RestorePopupPosition: Left = {x}, Top = {y}");
+		}
 	}
 }
