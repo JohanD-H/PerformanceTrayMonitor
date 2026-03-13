@@ -35,8 +35,10 @@ namespace PerformanceTrayMonitor.ViewModels
 			set
 			{
 				// SHIELD: Ignore nulls pushed by UI during list rebuilds
-				if (value == null && _category != null) return;
-				if (_category == value) return;
+				if (value == null && _category != null)
+					return;
+				if (_category == value)
+					return;
 
 				_category = value;
 				OnPropertyChanged();
@@ -64,8 +66,10 @@ namespace PerformanceTrayMonitor.ViewModels
 					return; // EXIT EARLY - don't trigger cascading list loads
 				}
 
-				if (value == null && _counter != null) return;
-				if (_counter == value) return;
+				if (value == null && _counter != null)
+					return;
+				if (_counter == value)
+					return;
 
 				_counter = value;
 				OnPropertyChanged();
@@ -73,14 +77,14 @@ namespace PerformanceTrayMonitor.ViewModels
 				// Only trigger a reload if the USER is manually changing the box
 				_parent.LoadInstancesForCounter(_category, value);
 
-				// Not my preferred method, adding delays in the UI, but I see no other way of making it work
+				// Not my preferred method adding delays in the UI, but I see no other way of making it work
 				//
 				// Use a background priority to ensure the ItemsSource binding has finished updating before we try to select the first item.
 				System.Windows.Application.Current.Dispatcher.BeginInvoke(new Action(() =>
 				{
 					if (_parent.Instances.Any())
 					{
-						// We set the field directly then notify to force the ComboBox to re-evaluate the SelectedValue
+						// Set the field directly then notify to force the ComboBox to re-evaluate the SelectedValue
 						var first = _parent.Instances.First();
 						_instance = first;
 						OnPropertyChanged(nameof(SelectedInstance));
@@ -99,7 +103,9 @@ namespace PerformanceTrayMonitor.ViewModels
 				if (_parent.IsLoading)
 				{
 					var loadingClean = value?.Replace("\u00A0", " ").Trim() ?? "";
-					if (_instance == loadingClean) return;
+					if (_instance == loadingClean)
+						return;
+
 					_instance = loadingClean;
 					OnPropertyChanged();
 					return;
@@ -109,8 +115,10 @@ namespace PerformanceTrayMonitor.ViewModels
 				var clean = value?.Replace("\u00A0", " ").Trim() ?? "";
 
 				// Prevent the UI from clearing a valid selection with a blank one
-				if (string.IsNullOrEmpty(clean) && !string.IsNullOrEmpty(_instance)) return;
-				if (_instance == clean) return;
+				if (string.IsNullOrEmpty(clean) && !string.IsNullOrEmpty(_instance))
+					return;
+				if (_instance == clean)
+					return;
 
 				_instance = clean;
 				OnPropertyChanged();
@@ -132,7 +140,7 @@ namespace PerformanceTrayMonitor.ViewModels
 			ShowInTray = vm.ShowInTray;
 			IconSet = vm.IconSet;
 
-			// Notify basic properties
+			// Notify basic properties, do not use Notify.All(), seems WPF does not like that
 			OnPropertyChanged(nameof(DisplayName));
 			OnPropertyChanged(nameof(Min));
 			OnPropertyChanged(nameof(Max));
@@ -147,7 +155,6 @@ namespace PerformanceTrayMonitor.ViewModels
 			OnPropertyChanged(nameof(SelectedInstance));
 		}
 
-		// Inside CounterEditorViewModel.cs
 		public void LoadDefaults()
 		{
 			var defaults = new DefaultSettingsProvider().CreateDefaultCounter();

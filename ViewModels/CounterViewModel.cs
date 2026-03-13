@@ -16,7 +16,6 @@ namespace PerformanceTrayMonitor.ViewModels
 			Settings = settings;
 			AttachCounter(CreateInternalCounter(settings));
 		}
-
 		public string Category => Settings.Category;
 		public string Counter => Settings.Counter;
 		public string Instance => Settings.Instance;
@@ -51,7 +50,6 @@ namespace PerformanceTrayMonitor.ViewModels
 			OnPropertyChanged(string.Empty);
 		}
 
-
 		public void Update()
 		{
 			try
@@ -69,7 +67,10 @@ namespace PerformanceTrayMonitor.ViewModels
 			_internalCounter?.Dispose();
 			_internalCounter = pc;
 			// Prime it
-			try { _internalCounter?.NextValue(); } catch { }
+			try
+			{
+				_internalCounter?.NextValue();
+			} catch { /* Nothing */ }
 		}
 
 		private PerformanceCounter? CreateInternalCounter(CounterSettings s)

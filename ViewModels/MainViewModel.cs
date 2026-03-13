@@ -9,7 +9,6 @@ using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Linq;
 using System.Windows;
-using System.Windows.Controls.Primitives;
 using System.Windows.Forms;
 using System.Windows.Threading;
 
@@ -29,7 +28,6 @@ namespace PerformanceTrayMonitor.ViewModels
 		// Shared ConfigViewModel
 		public ConfigViewModel SharedConfigVm { get; }
 		// Popup pinning
-		//public bool PopupPinned { get; set; }
 		private bool _popupPinned;
 		public bool PopupIsOpen => _popup != null && _popup.IsLoaded;
 
@@ -211,7 +209,7 @@ namespace PerformanceTrayMonitor.ViewModels
 				Owner = Settings.PopupPinned ? null : System.Windows.Application.Current.MainWindow
 			};
 
-			// PRE-POSITION BEFORE SHOWING
+			// Pre-position before showing
 			if (Settings.PopupPinned)
 			{
 				// Find the correct monitor
@@ -237,10 +235,10 @@ namespace PerformanceTrayMonitor.ViewModels
 
 			_popup.Closed += (s, e) => _popup = null;
 
-			// NOW show the window — AFTER positioning
+			// Show the window — AFTER positioning
 			_popup.Show();
 
-			// Final correction after layout
+			// Final position correction after layout
 			_popup.Loaded += (s, e) =>
 			{
 				_popup.Dispatcher.InvokeAsync(
@@ -294,7 +292,6 @@ namespace PerformanceTrayMonitor.ViewModels
 			Log.Debug("MainWindow = " + System.Windows.Application.Current.MainWindow?.GetType().Name);
 
 			var freshVm = new ConfigViewModel(GetSettingsSnapshot(), this);
-			//var freshVm = new ConfigViewModel(Settings, this);
 
 			_configWindow = new ConfigWindow(freshVm)
 			{

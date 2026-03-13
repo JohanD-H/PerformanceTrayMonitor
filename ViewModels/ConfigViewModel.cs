@@ -19,7 +19,7 @@ namespace PerformanceTrayMonitor.ViewModels
 		public event Action? RequestClose;
 		public Func<bool>? ConfirmReset { get; set; }
 
-		// 1. Rename the private field and public property
+		// Rename the private field and public property
 		private SettingsOptions _globalSettings;
 		public SettingsOptions GlobalSettings
 		{
@@ -46,21 +46,20 @@ namespace PerformanceTrayMonitor.ViewModels
 
 		public bool IsLoading => _isLoading;
 
-
 		public ConfigViewModel(SettingsOptions settings, MainViewModel main)
 		{
-			// Now there is NO ambiguity. 
 			// settings (parameter) goes into GlobalSettings (property).
 			this.GlobalSettings = settings;
 
 			_main = main;
 			Editor = new CounterEditorViewModel(this);
 
-			// 1. Initial Load of Categories (Do this once)
+			// Initial Load of Categories (Do this once)
 			var cats = PerformanceCounterCategory.GetCategories().Select(c => c.CategoryName).OrderBy(x => x);
-			foreach (var cat in cats) Categories.Add(cat);
+			foreach (var cat in cats)
+				Categories.Add(cat);
 
-			// 2. Load Existing Counters from Settings
+			// Load Existing Counters from Settings
 			foreach (var dto in settings.Counters)
 			{
 				Counters.Add(new CounterViewModel(new CounterSettings
@@ -79,7 +78,7 @@ namespace PerformanceTrayMonitor.ViewModels
 
 			InitializeCommands();
 
-			// 3. Set Initial Selection
+			// Set Initial Selection
 			if (Counters.Any())
 				Selected = Counters.First();
 			else 
@@ -95,7 +94,9 @@ namespace PerformanceTrayMonitor.ViewModels
 			get => _selected;
 			set
 			{
-				if (_selected == value) return;
+				if (_selected == value)
+					return;
+
 				_selected = value;
 				OnPropertyChanged();
 
@@ -103,39 +104,24 @@ namespace PerformanceTrayMonitor.ViewModels
 				{
 					_isLoading = true; // Lock the gate
 
-					// 1. Fill the collections immediately
+					// Fill the collections immediately
 					LoadCountersForCategory(_selected.Category);
 					LoadInstancesForCounter(_selected.Category, _selected.Counter);
 
-					// 2. DELAY the selection slightly
-					// This waits for the ComboBoxes to finish 'seeing' the new list items
-					// before we try to set the SelectedItem/SelectedCounter.
-					//System.Windows.Application.Current.Dispatcher.BeginInvoke(new Action(() =>
-					//{
-						Editor.LoadFrom(_selected);
-						_isLoading = false; // Open the gate
-						HasPendingEdits = false;
-					//}), System.Windows.Threading.DispatcherPriority.ContextIdle);
+					Editor.LoadFrom(_selected);
+					_isLoading = false; // Open the gate
+					HasPendingEdits = false;
 				}
-				RefreshCommandStates();
-			}
-		}
-
-		private SettingsOptions _settings;
-		public SettingsOptions Settings
-		{
-			get => _settings;
-			set
-			{
-				_settings = value;
-				OnPropertyChanged();
+				RefreshCommandStates();		// Is needed because HasPendingEdits may not been set! 
 			}
 		}
 
 		public void LoadCountersForCategory(string category)
 		{
 			CountersInCategory.Clear();
-			if (string.IsNullOrEmpty(category)) return;
+			if (string.IsNullOrEmpty(category))
+				return;
+
 			try
 			{
 				var cat = new PerformanceCounterCategory(category);
@@ -145,25 +131,30 @@ namespace PerformanceTrayMonitor.ViewModels
 
 				foreach (var n in names.Distinct().OrderBy(x => x)) CountersInCategory.Add(n);
 			}
-			catch { }
+			catch { /* Nothing */}
 		}
 
 		public void LoadInstancesForCounter(string category, string counter)
 		{
 			Instances.Clear();
-			if (string.IsNullOrEmpty(category) || string.IsNullOrEmpty(counter)) return;
+			if (string.IsNullOrEmpty(category) || string.IsNullOrEmpty(counter))
+				return;
+
 			try
 			{
 				var cat = new PerformanceCounterCategory(category);
 				var insts = cat.GetInstanceNames();
-				if (insts.Length == 0) { Instances.Add(""); return; }
+				if (insts.Length == 0)
+				{
+					Instances.Add("");
+					return;
+				}
 
 				foreach (var i in insts.OrderBy(x => x))
 					if (cat.GetCounters(i).Any(c => c.CounterName == counter)) Instances.Add(i);
 			}
-			catch { }
+			catch { /* Nothing */ }
 		}
-
 
 		private void InitializeCommands()
 		{
@@ -177,54 +168,62 @@ namespace PerformanceTrayMonitor.ViewModels
 
 		private void AddNewCounter()
 		{
-			// 1. Capture current UI state
+			// Capture current UI state
 			var settings = Editor.ToSettings();
 			settings.Id = Guid.NewGuid();
 
-			// 2. Create the VM
+			// Create the VM
 			var vm = new CounterViewModel(settings);
 
-			// 3. Add it to the collection
+			// Add it to the collection
 			Counters.Add(vm);
 
-			// 4. PRE-LOAD the lists BEFORE changing 'Selected'
+			// Preload the lists before changing 'Selected'
 			// This ensures the ComboBoxes have items BEFORE they try to bind to the new VM
 			_isLoading = true;	// Close the gate
 
 			LoadCountersForCategory(vm.Category);
 			LoadInstancesForCounter(vm.Category, vm.Counter);
 
-			// 5. Now update the selection
+			// Update the selection
 			Selected = vm;
 
 			_isLoading = false;		// Open the gate
 			HasPendingEdits = false;
-			RefreshCommandStates();
+			//RefreshCommandStates();	<== Included in HasPendingEdits!
 		}
 
 		private void ApplyEditorToSelected()
 		{
-			if (Selected == null) return;
+			if (Selected == null)
+				return;
+
 			var settings = Editor.ToSettings();
 			Selected.UpdateFromSettings(settings); // Assume this method updates the VM properties
 			HasPendingEdits = false;
-			RefreshCommandStates();
+			//RefreshCommandStates();	<== Included in HasPendingEdits!
 		}
 
 		private void CancelEdits()
 		{
-			if (Selected != null) Editor.LoadFrom(Selected);
+			if (Selected != null)
+				Editor.LoadFrom(Selected);
+
 			HasPendingEdits = false;
-			RefreshCommandStates();
+			//RefreshCommandStates();	<== Included in HasPendingEdits!
 		}
 
 		private void RemoveSelected()
 		{
-			if (Selected == null) return;
+			if (Selected == null)
+				return;
+
 			int idx = Counters.IndexOf(Selected);
 			Counters.Remove(Selected);
-			if (Counters.Any()) Selected = Counters[Math.Min(idx, Counters.Count - 1)];
-			else Editor.LoadDefaults();
+			if (Counters.Any())
+				Selected = Counters[Math.Min(idx, Counters.Count - 1)];
+			else
+				Editor.LoadDefaults();
 		}
 
 		private void Save()
@@ -268,7 +267,12 @@ namespace PerformanceTrayMonitor.ViewModels
 		public bool HasPendingEdits
 		{
 			get => _hasPendingEdits;
-			private set { _hasPendingEdits = value; OnPropertyChanged(); RefreshCommandStates(); }
+			private set
+			{
+				_hasPendingEdits = value;
+				OnPropertyChanged();
+				RefreshCommandStates();
+			}
 		}
 
 		private void RefreshCommandStates()
@@ -280,16 +284,27 @@ namespace PerformanceTrayMonitor.ViewModels
 
 		private void ResetToDefaults()
 		{
-			Counters.Clear();
-			var def = new DefaultSettingsProvider().CreateDefaultCounter();
-			Counters.Add(new CounterViewModel(new CounterSettings
+			_isLoading = true;
+
+			try
 			{
-				Category = def.Category,
-				Counter = def.Counter,
-				Instance = def.Instance,
-				DisplayName = def.DisplayName
-			}));
-			Selected = Counters.First();
+				Counters.Clear();
+
+				// Use the existing logic in your Editor
+				Editor.LoadDefaults();
+
+				// Capture the defaults the Editor just loaded into a new VM
+				var defaultVm = new CounterViewModel(Editor.ToSettings());
+
+				Counters.Add(defaultVm);
+				Selected = defaultVm;
+			}
+			finally
+			{
+				_isLoading = false;
+				HasPendingEdits = false;
+				//RefreshCommandStates();	<== Included in HasPendingEdits!
+			}
 		}
 	}
 }
