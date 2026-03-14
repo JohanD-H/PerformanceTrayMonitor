@@ -111,7 +111,18 @@ namespace PerformanceTrayMonitor.ViewModels
 				c.Update();
 		}
 
-		public void Start() => _timer.Start();
+		public void Start()
+		{
+			// Prime counters
+			foreach (var c in Counters)
+			{
+				c.Update();
+				c.Update();
+			}
+
+			_timer.Start();
+		}
+
 		public void Stop() => _timer.Stop();
 
 		// ------------------------------------------------------------
@@ -176,14 +187,27 @@ namespace PerformanceTrayMonitor.ViewModels
 			// Replace full settings object
 			Settings = newSettings;
 
-			// Reload counters
+			// Reload counters (creates new CounterViewModels)
 			LoadCounters(newSettings.Counters);
 
 			// Rebuild tray icons
 			_trayIconManager = new TrayIconManager(this);
 
 			foreach (var vm in Counters)
+			{ 
 				vm.AttachCounter(CreateCounter(vm.Settings));
+
+				// ⭐ PRIME COUNTERS (same fix as startup)
+				vm.Update(); // prime
+				vm.Update(); // real value
+			}
+
+			// ⭐ DELAY UI REDRAW UNTIL LAYOUT IS READY
+			UiAfterLayout.Run(() =>
+			{
+				foreach (var vm in Counters)
+					vm.ForceRedraw();
+			});
 		}
 
 		// ------------------------------------------------------------
@@ -199,6 +223,9 @@ namespace PerformanceTrayMonitor.ViewModels
 
 			Log.Debug("MainWindow = " + System.Windows.Application.Current.MainWindow?.GetType().Name);
 
+			foreach (var c in Counters)
+				c.Update();
+
 			_popup = new PopupWindow
 			{
 				WindowStartupLocation = Settings.PopupPinned
@@ -209,46 +236,59 @@ namespace PerformanceTrayMonitor.ViewModels
 				Owner = Settings.PopupPinned ? null : System.Windows.Application.Current.MainWindow
 			};
 
+			bool canRestore = false;  // Restore gate is closed
+
 			// Pre-position before showing
 			if (Settings.PopupPinned)
 			{
-				// Find the correct monitor
-				var screen = Screen.AllScreens.FirstOrDefault(s => s.DeviceName == Settings.PopupMonitorId)
-							 ?? Screen.PrimaryScreen;
+				// Try to find the saved monitor
+				var screen = Screen.AllScreens.FirstOrDefault(s => s.DeviceName == Settings.PopupMonitorId);
 
-				// Convert saved DPI → current DPI
-				double savedDpi = Settings.PopupDpi ?? 96;
-				double currentDpi = 96;
+				if (screen != null)
+				{
+					canRestore = true; // Open restore gate
 
-				var source = PresentationSource.FromVisual(System.Windows.Application.Current.MainWindow);
-				if (source?.CompositionTarget != null)
-					currentDpi = 96.0 * source.CompositionTarget.TransformToDevice.M11;
+					// Convert saved DPI → current DPI
+					double savedDpi = Settings.PopupDpi ?? 96;
+					double currentDpi = 96;
 
-				double scale = currentDpi / savedDpi;
+					var source = PresentationSource.FromVisual(System.Windows.Application.Current.MainWindow);
+					if (source?.CompositionTarget != null)
+						currentDpi = 96.0 * source.CompositionTarget.TransformToDevice.M11;
 
-				double x = Settings.PopupX ?? 0;
-				double y = Settings.PopupY ?? 0;
+					double scale = currentDpi / savedDpi;
 
-				_popup.Left = x * scale;
-				_popup.Top = y * scale;
+					double x = Settings.PopupX ?? 0;
+					double y = Settings.PopupY ?? 0;
+
+					_popup.Left = x * scale;
+					_popup.Top = y * scale;
+				}
+				else
+				{
+					// Saved monitor missing
+					// Remove pinned setting
+					Settings.PopupPinned = false;
+					// Center instead of restoring
+					_popup.WindowStartupLocation = WindowStartupLocation.CenterScreen;
+				}
 			}
 
 			_popup.Closed += (s, e) => _popup = null;
 
-			// Show the window — AFTER positioning
 			_popup.Show();
 
-			// Final position correction after layout
+			// Always delay — layout needs to settle
 			_popup.Loaded += (s, e) =>
 			{
-				_popup.Dispatcher.InvokeAsync(
-					() => RestorePopupPosition(_popup),
-					DispatcherPriority.ApplicationIdle
-				);
+				UiAfterLayout.Run(_popup, () =>
+				{
+					if (canRestore)
+						RestorePopupPosition(_popup);
+				});
 			};
 
 			Settings.PopupWasOpen = true;
-			//SettingsStore.Save(Settings);
 		}
 
 		public void ClosePopup()

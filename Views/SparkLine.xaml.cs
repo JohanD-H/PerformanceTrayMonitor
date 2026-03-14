@@ -19,6 +19,8 @@ namespace PerformanceTrayMonitor.Views
 		public SparkLine()
 		{
 			InitializeComponent();
+			Loaded += (s, e) => Redraw();
+
 			SizeChanged += (s, e) => Redraw();
 
 			RenderOptions.SetEdgeMode(this, EdgeMode.Unspecified);
@@ -32,40 +34,8 @@ namespace PerformanceTrayMonitor.Views
 		public IList<float> Values
 		{
 			get => (IList<float>)GetValue(ValuesProperty);
-			set
-			{
-				//Log.Debug($"[SparkLine] Values setter called. Count={value?.Count}");
-
-				SetValue(ValuesProperty, value);
-
-				if (value == null || value.Count == 0)
-					return;
-
-				// Initialize current values if first time
-				if (_currentValues == null)
-					_currentValues = new List<float>(value);
-				//Log.Debug("[SparkLine] Initialized _currentValues.");
-
-				// Set new target
-				_targetValues = new List<float>(value);
-				//Log.Debug("[SparkLine] Set _targetValues.");
-
-				// Start animation
-				//Log.Debug("[SparkLine] Starting animation.");
-				_animStart = DateTime.Now;
-				_isAnimating = true;
-
-				CompositionTarget.Rendering -= Animate;
-				CompositionTarget.Rendering += Animate;
-			}
+			set => SetValue(ValuesProperty, value);
 		}
-
-		public static readonly DependencyProperty ValuesProperty =
-			DependencyProperty.Register(nameof(Values), typeof(IList<float>),
-				typeof(SparkLine),
-				new FrameworkPropertyMetadata(null,
-					FrameworkPropertyMetadataOptions.AffectsRender,
-					OnAnyPropertyChanged));
 
 		// -----------------------------
 		// Min / Max
@@ -168,6 +138,44 @@ namespace PerformanceTrayMonitor.Views
 				: 1 - Math.Pow(-2 * t + 2, 2) / 2;
 		}
 
+		public static readonly DependencyProperty ValuesProperty =
+			DependencyProperty.Register(
+				nameof(Values),
+				typeof(IList<float>),
+				typeof(SparkLine),
+				new PropertyMetadata(null, OnValuesChanged));
+
+		private static void OnValuesChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+		{
+			var spark = (SparkLine)d;
+			var value = (IList<float>)e.NewValue;
+
+			if (value == null || value.Count == 0)
+			{
+				spark._currentValues = null;
+				spark._targetValues = null;
+				spark._isAnimating = false;
+				return;
+			}
+
+			// Initialize current values if first time
+			if (spark._currentValues == null)
+				spark._currentValues = new List<float>(value);
+
+			// Set new target
+			spark._targetValues = new List<float>(value);
+
+			// Start animation
+			spark._animStart = DateTime.Now;
+			spark._isAnimating = true;
+
+			CompositionTarget.Rendering -= spark.Animate;
+			CompositionTarget.Rendering += spark.Animate;
+
+			// Force redraw
+			spark.Redraw();
+		}
+
 		// -----------------------------
 		// Redraw
 		// -----------------------------
@@ -178,14 +186,14 @@ namespace PerformanceTrayMonitor.Views
 
 		private void Redraw()
 		{
-			//Log.Debug($"[SparkLine] Redraw called. currentValues? {_currentValues != null}, count={_currentValues?.Count}, size={ActualWidth}x{ActualHeight}");
-			//Log.Debug($"[SparkLine] Stroke brush: {Stroke}");
+			Log.Debug($"[SparkLine] Redraw called. currentValues? {_currentValues != null}, count={_currentValues?.Count}, size={ActualWidth}x{ActualHeight}");
+			Log.Debug($"[SparkLine] Stroke brush: {Stroke}");
 
 			Root.Children.Clear();
 
 			if (_currentValues == null || _currentValues.Count < 2 || ActualWidth <= 0 || ActualHeight <= 0)
 			{
-				//Log.Debug("[SparkLine] Early exit: invalid state.");
+				Log.Debug("[SparkLine] Early exit: invalid state.");
 				return;
 			}
 
@@ -215,7 +223,7 @@ namespace PerformanceTrayMonitor.Views
 				t = Math.Clamp(t, 0, 1);
 
 				double y = h - (t * h);
-				y = Math.Round(y) + 0.5;
+				y = Math.Floor(y);   // if you want crisp pixel alignment
 
 				pts.Add(new Point(x, y));
 			}

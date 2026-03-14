@@ -156,7 +156,8 @@ Changes:
 	v1.0.9565	Fixed wrong UI URI, set to pack URI!
 	v1.1.9567	Store Metric view windows position in .json (with all the bagage that comes with that). 
 				Was not happy with the UI logic, totally rewrote that code.
-	V1.1.xxxx	Use LoadDefaults() in ResetToDefaults(), no duplication of efford.
+	V1.1.9568	Use LoadDefaults() in ResetToDefaults(), no duplication of efford.
 				Code cleanup
+				The Metric View window was starting too early when pinned, plus it needed some massaging
 
 More to come ...

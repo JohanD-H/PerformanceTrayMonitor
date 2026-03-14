@@ -26,6 +26,30 @@
         <!-- Smooth easing -->
         <QuadraticEase x:Key="EaseOut" EasingMode="EaseOut"/>
 
+        <!-- Subtle grid background for sparkline panels -->
+        <DrawingBrush x:Key="SparklineGridBrush"
+              TileMode="Tile"
+              Viewport="0,0,16,12"
+              ViewportUnits="Absolute"
+              Stretch="None">
+            <DrawingBrush.Drawing>
+                <GeometryDrawing Brush="Transparent">
+                    <GeometryDrawing.Pen>
+                        <!-- ~6% opacity white lines -->
+                        <Pen Thickness="1" Brush="#30000000"/>
+                    </GeometryDrawing.Pen>
+                    <GeometryDrawing.Geometry>
+                        <GeometryGroup>
+                            <!-- Vertical line -->
+                            <LineGeometry StartPoint="0,0" EndPoint="0,12"/>
+                            <!-- Horizontal line -->
+                            <LineGeometry StartPoint="0,0" EndPoint="16,0"/>
+                        </GeometryGroup>
+                    </GeometryDrawing.Geometry>
+                </GeometryDrawing>
+            </DrawingBrush.Drawing>
+        </DrawingBrush>
+
     </Window.Resources>
 
     <!-- Main Layout -->
@@ -144,6 +168,7 @@
                                              Fill="{Binding CurrentValue, Converter={StaticResource ActivityToBrush}}"/>
                                     <TextBlock x:Name="DisplayNameBlock"
                                                Text="{Binding DisplayName}"
+                                               Foreground="{Binding AccentBrush}"
                                                FontWeight="Bold"
                                                VerticalAlignment="Center">
                                         <TextBlock.Effect>
@@ -157,18 +182,26 @@
 
                                 <!-- Sparkline + Value -->
                                 <Grid Height="24"
-                                      Background="#77000000">
+                                      Background="{StaticResource SparklineGridBrush}">
 
                                     <local:SparkLine Values="{Binding History}"
                                                      Min="{Binding Min}"
                                                      Max="{Binding Max}"
-                                                     Opacity="0.85"/>
+                                                     Stroke="{Binding AccentBrush}"
+                                                     Opacity="0.85">
+                                        <local:SparkLine.Effect>
+                                            <DropShadowEffect Color="Black"
+                                                              BlurRadius="4"
+                                                              ShadowDepth="0"
+                                                              Opacity="{Binding ShadowOpacity}"/>
+                                        </local:SparkLine.Effect>
+                                    </local:SparkLine>
 
                                     <TextBlock Text="{Binding CurrentValue, StringFormat=0.0}"
                                                HorizontalAlignment="Right"
                                                VerticalAlignment="Center"
                                                FontWeight="Bold"
-                                               Foreground="#FFFFFFFF"
+                                               Foreground="#88000000"
                                                Margin="0,0,2,0"
                                                FontSize="11">
                                         <TextBlock.Effect>

@@ -28,19 +28,41 @@ namespace PerformanceTrayMonitor.Views
 			{
 				Width = MinWidth;
 
-				MetricsList.ItemContainerGenerator.StatusChanged += (_, __) =>
+				void OnStatusChanged(object? s, EventArgs e)
 				{
-					if (MetricsList.ItemContainerGenerator.Status ==
-						GeneratorStatus.ContainersGenerated)
+					if (MetricsList.ItemContainerGenerator.Status == GeneratorStatus.ContainersGenerated)
 					{
-						Dispatcher.BeginInvoke(new Action(() =>
-						{
-							BuildVisualCache();
-							ApplyAccentColors();
-						}), DispatcherPriority.Loaded);
+						MetricsList.ItemContainerGenerator.StatusChanged -= OnStatusChanged;
+
+						Dispatcher.InvokeAsync(
+							() =>
+							{
+								BuildVisualCache();
+								ApplyAccentColors();
+							},
+							DispatcherPriority.ApplicationIdle
+						);
 					}
-				};
+				}
+
+				MetricsList.ItemContainerGenerator.StatusChanged += OnStatusChanged;
 			};
+		}
+
+		private void ForceSparklineRedraw()
+		{
+			foreach (var item in MetricsList.Items)
+			{
+				var container = (FrameworkElement)MetricsList
+					.ItemContainerGenerator
+					.ContainerFromItem(item);
+
+				if (container == null)
+					continue;
+
+				var spark = FindChild<Views.SparkLine>(container);
+				spark?.InvalidateVisual();
+			}
 		}
 
 

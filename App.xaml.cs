@@ -8,6 +8,7 @@ using PerformanceTrayMonitor.Views;
 using System;
 using System.Diagnostics;
 using System.Windows;
+using System.Windows.Threading;
 
 namespace PerformanceTrayMonitor
 {
@@ -86,11 +87,11 @@ namespace PerformanceTrayMonitor
 				// -----------------------------------------
 				_mainVm.Start();
 				// Restore PopupWindow, if it was OPEN and PINNED on close!
-				Log.Debug($"OnStartup: PopupPinned = {settings.PopupPinned}, PopupWasOpen = {settings.PopupWasOpen}");
-				if (settings.PopupPinned && settings.PopupWasOpen)
+				Dispatcher.InvokeAsync(() =>
 				{
-					_mainVm.ShowPopup();
-				}
+					if (settings.PopupPinned && settings.PopupWasOpen)
+						_mainVm.ShowPopup();
+				}, DispatcherPriority.Background);
 			}
 			catch (Exception ex)
 			{
