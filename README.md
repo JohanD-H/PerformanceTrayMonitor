@@ -3,7 +3,7 @@ Performance Tray Monitor
 
 	A lightweight, animated performance monitor for the Windows system tray.
 
-Description:
+## Description:
 
 	On startup an animated taskbar icon is available. 
 	Left clicking this icon will show a menu. 
@@ -20,29 +20,47 @@ Description:
 
 	On startup, when no settings file exists a default Disk Activity metric is defined (but no taskbar icon is shown).
 
-Building
+## Building
 
-	For building, I use: Microsoft Visual Studio Community 2022 edition (latest)
+	For building, I use: Microsoft Visual Studio Community 2022/2026 edition (latest)
 
-		Required packages:
-			Microsoft.Extensions.Logging
-			Microsoft.Extensions.Logging.Debug
-			Microsoft.Extensions.Logging.TraceSource
+	## Requirements:
+
+		- Windows 10/11.
+		- Visual Studio 2022/2026 Commuinity Edition
+
+		- For debugging Required packages:
+			- Microsoft.Extensions.Logging
+			- Microsoft.Extensions.Logging.Debug
+			- Microsoft.Extensions.Logging.TraceSource
 		
-	To install these packages, use: Nuget commands (Tools > NuGet Package Manager > Package Manager Console):
-			Install-Package Microsoft.Extensions.Logging
-			Install-Package Microsoft.Extensions.Logging.Debug
-			Install-Package Microsoft.Extensions.Logging.TraceSource
+			To install these packages, use: Nuget commands (Tools > NuGet Package Manager > Package Manager Console):
+				- Install-Package Microsoft.Extensions.Logging
+				- Install-Package Microsoft.Extensions.Logging.Debug
+				- Install-Package Microsoft.Extensions.Logging.TraceSource
 
 	Build the app.
 
-Installation:
+## Download:
+	<a href="https://https://github.com/JohanD-H/PerformanceTrayMonitor/releases/latest">
+		<img src="PerformanceTrayMonitor.png" alt="Download Now" width="48" style="display:block; margin-left:0;" />
+	</a>
+
+## Installation:
 
 	Unpack the <release>.zip file into a subdirectory in your root C:\, %USERPROFILE%, or %APPDATA%.
 	Do NOT install the app into %ProgramFiles% or %ProgramFiles(x86)%! 
 	The app saves it'ssettings in PerformanceTrayMonitor.json, using %ProgramFiles% or %ProgramFiles(x86)% would cause a write protection error!
 
-Code Structure...
+## Help / FAQ
+
+	**Where is the app window?**  
+		It’s designed to live in the **tray**. Use the tray icon context menu.
+
+	**Can it start with Windows?** 
+		Yes.
+
+## Code Structure...
 
 	App.xaml & App.xaml.cs
 		Main entry
@@ -80,7 +98,7 @@ Code Structure...
 		Recreates the app icon when needed (e.g., after user restores the app icon).
 
 
-Why are there two ConfigViewModels?
+## Why are there two ConfigViewModels?
 
 	Shared ConfigViewModel (SharedConfigVm)
 		Lives for the entire lifetime of the app.
@@ -101,7 +119,7 @@ Why are there two ConfigViewModels?
 		Discarded after saving or canceling.
 		Does not affect tray icons until saved.
 
-Metrics config
+## Metrics config
 
 	ConfigViewModel.cs
 		It is the metrics editor VM, not the shared VM!
@@ -133,7 +151,7 @@ Metrics config
 		Shows IconSets and validates them
 		Icon testing and validation tool
 
-IconSet(s):
+## IconSet(s):
 	
 	You can install addition (custom) .ico files into a <app directory>\Icons\<subdirectory name, a.k.a IconSet name.
 	The requirements are, at least two .ico files are required, the filename part must end on -1 for the first file, -2 for the seconds, etc. upto -10.
@@ -143,21 +161,31 @@ IconSet(s):
 				min and max are the lower and upper value limits defined in the metric configuration!
 	A demonstration IconSet is defined into the Icons directory named Thumb.
 
-.NET:
+## .NET:
 
 	Debugging commands:
 		List .NET runtimes:
 			dotnet --list-runtimes
 		Print .NET (silent) exceptions (for PerformanceTrayMonitor in this case):
 			dotnet .\PerformanceTrayMonitor.dll
-Changes:
+## Changes:
 
 	v1.0.9564	Initial release
 	v1.0.9565	Fixed wrong UI URI, set to pack URI!
 	v1.1.9567	Store Metric view windows position in .json (with all the bagage that comes with that). 
 				Was not happy with the UI logic, totally rewrote that code.
-	V1.1.9568	Use LoadDefaults() in ResetToDefaults(), no duplication of efford.
+	v1.1.9568	Use LoadDefaults() in ResetToDefaults(), no duplication of efford.
 				Code cleanup
 				The Metric View window was starting too early when pinned, plus it needed some massaging
+	v1.2.9569	Fix a bunch of UI issues, added Icon preview
+	v1.3.9575	Completely seperated loading Windows Performance Counters from the UI, this makes
+				the UI responsive under all condition. Also added a UI Updating overlay, 
+				added a status bar to the Configuration UI. Changed Tray Icon menu to use the
+				WPF context menu, added a tiny (WPF) context menu to the counter icons (only
+				shown when the app tray icon is hidden). Rewrote settings saving to be async,
+				and use json, as json was always intended to be used for this (instead of using
+				xml), save some more settings and seperated metric from global settings, so
+				they can be saved independently.
+
 
 More to come ...

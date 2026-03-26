@@ -1,5 +1,4 @@
-﻿using PerformanceTrayMonitor.Debugging;
-using PerformanceTrayMonitor.ViewModels;
+﻿using PerformanceTrayMonitor.ViewModels;
 using PerformanceTrayMonitor.Common;
 using System;
 using System.Collections.Generic;
@@ -10,23 +9,24 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
+using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 
 // --------------------------------------------
 // Application tray icon animation
 // --------------------------------------------
 namespace PerformanceTrayMonitor.Configuration
-
 {
 	internal sealed class AnimatedTrayIcon : IDisposable
 	{
 		private readonly NotifyIcon _notifyIcon;
 		private readonly DispatcherTimer _timer;
 		private readonly List<Bitmap> _frames = new();
-		private readonly ContextMenuStrip _menu = new();
+		private readonly List<Icon> _icons = new();
 		private readonly ConfigViewModel _sharedConfigVm;
 		private readonly MainViewModel _mainVm;
-		private readonly List<Icon> _icons = new();
 
+		private ContextMenu? _wpfMenu;
 		private int _frameIndex;
 
 		public AnimatedTrayIcon(ConfigViewModel sharedConfigVm, MainViewModel mainVm)
@@ -63,11 +63,11 @@ namespace PerformanceTrayMonitor.Configuration
 			AdvanceFrame();
 		}
 
-		private void NotifyIcon_MouseUp(object? sender, MouseEventArgs e)
+		private async void NotifyIcon_MouseUp(object? sender, MouseEventArgs e)
 		{
 			if (e.Button == MouseButtons.Right)
 			{
-				BuildMenu();
+				await Task.Delay(100);
 				ShowTrayMenu();
 			}
 			else if (e.Button == MouseButtons.Left)
@@ -81,10 +81,134 @@ namespace PerformanceTrayMonitor.Configuration
 
 		private async void ShowTrayMenu()
 		{
-			// Let Windows settle the tray icon position
 			await Task.Delay(50);
-			// Put the context menu by the cursor
-			_menu.Show(Cursor.Position);
+
+			// Bring invisible window to foreground
+			App.HiddenWindow.Activate();
+
+			_wpfMenu = BuildWpfMenu();
+
+			// Tie the menu to the hidden window
+			_wpfMenu.PlacementTarget = App.HiddenWindow;
+			_wpfMenu.Placement = PlacementMode.MousePoint;
+			_wpfMenu.StaysOpen = false;
+			_wpfMenu.IsOpen = true;
+		}
+
+		// ------------------------------------------------------------
+		// WPF MENU
+		// ------------------------------------------------------------
+		private ContextMenu BuildWpfMenu()
+		{
+			var menu = new ContextMenu();
+
+			bool framesVisible = DebugIconWindow.IsOpen;
+			bool countersVisible = _mainVm.PopupIsOpen;
+			bool appIconVisible = _mainVm.ShowAppIcon;
+			bool anyCounterVisible = _mainVm.Counters.Any(c => c.ShowInTray);
+
+			// Configure Metrics
+			menu.Items.Add(new MenuItem
+			{
+				Header = "Configure Metrics",
+				Command = new RelayCommand(_ => _mainVm.ShowConfig())
+			});
+
+			menu.Items.Add(new Separator());
+
+			// Icon Preview
+			menu.Items.Add(new MenuItem
+			{
+				Header = framesVisible ? "Close IconSet Preview" : "Open IconSet Preview",
+				Command = new RelayCommand(_ =>
+				{
+					if (framesVisible)
+						DebugIconWindow.CloseAll();
+					else
+						new DebugIconWindow(IconSetConfig.IconSets.Keys.First()).Show();
+				})
+			});
+
+			// Metrics View
+			menu.Items.Add(new MenuItem
+			{
+				Header = countersVisible ? "Close Metrics View" : "Open Metrics View",
+				Command = new RelayCommand(_ => _mainVm.TogglePopup())
+			});
+
+			menu.Items.Add(new Separator());
+
+			// App Icon toggle
+			menu.Items.Add(new MenuItem
+			{
+				Header = "Hide App Icon",
+				IsEnabled = anyCounterVisible,   // <--- Grey out when no counters exist
+				Command = new RelayCommand(_ =>
+				{
+					_mainVm.ToggleAppIcon();
+				})
+			});
+
+			menu.Items.Add(new Separator());
+
+			// Exit
+			menu.Items.Add(new MenuItem
+			{
+				Header = "Exit",
+				Command = new RelayCommand(_ =>
+				{
+					System.Windows.Application.Current.Shutdown();
+				})
+			});
+
+			menu.Items.Add(new Separator());
+
+			// About
+			menu.Items.Add(new MenuItem
+			{
+				Header = "About",
+				Command = new RelayCommand(_ =>
+				{
+					var existing = System.Windows.Application.Current.Windows
+						.OfType<PerformanceTrayMonitor.Views.AboutWindow>()
+						.FirstOrDefault();
+
+					if (existing != null)
+					{
+						existing.Activate();
+						return;
+					}
+
+					new PerformanceTrayMonitor.Views.AboutWindow().Show();
+				})
+			});
+
+			menu.Opened += (_, __) => Log.Debug("WPF Menu: OPENED");
+			menu.Closed += (_, __) => Log.Debug("WPF Menu: CLOSED");
+			menu.PreviewKeyDown += (_, e) => Log.Debug($"WPF Menu: KEY {e.Key}");
+			menu.PreviewMouseDown += (_, e) => Log.Debug($"WPF Menu: MOUSEDOWN {e.ChangedButton}");
+			menu.PreviewMouseUp += (_, e) => Log.Debug($"WPF Menu: MOUSEUP {e.ChangedButton}");
+			menu.PreviewMouseLeftButtonDown += (_, __) => Log.Debug("WPF Menu: LEFT DOWN");
+			menu.PreviewMouseRightButtonDown += (_, __) => Log.Debug("WPF Menu: RIGHT DOWN");
+			menu.PreviewMouseLeftButtonUp += (_, __) => Log.Debug("WPF Menu: LEFT UP");
+			menu.PreviewMouseRightButtonUp += (_, __) => Log.Debug("WPF Menu: RIGHT UP");
+			
+			menu.PreviewKeyDown += (_, e) =>
+			{
+				Log.Debug($"WPF Menu: KEY = {e.Key}");
+			};
+
+			menu.PreviewMouseDown += (_, e) =>
+			{
+				Log.Debug($"WPF Menu: MOUSEDOWN = {e.ChangedButton}, Source={e.Source}");
+			};
+
+			menu.PreviewMouseUp += (_, e) =>
+			{
+				Log.Debug($"WPF Menu: MOUSEUP = {e.ChangedButton}, Source={e.Source}");
+			};
+
+			return menu;
 		}
 
 		// ------------------------------------------------------------
@@ -124,7 +248,6 @@ namespace PerformanceTrayMonitor.Configuration
 		{
 			_frames.Clear();
 
-			// Relative pack-URI paths (required for GetResourceStream)
 			string basePath = "/Resources/Icons/App/Animated/";
 
 			string[] files =
@@ -155,7 +278,6 @@ namespace PerformanceTrayMonitor.Configuration
 
 		private Bitmap LoadEmbeddedBitmap(string relativePath)
 		{
-			// Must be a RELATIVE URI
 			var uri = new Uri(relativePath, UriKind.Relative);
 
 			var info = System.Windows.Application.GetResourceStream(uri);
@@ -196,13 +318,9 @@ namespace PerformanceTrayMonitor.Configuration
 		{
 			IntPtr hIcon = bmp.GetHicon();
 
-			// Wrap the handle
 			var icon = Icon.FromHandle(hIcon);
-
-			// Clone to detach from the raw handle
 			var clone = (Icon)icon.Clone();
 
-			// Now it's safe to destroy the original HICON
 			NativeMethods.DestroyIcon(hIcon);
 
 			return clone;
@@ -212,110 +330,6 @@ namespace PerformanceTrayMonitor.Configuration
 		{
 			[System.Runtime.InteropServices.DllImport("user32.dll", CharSet = System.Runtime.InteropServices.CharSet.Auto)]
 			public extern static bool DestroyIcon(IntPtr handle);
-		}
-
-		// ------------------------------------------------------------
-		// MENU
-		// ------------------------------------------------------------
-		private void BuildMenu()
-		{
-			bool framesVisible = DebugIconWindow.IsOpen;   // you can expose a static flag
-			bool countersVisible = _mainVm.PopupIsOpen;    // you already track this
-			bool appIconVisible = _mainVm.ShowAppIcon;
-			bool anyCounterVisible = _mainVm.Counters.Any(c => c.ShowInTray);
-
-			_menu.Items.Clear();
-
-			// Put the configuration option on top, it's the most often used
-			_menu.Items.Add("Configure Metrics", null, (_, _) =>
-			{
-				System.Windows.Application.Current.Dispatcher.Invoke(() =>
-				{
-					_mainVm.ShowConfig();
-				});
-			});
-
-			_menu.Items.Add(new ToolStripSeparator());
-
-			_menu.Items.Add(framesVisible ? "Close Icon Preview" : "Open Icon Preview", null, (_, _) =>
-			{
-				System.Windows.Application.Current.Dispatcher.Invoke(() =>
-				{
-					if (framesVisible)
-						DebugIconWindow.CloseAll();
-					else
-						new DebugIconWindow().Show();
-				});
-			});
-
-			_menu.Items.Add(countersVisible ? "Close Metrics View" : "Open Metrics View", null, (_, _) =>
-			{
-				System.Windows.Application.Current.Dispatcher.Invoke(() =>
-				{
-					_mainVm.TogglePopup();
-				});
-			});
-
-			_menu.Items.Add(new ToolStripSeparator());
-
-			_menu.Items.Add(
-				appIconVisible ? "Hide App Icon" : "Show App Icon",
-				null,
-				(_, _) =>
-				{
-					System.Windows.Application.Current.Dispatcher.Invoke(() =>
-					{
-						if (!appIconVisible && !anyCounterVisible)
-						{
-							MessageBox.Show("You must have at least one tray icon visible.", "Warning");
-							return;
-						}
-
-						_mainVm.ToggleAppIcon();
-						BuildMenu();
-					});
-				});
-
-			_menu.Items.Add(new ToolStripSeparator());
-
-			// It is custom to put exit low in the menu.
-			_menu.Items.Add("Exit", null, (_, _) =>
-			{
-				// Close the WinForms menu FIRST
-				_menu.Close();
-
-				// Shutdown WPF AFTER the menu is gone
-				System.Windows.Application.Current.Dispatcher.BeginInvoke(new Action(() =>
-				{
-					System.Windows.Application.Current.Shutdown();
-				}));
-			});
-
-			_menu.Items.Add(new ToolStripSeparator());
-
-			// The About on the bottom, least used item
-			_menu.Items.Add("About", null, (_, _) =>
-			{
-				System.Windows.Application.Current.Dispatcher.Invoke(() =>
-				{
-					// Check if an instance is already open
-					var existing = System.Windows.Application.Current.Windows
-						.OfType<PerformanceTrayMonitor.Views.AboutWindow>()
-						.FirstOrDefault();
-
-					if (existing != null)
-					{
-						existing.Activate();
-						return;
-					}
-
-					// Create the instance
-					var about = new PerformanceTrayMonitor.Views.AboutWindow();
-
-					// Show modeless (fixes centering + transparency + animation)
-					about.Show();
-				});
-			});
 		}
 
 		// ------------------------------------------------------------
@@ -331,19 +345,11 @@ namespace PerformanceTrayMonitor.Configuration
 
 			_timer.Stop();
 			_timer.Tick -= OnTimerTick;
-			//_timer.Dispose();
-
-			_menu.Items.Clear();
-			_menu.Close();
-			_menu.Dispose();
-			// _menu = null;         // would require removing readonly
-
 
 			_notifyIcon.Icon = null;
 			_notifyIcon.Visible = false;
 			_notifyIcon.MouseUp -= NotifyIcon_MouseUp;
 			_notifyIcon.Dispose();
-			// _notifyIcon = null;   // would require removing readonly
 
 			foreach (var frame in _frames)
 				frame.Dispose();

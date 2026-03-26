@@ -1,14 +1,13 @@
 ﻿using PerformanceTrayMonitor.Configuration;
 using PerformanceTrayMonitor.Common;
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 
-namespace PerformanceTrayMonitor.Debugging
+namespace PerformanceTrayMonitor.ViewModels
 {
 	public sealed class DebugIconWindow : Window
 	{
@@ -19,9 +18,18 @@ namespace PerformanceTrayMonitor.Debugging
 		private Expander _diagErrors;
 		private WrapPanel _spriteGrid;
 
+		private TextBlock _statusSetFrames;
+		private TextBlock _statusSetValidity;
+		private TextBlock _statusSetState;
+
+		private TextBlock _statusFrames;
+		private TextBlock _statusValid;
+		private TextBlock _statusValidState;
+		private TextBlock _statusInvalidState;
+
 		public static bool IsOpen { get; private set; }
 
-		public DebugIconWindow()
+		public DebugIconWindow(string iconSetName)
 		{
 			Title = "Icon Preview";
 			SizeToContent = SizeToContent.WidthAndHeight;
@@ -37,6 +45,7 @@ namespace PerformanceTrayMonitor.Debugging
 			root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // selector
 			root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // diagnostics card
 			root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) }); // sprite grid
+			root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // status bar
 
 			// ---------------------------------------------------------
 			// Icon set selector
@@ -52,8 +61,8 @@ namespace PerformanceTrayMonitor.Debugging
 
 			Loaded += (_, __) =>
 			{
-				if (_setSelector.Items.Count > 0)
-					_setSelector.SelectedIndex = 0;
+				if (IconSetConfig.IconSets.ContainsKey(iconSetName))
+					_setSelector.SelectedItem = iconSetName;
 			};
 
 			_setSelector.SelectionChanged += SetSelector_SelectionChanged;
@@ -107,8 +116,6 @@ namespace PerformanceTrayMonitor.Debugging
 			_spriteGrid = new WrapPanel
 			{
 				Orientation = Orientation.Horizontal,
-				ItemWidth = 32,
-				ItemHeight = 32,
 				Margin = new Thickness(0, 6, 0, 0)
 			};
 
@@ -121,6 +128,137 @@ namespace PerformanceTrayMonitor.Debugging
 
 			Grid.SetRow(scroll, 2);
 			root.Children.Add(scroll);
+
+			// ---------------------------------------------------------
+			// Status bar
+			// ---------------------------------------------------------
+			var statusBar = new Border
+			{
+				Height = 26,
+				Margin = new Thickness(0, 8, 0, 0),
+				Background = new SolidColorBrush(Color.FromArgb(0x80, 0xD0, 0xF0, 0xFF)),
+				BorderBrush = new SolidColorBrush(Color.FromArgb(0x33, 0, 0, 0)),
+				BorderThickness = new Thickness(1, 1, 1, 0)
+			};
+
+			var statusGrid = new Grid
+			{
+				Margin = new Thickness(8, 0, 8, 0)
+			};
+
+			statusGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto }); // global
+			statusGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto }); // sepLeft
+			statusGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // center
+			statusGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto }); // sepRight
+			statusGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto }); // state
+
+			statusBar.Child = statusGrid;
+
+			_statusFrames = new TextBlock
+			{
+				Foreground = new SolidColorBrush(Color.FromRgb(0x44, 0x44, 0x44)),
+				VerticalAlignment = VerticalAlignment.Center,
+				Margin = new Thickness(0, 0, 8, 0)
+			};
+
+			_statusValid = new TextBlock
+			{
+				Foreground = new SolidColorBrush(Color.FromRgb(0x44, 0x44, 0x44)),
+				VerticalAlignment = VerticalAlignment.Center,
+				Margin = new Thickness(0, 0, 8, 0)
+			};
+
+			_statusValidState = new TextBlock
+			{
+				Foreground = new SolidColorBrush(Color.FromRgb(0x44, 0x44, 0x44)),
+				VerticalAlignment = VerticalAlignment.Center,
+				Margin = new Thickness(0, 0, 8, 0)
+			};
+
+			_statusInvalidState = new TextBlock
+			{
+				Foreground = new SolidColorBrush(Color.FromRgb(0x44, 0x44, 0x44)),
+				VerticalAlignment = VerticalAlignment.Center,
+				Margin = new Thickness(0, 0, 8, 0)
+			};
+
+			_statusSetFrames = new TextBlock
+			{
+				Foreground = new SolidColorBrush(Color.FromRgb(0x44, 0x44, 0x44)),
+				VerticalAlignment = VerticalAlignment.Center,
+				Margin = new Thickness(8, 0, 8, 0)
+			};
+
+			_statusSetValidity = new TextBlock
+			{
+				Foreground = new SolidColorBrush(Color.FromRgb(0x44, 0x44, 0x44)),
+				VerticalAlignment = VerticalAlignment.Center,
+				Margin = new Thickness(0, 0, 8, 0)
+			};
+
+			_statusSetState = new TextBlock
+			{
+				Foreground = new SolidColorBrush(Color.FromRgb(0x44, 0x44, 0x44)),
+				VerticalAlignment = VerticalAlignment.Center,
+				Margin = new Thickness(8, 0, 0, 0)
+			};
+
+			var globalPanel = new StackPanel
+			{
+				Orientation = Orientation.Horizontal,
+				VerticalAlignment = VerticalAlignment.Center,
+				Opacity = 0.75
+			};
+
+			globalPanel.Children.Add(_statusFrames);
+			globalPanel.Children.Add(_statusValid);
+			globalPanel.Children.Add(_statusValidState);
+			globalPanel.Children.Add(_statusInvalidState);
+
+			Grid.SetColumn(globalPanel, 0);
+			statusGrid.Children.Add(globalPanel);
+
+			var sepLeft = new TextBlock
+			{
+				Text = "|",
+				Margin = new Thickness(8, 0, 8, 0),
+				VerticalAlignment = VerticalAlignment.Center,
+				Opacity = 0.5
+			};
+
+			Grid.SetColumn(sepLeft, 1);
+			statusGrid.Children.Add(sepLeft);
+
+			var setPanel = new StackPanel
+			{
+				Orientation = Orientation.Horizontal,
+				VerticalAlignment = VerticalAlignment.Center,
+				HorizontalAlignment = HorizontalAlignment.Center
+			};
+
+			setPanel.Children.Add(_statusSetFrames);
+			setPanel.Children.Add(_statusSetValidity);
+
+			Grid.SetColumn(setPanel, 2);
+			statusGrid.Children.Add(setPanel);
+
+			var sepRight = new TextBlock
+			{
+				Text = "|",
+				Margin = new Thickness(8, 0, 8, 0),
+				VerticalAlignment = VerticalAlignment.Center,
+				Opacity = 0.5
+			};
+
+			Grid.SetColumn(sepRight, 3);
+			statusGrid.Children.Add(sepRight);
+
+			_statusSetState.VerticalAlignment = VerticalAlignment.Center;
+			Grid.SetColumn(_statusSetState, 4);
+			statusGrid.Children.Add(_statusSetState);
+
+			Grid.SetRow(statusBar, 3);
+			root.Children.Add(statusBar);
 
 			Content = root;
 		}
@@ -203,6 +341,8 @@ namespace PerformanceTrayMonitor.Debugging
 						bmp.BeginInit();
 						bmp.StreamSource = stream;
 						bmp.CacheOption = BitmapCacheOption.OnLoad;
+						bmp.DecodePixelWidth = 64;   // Match preview size
+						bmp.DecodePixelHeight = 64;
 						bmp.EndInit();
 					}
 					else
@@ -218,8 +358,8 @@ namespace PerformanceTrayMonitor.Debugging
 
 				var border = new Border
 				{
-					Width = 48,
-					Height = 48,
+					Width = 64,
+					Height = 64,
 					Margin = new Thickness(4),
 					BorderBrush = new SolidColorBrush(Color.FromRgb(0xCC, 0xCC, 0xCC)),
 					BorderThickness = new Thickness(0.5),
@@ -240,14 +380,45 @@ namespace PerformanceTrayMonitor.Debugging
 
 				border.Child = new Image
 				{
-					Width = 32,
-					Height = 32,
+					Stretch = Stretch.Uniform,
 					HorizontalAlignment = HorizontalAlignment.Center,
 					VerticalAlignment = VerticalAlignment.Center,
 					Source = bmp
 				};
 
 				_spriteGrid.Children.Add(border);
+			}
+
+			var stats = IconSetStatistics.Compute();
+
+			_statusFrames.Text = $"Emb: {stats.Embedded}";
+			_statusValid.Text  = $"Ext: {stats.External}";
+			_statusValidState.Text = $"Val: {stats.Valid}";
+			_statusInvalidState.Text = $"Inv: {stats.Invalid}";
+
+			_statusSetFrames.Text = $"Frames: {diag.FrameCount}";
+			_statusSetValidity.Text = diag.IsValid ? "Valid" : "Invalid";
+			_statusSetState.Text = diag.IsValid ? "Ready" : "Errors detected";
+		}
+
+		public static class IconSetStatistics
+		{
+			public static (int Embedded, int External, int Valid, int Invalid) Compute()
+			{
+				var embedded = EmbeddedIconDiscovery.GetEmbeddedSets();
+				var external = ExternalIconDiscovery.Discover();
+
+				var all = embedded
+					.Concat(external)
+					.ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+
+				int embeddedCount = embedded.Count;
+				int externalCount = external.Count;
+
+				int validCount = all.Values.Count(s => IconSetValidator.Validate(s));
+				int invalidCount = all.Count - validCount;
+
+				return (embeddedCount, externalCount, validCount, invalidCount);
 			}
 		}
 	}

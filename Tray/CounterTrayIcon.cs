@@ -1,11 +1,13 @@
-﻿using PerformanceTrayMonitor.Configuration;
+﻿using PerformanceTrayMonitor.Common;
+using PerformanceTrayMonitor.Configuration;
 using PerformanceTrayMonitor.Models;
 using PerformanceTrayMonitor.ViewModels;
-using PerformanceTrayMonitor.Common;
 using System;
+using System.Windows;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
+using System.Windows.Controls;
 using System.Windows.Forms;
 
 // --------------------------------------------
@@ -23,6 +25,13 @@ namespace PerformanceTrayMonitor.Tray
 		private readonly NotifyIcon _notifyIcon;
 		private readonly Timer _updateTimer;
 		private readonly MainViewModel _mainVm;
+
+		//public bool UseTextTrayIcon { get; set; }
+		//public System.Windows.Media.Color TrayAccentColor { get; set; }
+		//public bool AutoBackground { get; set; }
+
+		public System.Windows.Media.Color TrayBackgroundColor { get; set; }
+		private Icon _lastClone;
 
 		// ------------------------------------------------------------
 		// BUILD THE COUNTER TRAY ICON AND GIVE IT MOUSE HANDLING!
@@ -58,11 +67,13 @@ namespace PerformanceTrayMonitor.Tray
 					{
 						_mainVm.TogglePopup();
 					}
+					/*
 					else if (e.Button == MouseButtons.Right)
 					{
 						if (!_mainVm.ShowAppIcon)
 							_mainVm.ToggleAppIcon();
 					}
+					*/
 				});
 			};
 
@@ -156,6 +167,25 @@ namespace PerformanceTrayMonitor.Tray
 			return $"{value:0}";
 		}
 
+		private string FormatValueForTray(double value)
+		{
+			// Percent counters
+			if ((_settings.Min == 0 && _settings.Max == 100) ||
+				_settings.Counter.TrimStart().StartsWith("%"))
+			{
+				return $"{value:0}";
+			}
+
+			// Raw numbers
+			if (value < 10)
+				return $"{value:0.0}";
+
+			if (value < 100)
+				return $"{value:0}";
+
+			return $"{value:0}";
+		}
+
 		// ------------------------------------------------------------
 		// UPDATE LOOP
 		// ------------------------------------------------------------
@@ -164,11 +194,32 @@ namespace PerformanceTrayMonitor.Tray
 
 		private void UpdateIcon()
 		{
+			//Log.Debug($"REAL Editor hash = {_settings.GetHashCode()}");
+
 			double value = _valueProvider();
 
-			int index = GetFrameIndex(value, _settings.Min, _settings.Max, _frames.Length);
+			// Always update tooltip
+			_notifyIcon.Text = BuildTooltip(value);
 
-#if DEBUG
+			// If using text mode, skip animation entirely
+			if (_settings.UseTextTrayIcon)
+			{
+				UpdateTextIcon(value);
+				return;
+			}
+
+			// Otherwise use animated frames
+			// Old GetFrameIndex move to more generic place
+			//int index = GetFrameIndex(value, _settings.Min, _settings.Max, _frames.Length);
+			int index = TrayIconGenerator.GetFrameIndex(
+				value,
+				_settings.Min,
+				_settings.Max,
+				_frames.Length
+			);
+
+
+#if DEBUGx
 			// To trap on anything "Network" use:
 			// if (_settings.Category?.Contains("Network", StringComparison.OrdinalIgnoreCase) == true && value != 0)
 			// The below simply traps on a specific category, "Network Interface" in this case
@@ -181,17 +232,50 @@ namespace PerformanceTrayMonitor.Tray
 			}
 #endif
 
-			// Only update the icon if the frame actually changed
 			if (index != _lastFrameIndex)
 			{
-			_lastFrameIndex = index;
-				_notifyIcon.Icon = _frames[index];
-			}
+				_lastFrameIndex = index;
 
-			// Tooltip can update every tick; it's cheap
-			_notifyIcon.Text = BuildTooltip(value);
+				// Dispose the previous clone (if any)
+				_lastClone?.Dispose();
+
+				// Create a new clone and assign it
+				_lastClone = (Icon)_frames[index].Clone();
+				_notifyIcon.Icon = _lastClone;
+			}
+		}
+		private void UpdateTextIcon(double value)
+		{
+			string text = FormatValueForTray(value);
+
+			// Convert WPF colors → Drawing.Color
+			var accent = _settings.TrayAccentColor.ToDrawingColor();
+
+			var bg = _settings.AutoTrayBackground
+				? UIColors.GetTrayBackground(accent, autoContrast: true)
+				: _settings.TrayBackgroundColor.ToDrawingColor();
+
+			// DPI scale: ask WinForms for the current device DPI
+			float dpi = _notifyIcon.Icon?.Size.Height ?? 16;
+			double dpiScale = dpi / 16.0;
+
+			Icon newIcon = TrayIconGenerator.CreateTextIcon(
+				text,
+				accent,
+				bg,
+				dpiScale);
+
+			// Store the old icon clone for Disposal
+			var oldIcon = _notifyIcon.Icon;
+
+			// Assign the new clone
+			_notifyIcon.Icon = newIcon;
+
+			// Dispose only the old clone
+			oldIcon?.Dispose();
 		}
 
+		/* Replace by same function in TrayIconGenerator!
 		private static int GetFrameIndex(double value, double min, double max, int frameCount)
 		{
 			// If there is only 1 frame (icon) don't bother to calculate!
@@ -216,6 +300,65 @@ namespace PerformanceTrayMonitor.Tray
 			int index = (int)Math.Round(normalized * (frameCount - 1));
 
 			return Math.Max(0, Math.Min(frameCount - 1, index));
+		}
+		*/
+
+		public void UpdateContextMenu()
+		{
+			if (_mainVm.ShowAppIcon)
+			{
+				// App icon is visible → counters get NO menu
+				_notifyIcon.ContextMenuStrip = null;
+			}
+			else
+			{
+				// App icon hidden → counters get the tiny menu
+				var wpfMenu = BuildCounterMenu();
+
+				// Convert WPF ContextMenu → WinForms ContextMenuStrip
+				var cms = new ContextMenuStrip();
+
+				foreach (var item in wpfMenu.Items)
+				{
+					if (item is MenuItem mi)
+					{
+						cms.Items.Add(mi.Header.ToString(), null, (_, _) =>
+						{
+							mi.Command?.Execute(null);
+						});
+					}
+					else if (item is Separator)
+					{
+						cms.Items.Add(new ToolStripSeparator());
+					}
+				}
+
+				_notifyIcon.ContextMenuStrip = cms;
+			}
+		}
+
+		private ContextMenu BuildCounterMenu()
+		{
+			var menu = new ContextMenu();
+
+			// Show App Icon
+			menu.Items.Add(new MenuItem
+			{
+				Header = "Show App Icon",
+				Command = new RelayCommand(_ => _mainVm.ShowAppIcon = true)
+			});
+
+			// Separator for safety spacing
+			menu.Items.Add(new Separator());
+
+			// Exit
+			menu.Items.Add(new MenuItem
+			{
+				Header = "Exit",
+				Command = new RelayCommand(_ => System.Windows.Application.Current.Shutdown())
+			});
+
+			return menu;
 		}
 
 		// ------------------------------------------------------------

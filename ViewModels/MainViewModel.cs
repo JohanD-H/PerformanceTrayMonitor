@@ -2,6 +2,7 @@
 using PerformanceTrayMonitor.Configuration;
 using PerformanceTrayMonitor.Managers;
 using PerformanceTrayMonitor.Models;
+using PerformanceTrayMonitor.Settings;
 using PerformanceTrayMonitor.Views;
 using System;
 using System.Collections.Generic;
@@ -10,6 +11,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Windows;
 using System.Windows.Forms;
+using System.Windows.Media;
 using System.Windows.Threading;
 
 namespace PerformanceTrayMonitor.ViewModels
@@ -23,10 +25,12 @@ namespace PerformanceTrayMonitor.ViewModels
 		private TrayIconManager _trayIconManager;
 		private ConfigWindow _configWindow;
 
-		// The full settings object (global + counters)
+		// The full settings object (global + metrics)
 		public SettingsOptions Settings { get; private set; }
+
 		// Shared ConfigViewModel
 		public ConfigViewModel SharedConfigVm { get; }
+
 		// Popup pinning
 		private bool _popupPinned;
 		public bool PopupIsOpen => _popup != null && _popup.IsLoaded;
@@ -38,8 +42,8 @@ namespace PerformanceTrayMonitor.ViewModels
 		{
 			Log.Debug($"MainViewModel created: {GetHashCode()}");
 
-			Settings = settings;
-			_popupPinned = settings.PopupPinned;
+			Settings = settings ?? throw new ArgumentNullException(nameof(settings));
+			_popupPinned = Settings.Global.PopupPinned;
 
 			_timer = new DispatcherTimer
 			{
@@ -47,7 +51,7 @@ namespace PerformanceTrayMonitor.ViewModels
 			};
 			_timer.Tick += (s, e) => Tick();
 
-			LoadCounters(settings.Counters);
+			LoadCounters(Settings.Metrics);
 
 			// SharedConfigVm now receives the full settings snapshot
 			SharedConfigVm = new ConfigViewModel(GetSettingsSnapshot(), this);
@@ -63,27 +67,15 @@ namespace PerformanceTrayMonitor.ViewModels
 		// ------------------------------------------------------------
 		// COUNTER LOADING
 		// ------------------------------------------------------------
-		private void LoadCounters(IEnumerable<CounterSettingsDto> dtos)
+		private void LoadCounters(IEnumerable<CounterSettings> metrics)
 		{
 			Counters.Clear();
 
-			foreach (var dto in dtos)
-			{
-				var settings = new CounterSettings
-				{
-					Id = dto.Id,
-					Category = dto.Category,
-					Counter = dto.Counter,
-					Instance = dto.Instance,
-					DisplayName = dto.DisplayName,
-					Min = dto.Min,
-					Max = dto.Max,
-					ShowInTray = dto.ShowInTray,
-					IconSet = dto.IconSet
-				};
+			if (metrics == null)
+				return;
 
+			foreach (var settings in metrics)
 				Counters.Add(new CounterViewModel(settings));
-			}
 		}
 
 		// ------------------------------------------------------------
@@ -91,12 +83,12 @@ namespace PerformanceTrayMonitor.ViewModels
 		// ------------------------------------------------------------
 		public bool ShowAppIcon
 		{
-			get => Settings.ShowAppIcon;
+			get => Settings.Global.ShowAppIcon;
 			set
 			{
-				if (Settings.ShowAppIcon != value)
+				if (Settings.Global.ShowAppIcon != value)
 				{
-					Settings.ShowAppIcon = value;
+					Settings.Global.ShowAppIcon = value;
 					OnPropertyChanged();
 				}
 			}
@@ -116,8 +108,10 @@ namespace PerformanceTrayMonitor.ViewModels
 			// Prime counters
 			foreach (var c in Counters)
 			{
-				c.Update();
-				c.Update();
+				// No this is not typo, we purposely do two updates 
+				c.Update(); // Create historical counters
+				c.Update(); // Set historical counters to 0
+							// Now the historical counters are fully initialized!
 			}
 
 			_timer.Start();
@@ -126,42 +120,12 @@ namespace PerformanceTrayMonitor.ViewModels
 		public void Stop() => _timer.Stop();
 
 		// ------------------------------------------------------------
-		// SETTINGS SNAPSHOT (for saving)
+		// SETTINGS SNAPSHOT (for saving / config)
 		// ------------------------------------------------------------
 		public SettingsOptions GetSettingsSnapshot()
 		{
-			Log.Debug($"GetSettingsSnapshot: ShowAppIcon = {this.ShowAppIcon}");
-			Log.Debug($"GetSettingsSnapshot: PopupPinned = {this.Settings.PopupPinned}");
-			Log.Debug($"GetSettingsSnapshot: PopupMonitorId = {this.Settings.PopupMonitorId}");
-			Log.Debug($"GetSettingsSnapshot: PopupX = {this.Settings.PopupX}");
-			Log.Debug($"GetSettingsSnapshot: PopupY = {this.Settings.PopupY}");
-			Log.Debug($"GetSettingsSnapshot: PopupDpi = {this.Settings.PopupDpi}");
-			Log.Debug($"GetSettingsSnapshot: PopupWasOpen = {this.Settings.PopupWasOpen}");
-
-			return new SettingsOptions(
-				Counters.Select(c => new CounterSettingsDto
-				{
-					Id = c.Settings.Id,
-					Category = c.Category,
-					Counter = c.Counter,
-					Instance = c.Instance,
-					DisplayName = c.DisplayName,
-					Min = c.Min,
-					Max = c.Max,
-					ShowInTray = c.ShowInTray,
-					IconSet = c.IconSet
-				}).ToList(),
-				this.ShowAppIcon,
-				SettingsOptions.CurrentVersion
-			)
-			{
-				PopupPinned = this.Settings.PopupPinned,
-				PopupMonitorId = this.Settings.PopupMonitorId,
-				PopupX = this.Settings.PopupX,
-				PopupY = this.Settings.PopupY,
-				PopupDpi = this.Settings.PopupDpi,
-				PopupWasOpen = this.Settings.PopupWasOpen
-			};
+			// Settings is already the runtime model; no need to rebuild
+			return Settings;
 		}
 
 		// ------------------------------------------------------------
@@ -186,23 +150,24 @@ namespace PerformanceTrayMonitor.ViewModels
 
 			// Replace full settings object
 			Settings = newSettings;
+			_popupPinned = Settings.Global.PopupPinned;
 
 			// Reload counters (creates new CounterViewModels)
-			LoadCounters(newSettings.Counters);
+			LoadCounters(Settings.Metrics);
 
 			// Rebuild tray icons
 			_trayIconManager = new TrayIconManager(this);
 
 			foreach (var vm in Counters)
-			{ 
+			{
 				vm.AttachCounter(CreateCounter(vm.Settings));
 
-				// ⭐ PRIME COUNTERS (same fix as startup)
+				// PRIME COUNTERS (same fix as startup)
 				vm.Update(); // prime
 				vm.Update(); // real value
 			}
 
-			// ⭐ DELAY UI REDRAW UNTIL LAYOUT IS READY
+			// DELAY UI REDRAW UNTIL LAYOUT IS READY
 			UiAfterLayout.Run(() =>
 			{
 				foreach (var vm in Counters)
@@ -221,35 +186,39 @@ namespace PerformanceTrayMonitor.ViewModels
 				return;
 			}
 
-			Log.Debug("MainWindow = " + System.Windows.Application.Current.MainWindow?.GetType().Name);
+			Log.Debug($"ShowPopup: MainWindow = {System.Windows.Application.Current.MainWindow?.GetType().Name}, PopupIsOpen = {PopupIsOpen}");
 
 			foreach (var c in Counters)
-				c.Update();
+				c.Update(); // Update historical counter value
 
 			_popup = new PopupWindow
 			{
-				WindowStartupLocation = Settings.PopupPinned
+				WindowStartupLocation = Settings.Global.PopupPinned
 					? WindowStartupLocation.Manual
 					: WindowStartupLocation.CenterScreen,
 
 				DataContext = this,
-				Owner = Settings.PopupPinned ? null : System.Windows.Application.Current.MainWindow
+				Owner = Settings.Global.PopupPinned ? null : System.Windows.Application.Current.MainWindow
 			};
 
 			bool canRestore = false;  // Restore gate is closed
 
 			// Pre-position before showing
-			if (Settings.PopupPinned)
+			if (Settings.Global.PopupPinned)
 			{
 				// Try to find the saved monitor
-				var screen = Screen.AllScreens.FirstOrDefault(s => s.DeviceName == Settings.PopupMonitorId);
+				var index = Settings.Global.PopupMonitorId ?? -1;
+
+				Screen screen = null;
+				if (index >= 0 && index < Screen.AllScreens.Length)
+					screen = Screen.AllScreens[index];
 
 				if (screen != null)
 				{
 					canRestore = true; // Open restore gate
 
 					// Convert saved DPI → current DPI
-					double savedDpi = Settings.PopupDpi ?? 96;
+					double savedDpi = Settings.Global.PopupDpi ?? 96;
 					double currentDpi = 96;
 
 					var source = PresentationSource.FromVisual(System.Windows.Application.Current.MainWindow);
@@ -258,8 +227,8 @@ namespace PerformanceTrayMonitor.ViewModels
 
 					double scale = currentDpi / savedDpi;
 
-					double x = Settings.PopupX ?? 0;
-					double y = Settings.PopupY ?? 0;
+					double x = Settings.Global.PopupX ?? 0;
+					double y = Settings.Global.PopupY ?? 0;
 
 					_popup.Left = x * scale;
 					_popup.Top = y * scale;
@@ -268,7 +237,7 @@ namespace PerformanceTrayMonitor.ViewModels
 				{
 					// Saved monitor missing
 					// Remove pinned setting
-					Settings.PopupPinned = false;
+					Settings.Global.PopupPinned = false;
 					// Center instead of restoring
 					_popup.WindowStartupLocation = WindowStartupLocation.CenterScreen;
 				}
@@ -288,7 +257,8 @@ namespace PerformanceTrayMonitor.ViewModels
 				});
 			};
 
-			Settings.PopupWasOpen = true;
+			Settings.Global.PopupWasOpen = true;
+			Log.Debug($"ShowPopup: PopupWasOpen = {Settings.Global.PopupWasOpen}, PopupIsOpen = {PopupIsOpen}");
 		}
 
 		public void ClosePopup()
@@ -297,8 +267,8 @@ namespace PerformanceTrayMonitor.ViewModels
 			{
 				_popup.Close();
 				_popup = null;
-				Settings.PopupWasOpen = false;
-				Log.Debug($"PopupWasOpen = {Settings.PopupWasOpen}");
+				Settings.Global.PopupWasOpen = false;
+				Log.Debug($"PopupWasOpen = {Settings.Global.PopupWasOpen}, PopupIsOpen = {PopupIsOpen}");
 			}
 		}
 
@@ -306,7 +276,7 @@ namespace PerformanceTrayMonitor.ViewModels
 		{
 			if (PopupIsOpen)
 			{
-				Log.Debug($"TogglePopup: PopupPinned = {PopupPinned}");
+				Log.Debug($"TogglePopup: PopupPinned = {PopupPinned}, PopupIsOpen = {PopupIsOpen}");
 				if (!PopupPinned)
 					ClosePopup();
 				else
@@ -338,8 +308,10 @@ namespace PerformanceTrayMonitor.ViewModels
 				WindowStartupLocation = WindowStartupLocation.CenterScreen
 			};
 
+			Log.Debug($"ShowConfig: _configWindow hash = {_configWindow.GetHashCode()}");
+
 			_configWindow.Closed += (s, e) => _configWindow = null;
-			_configWindow.ShowDialog();
+			_configWindow.Show();
 		}
 
 		public void ToggleAppIcon()
@@ -349,8 +321,8 @@ namespace PerformanceTrayMonitor.ViewModels
 			// Rebuild tray icons
 			_trayIconManager.RebuildAllIcons();
 
-			// Save settings
-			//SettingsStore.Save(Settings);
+			// Persist the change
+			SettingsSaveQueue.Enqueue(SettingsMapper.ToDto(Settings));
 		}
 
 		// ------------------------------------------------------------
@@ -379,8 +351,8 @@ namespace PerformanceTrayMonitor.ViewModels
 				if (_popupPinned != value)
 				{
 					_popupPinned = value;
-					Log.Debug($"PopupPinned: _popupPinned = {_popupPinned}, PopupWasOpen = {Settings.PopupWasOpen}");
-					Settings.PopupPinned = value;
+					Log.Debug($"PopupPinned: _popupPinned = {_popupPinned}, PopupWasOpen = {Settings.Global.PopupWasOpen}");
+					Settings.Global.PopupPinned = value;
 					OnPropertyChanged();
 
 					if (_popup != null)
@@ -396,12 +368,9 @@ namespace PerformanceTrayMonitor.ViewModels
 						else
 						{
 							_popup.Topmost = false;
-							Settings.PopupWasOpen = false;
+							Settings.Global.PopupWasOpen = _popup?.IsVisible ?? false;
 						}
 					}
-
-					Log.Debug($"PopupPinned: PopupPinned = {Settings.PopupPinned}");
-					//SettingsStore.Save(Settings);   // <-- CRITICAL
 				}
 			}
 		}
@@ -414,36 +383,39 @@ namespace PerformanceTrayMonitor.ViewModels
 			var screen = System.Windows.Forms.Screen.FromHandle(
 				new System.Windows.Interop.WindowInteropHelper(_popup).Handle);
 
-			Settings.PopupPinned = true;
-			Settings.PopupMonitorId = screen.DeviceName;
+			Settings.Global.PopupPinned = true;
+			Settings.Global.PopupMonitorId = Array.IndexOf(Screen.AllScreens, screen);
 
 			// Save raw device pixels
-			Settings.PopupX = _popup.Left;
-			Settings.PopupY = _popup.Top;
+			Settings.Global.PopupX = _popup.Left;
+			Settings.Global.PopupY = _popup.Top;
 
 			// Save DPI
 			var source = PresentationSource.FromVisual(_popup);
 			if (source?.CompositionTarget != null)
 			{
-				Settings.PopupDpi = 96.0 * source.CompositionTarget.TransformToDevice.M11;
+				Settings.Global.PopupDpi = 96.0 * source.CompositionTarget.TransformToDevice.M11;
 			}
-
-			//SettingsStore.Save(Settings);
 		}
 
 		private void RestorePopupPosition(Window popup)
 		{
-			Log.Debug($"RestorePopupPosition: PopupPinned = {Settings.PopupPinned}");
-			if (!Settings.PopupPinned)
+			Log.Debug($"RestorePopupPosition: PopupPinned = {Settings.Global.PopupPinned}");
+			if (!Settings.Global.PopupPinned)
 				return;
 
 			// Find the monitor
 			var screens = System.Windows.Forms.Screen.AllScreens;
-			var screen = screens.FirstOrDefault(s => s.DeviceName == Settings.PopupMonitorId)
-					  ?? System.Windows.Forms.Screen.PrimaryScreen;
+			var index = Settings.Global.PopupMonitorId ?? -1;
+
+			Screen screen = null;
+			if (index >= 0 && index < screens.Length)
+				screen = screens[index];
+
+			screen ??= Screen.PrimaryScreen;
 
 			// DPI scaling
-			double savedDpi = Settings.PopupDpi ?? 96.0;
+			double savedDpi = Settings.Global.PopupDpi ?? 96.0;
 			double currentDpi = 96.0;
 
 			var source = PresentationSource.FromVisual(popup);
@@ -452,8 +424,8 @@ namespace PerformanceTrayMonitor.ViewModels
 
 			double scale = currentDpi / savedDpi;
 
-			double x = (Settings.PopupX ?? 0) * scale;
-			double y = (Settings.PopupY ?? 0) * scale;
+			double x = (Settings.Global.PopupX ?? 0) * scale;
+			double y = (Settings.Global.PopupY ?? 0) * scale;
 
 			// Clamp inside working area
 			var wa = screen.WorkingArea;

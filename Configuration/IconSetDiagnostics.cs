@@ -19,8 +19,8 @@ namespace PerformanceTrayMonitor.Configuration
 
 	public static class IconSetDiagnosticsBuilder
 	{
-		private const int MinFrames = 2;
-		private const int MaxFrames = 10;
+		private const int MinFrames = TrayIconConfig.MinIconSet;
+		private const int MaxFrames = TrayIconConfig.MaxIconSet;
 
 		public static IconSetDiagnostics Build(IconSetDefinition set)
 		{

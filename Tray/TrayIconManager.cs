@@ -4,6 +4,7 @@ using PerformanceTrayMonitor.Models;
 using PerformanceTrayMonitor.Tray;
 using PerformanceTrayMonitor.ViewModels;
 using System;
+using System.Windows;
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.ComponentModel;
@@ -29,15 +30,18 @@ namespace PerformanceTrayMonitor.Managers
 			_mainVm = mainVm;
 			_sharedConfigVm = mainVm.SharedConfigVm;
 
-			// Create the animated app icon
-			_animatedIcon = new AnimatedTrayIcon(_sharedConfigVm, _mainVm);
-			Log.Debug($"AnimatedTrayIcon created: {_animatedIcon.GetHashCode()}");
-
-			// Create counter icons
+			// Create counter icons first
 			InitializeCounterIcons();
+
+			// Create the app icon according to the golden rule
+			InitializeAppIcon();
 
 			// Subscribe to changes
 			SubscribeToCounterEvents();
+			_mainVm.PropertyChanged += MainVm_PropertyChanged;
+
+			foreach (var icon in _counterIcons.Values)
+				icon.UpdateContextMenu();
 
 			Log.Debug($"TrayIconManager initialized: {GetHashCode()}");
 		}
@@ -51,9 +55,51 @@ namespace PerformanceTrayMonitor.Managers
 				TryCreateCounterIcon(counter);
 		}
 
+		private void InitializeAppIcon()
+		{
+			bool hasCounters = _counterIcons.Count > 0;
+
+			// Golden rule:
+			// - If no counters → always create app icon
+			// - If counters exist → create only if ShowAppIcon = true
+			if (!hasCounters || _mainVm.ShowAppIcon)
+			{
+				_animatedIcon = new AnimatedTrayIcon(_sharedConfigVm, _mainVm);
+				Log.Debug($"AnimatedTrayIcon created: {_animatedIcon.GetHashCode()}");
+			}
+			else
+			{
+				Log.Debug("Skipping AnimatedTrayIcon creation (ShowAppIcon=false, counters exist).");
+			}
+		}
+
 		// ------------------------------------------------------------
 		// EVENT SUBSCRIPTIONS
 		// ------------------------------------------------------------
+		private void CounterSettings_PropertyChanged(object? sender, PropertyChangedEventArgs e)
+		{
+			if (sender is not CounterSettings settings)
+				return;
+
+			var counter = _mainVm.Counters.FirstOrDefault(c => c.Settings.Id == settings.Id);
+			if (counter == null)
+				return;
+
+			HandleSettingsChanged(counter, e.PropertyName);
+		}
+
+		private void MainVm_PropertyChanged(object? sender, PropertyChangedEventArgs e)
+		{
+			if (e.PropertyName == nameof(MainViewModel.ShowAppIcon))
+			{
+				ReevaluateAppIcon();
+
+				// Also update counter menus
+				foreach (var icon in _counterIcons.Values)
+					icon.UpdateContextMenu();
+			}
+		}
+
 		private void SubscribeToCounterEvents()
 		{
 			_mainVm.Counters.CollectionChanged += Counters_CollectionChanged;
@@ -81,47 +127,70 @@ namespace PerformanceTrayMonitor.Managers
 					RemoveCounterIcon(vm);
 				}
 			}
+
+			// After counters change, re-evaluate the golden rule
+			ReevaluateAppIcon();
 		}
 
-		private void CounterSettings_PropertyChanged(object? sender, PropertyChangedEventArgs e)
+		private void ReevaluateAppIcon()
 		{
-			if (sender is not CounterSettings settings)
-				return;
+			bool hasCounters = _counterIcons.Count > 0;
 
-			var counter = _mainVm.Counters.FirstOrDefault(c => c.Settings.Id == settings.Id);
-			if (counter == null)
-				return;
-
-			HandleSettingsChanged(counter, e.PropertyName);
-		}
-
-		// ------------------------------------------------------------
-		// SETTINGS CHANGE HANDLING
-		// ------------------------------------------------------------
-		private void HandleSettingsChanged(CounterViewModel counter, string propertyName)
-		{
-			var settings = counter.Settings;
-
-			if (propertyName == nameof(CounterSettings.ShowInTray))
+			// If no counters → ensure app icon exists
+			if (!hasCounters)
 			{
-				if (settings.ShowInTray)
-					TryCreateCounterIcon(counter);
-				else
-					RemoveCounterIcon(counter);
+				if (_animatedIcon == null)
+				{
+					_animatedIcon = new AnimatedTrayIcon(_sharedConfigVm, _mainVm);
+					Log.Debug("App icon restored because no counters exist.");
+				}
+				return;
 			}
 
-			if (propertyName == nameof(CounterSettings.IconSet) ||
-				propertyName == nameof(CounterSettings.Min) ||
-				propertyName == nameof(CounterSettings.Max))
+			// If counters exist → app icon depends on ShowAppIcon
+			if (_mainVm.ShowAppIcon)
 			{
-				RemoveCounterIcon(counter);
-				TryCreateCounterIcon(counter);
+				if (_animatedIcon == null)
+				{
+					_animatedIcon = new AnimatedTrayIcon(_sharedConfigVm, _mainVm);
+					Log.Debug("App icon created because ShowAppIcon=true.");
+				}
 			}
+			else
+			{
+				_animatedIcon?.Dispose();
+				_animatedIcon = null;
+				Log.Debug("App icon removed because ShowAppIcon=false and counters exist.");
+			}
+
+			// NEW: update counter menus
+			foreach (var icon in _counterIcons.Values)
+				icon.UpdateContextMenu();
 		}
 
 		// ------------------------------------------------------------
-		// COUNTER ICON CREATION
+		// FULL REBUILD
 		// ------------------------------------------------------------
+		public void RebuildAllIcons()
+		{
+			Log.Debug("Rebuilding all tray icons...");
+
+			_animatedIcon?.Dispose();
+			_animatedIcon = null;
+
+			foreach (var icon in _counterIcons.Values)
+				icon.Dispose();
+			_counterIcons.Clear();
+
+			InitializeCounterIcons();
+			InitializeAppIcon();
+
+			// NEW: update counter menus
+			foreach (var icon in _counterIcons.Values)
+				icon.UpdateContextMenu();
+			Log.Debug("Rebuild complete.");
+		}
+
 		private void TryCreateCounterIcon(CounterViewModel counter)
 		{
 			var settings = counter.Settings;
@@ -161,6 +230,30 @@ namespace PerformanceTrayMonitor.Managers
 		}
 
 		// ------------------------------------------------------------
+		// SETTINGS CHANGE HANDLING
+		// ------------------------------------------------------------
+		private void HandleSettingsChanged(CounterViewModel counter, string propertyName)
+		{
+			var settings = counter.Settings;
+
+			if (propertyName == nameof(CounterSettings.ShowInTray))
+			{
+				if (settings.ShowInTray)
+					TryCreateCounterIcon(counter);
+				else
+					RemoveCounterIcon(counter);
+			}
+
+			if (propertyName == nameof(CounterSettings.IconSet) ||
+				propertyName == nameof(CounterSettings.Min) ||
+				propertyName == nameof(CounterSettings.Max))
+			{
+				RemoveCounterIcon(counter);
+				TryCreateCounterIcon(counter);
+			}
+		}
+
+		// ------------------------------------------------------------
 		// COUNTER ICON REMOVAL
 		// ------------------------------------------------------------
 		private void RemoveCounterIcon(CounterViewModel counter)
@@ -172,39 +265,6 @@ namespace PerformanceTrayMonitor.Managers
 			}
 		}
 
-		// ------------------------------------------------------------
-		// FULL REBUILD (App icon + all counter icons)
-		// ------------------------------------------------------------
-		public void RebuildAllIcons()
-		{
-			Log.Debug("Rebuilding all tray icons...");
-
-			// Dispose animated app icon
-			_animatedIcon?.Dispose();
-			_animatedIcon = null;
-
-			// Dispose all counter icons
-			foreach (var icon in _counterIcons.Values)
-				icon.Dispose();
-			_counterIcons.Clear();
-
-			// Recreate animated app icon (only if enabled)
-			if (_mainVm.ShowAppIcon)
-			{
-				_animatedIcon = new AnimatedTrayIcon(_sharedConfigVm, _mainVm);
-				Log.Debug($"AnimatedTrayIcon recreated: {_animatedIcon.GetHashCode()}");
-			}
-			else
-			{
-				Log.Debug("ShowAppIcon = false — skipping AnimatedTrayIcon creation.");
-			}
-
-			// Recreate counter icons
-			foreach (var counter in _mainVm.Counters)
-				TryCreateCounterIcon(counter);
-
-			Log.Debug("Rebuild complete.");
-		}
 
 		// ------------------------------------------------------------
 		// DISPOSAL
@@ -214,9 +274,9 @@ namespace PerformanceTrayMonitor.Managers
 		{
 			if (_disposed)
 				return;
-			
+
 			_disposed = true;
-			
+
 			Log.Debug($"Disposing TrayIconManager: {GetHashCode()}");
 
 			_mainVm.Counters.CollectionChanged -= Counters_CollectionChanged;

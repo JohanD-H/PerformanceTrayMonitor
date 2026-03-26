@@ -3,5 +3,8 @@ Logs/
 bin/
 obj/
 .vs/
+AssemblyInfo.cs
+README - Demo.md
+*.csproj
 *.user
 *_debug.*

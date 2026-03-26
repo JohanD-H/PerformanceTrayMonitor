@@ -6,7 +6,12 @@ namespace PerformanceTrayMonitor.Configuration
 	internal static class TrayIconConfig
 	{
 		/// Maximum number of counter tray icons the user may enable.
-		/// Does NOT include the main animated app icon.
+		/// Does NOT include the main animated app icon set!.
 		public const int MaxCounterTrayIcons = 4;
+
+		// Minimum and Maximun icons in a Icon Set.
+		// Is NOT valid for the main animated app icon set!
+		public const int MinIconSet = 2;
+		public const int MaxIconSet = 10;
 	}
 }

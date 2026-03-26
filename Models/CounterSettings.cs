@@ -2,6 +2,7 @@ using System;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Collections.Generic;
+using System.Windows.Media; // for Color
 
 // ----------------------------------
 // Changing counter values
@@ -10,6 +11,21 @@ namespace PerformanceTrayMonitor.Models
 {
 	public class CounterSettings : INotifyPropertyChanged
 	{
+		public event PropertyChangedEventHandler? PropertyChanged;
+
+		private void OnPropertyChanged([CallerMemberName] string name = null)
+	=> PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+
+		private bool SetField<T>(ref T field, T value, [CallerMemberName] string name = null)
+		{
+			if (EqualityComparer<T>.Default.Equals(field, value))
+				return false;
+
+			field = value;
+			OnPropertyChanged(name);
+			return true;
+		}
+
 		// Stable identity so TrayIconManager can match settings safely
 		public Guid Id { get; set; } = Guid.NewGuid();
 
@@ -69,19 +85,36 @@ namespace PerformanceTrayMonitor.Models
 			set => SetField(ref _iconSet, value ?? "");
 		}
 
-		public event PropertyChangedEventHandler PropertyChanged;
+		// -------------------------------
+		// Tray text icon settings
+		// -------------------------------
 
-		private void OnPropertyChanged([CallerMemberName] string name = null)
-			=> PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
-
-		private bool SetField<T>(ref T field, T value, [CallerMemberName] string name = null)
+		private bool _useTextTrayIcon;
+		public bool UseTextTrayIcon
 		{
-			if (EqualityComparer<T>.Default.Equals(field, value))
-				return false;
+			get => _useTextTrayIcon;
+			set => SetField(ref _useTextTrayIcon, value);
+		}
 
-			field = value;
-			OnPropertyChanged(name);
-			return true;
+		private Color _trayAccentColor = Colors.White;
+		public Color TrayAccentColor
+		{
+			get => _trayAccentColor;
+			set => SetField(ref _trayAccentColor, value);
+		}
+
+		private bool _autoTrayBackground = true;
+		public bool AutoTrayBackground
+		{
+			get => _autoTrayBackground;
+			set => SetField(ref _autoTrayBackground, value);
+		}
+
+		private Color _trayBackgroundColor = Colors.Black;
+		public Color TrayBackgroundColor
+		{
+			get => _trayBackgroundColor;
+			set => SetField(ref _trayBackgroundColor, value);
 		}
 	}
 }

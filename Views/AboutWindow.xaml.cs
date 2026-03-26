@@ -20,6 +20,10 @@ namespace PerformanceTrayMonitor.Views
 		{
 			InitializeComponent();
 			Loaded += AboutWindow_Loaded;
+			Loaded += (_, __) =>
+			{
+				Log.Debug($"AboutWindow IsEnabled = {IsEnabled}");
+			};
 		}
 
 		private void AboutWindow_Loaded(object sender, RoutedEventArgs e)

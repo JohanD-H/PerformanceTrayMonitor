@@ -1,8 +1,9 @@
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using PerformanceTrayMonitor.Common;
 using PerformanceTrayMonitor.Configuration;
 using PerformanceTrayMonitor.Models;
 using PerformanceTrayMonitor.Properties;
+using PerformanceTrayMonitor.Settings;
 using PerformanceTrayMonitor.ViewModels;
 using PerformanceTrayMonitor.Views;
 using System;
@@ -14,7 +15,8 @@ namespace PerformanceTrayMonitor
 {
 	public partial class App : Application
 	{
-		private MainViewModel _mainVm;
+		private MainViewModel? _mainVm;
+		public static HiddenMainWindow? HiddenWindow { get; private set; }
 
 		protected override void OnStartup(StartupEventArgs e)
 		{
@@ -40,56 +42,54 @@ namespace PerformanceTrayMonitor
 			base.OnStartup(e);
 
 			// Create the hidden main window
-			var hidden = new HiddenMainWindow();
-			
-			// Set it as the real MainWindow
-			Application.Current.MainWindow = hidden;
-
-			// Show the hidden main window
-			hidden.Show();
+			HiddenWindow = new HiddenMainWindow();
+			Application.Current.MainWindow = HiddenWindow;
+			HiddenWindow.Show();
+			HiddenWindow.Hide(); // stays focusable but invisible
 
 			// -----------------------------------------
 			// Load settings (with migration)
 			// -----------------------------------------
 			Log.Debug($"Settings loading...");
-			SettingsOptions settings = SettingsStore.Load();
-			Log.Debug($"Settings loaded..., count = {settings.Counters.Count}");
+			// -----------------------------------------
+			// Load settings (DTO → runtime)
+			// -----------------------------------------
+			var dto = SettingsRepository.Load();
+			var settings = SettingsMapper.ToOptions(dto);
+
+			Log.Debug($"Settings loaded: metrics={settings.Metrics.Count}, ShowAppIcon={settings.Global.ShowAppIcon}");
 
 			// -----------------------------------------
-			// If settings contain no counters, use defaults
+			// If settings contain no metrics, use defaults
 			// -----------------------------------------
-			if (settings.Counters.Count == 0)
+			if (settings.Metrics.Count == 0)
 			{
-				Log.Warning("Settings file exists but contains no counters. Using defaults.");
+				Log.Warning("Settings file exists but contains no metrics. Using defaults.");
 
 				var defaults = new DefaultSettingsProvider().Create();
 
-				// Keep user�s global settings if they exist, otherwise use defaults
-				settings = new SettingsOptions(
-					defaults.Counters,
-					settings.ShowAppIcon
-				);
+				// Keep user’s global settings if they exist
+				defaults.Global.ShowAppIcon = settings.Global.ShowAppIcon;
+				defaults.Global.CustomColors = settings.Global.CustomColors;
 
-				SettingsStore.Save(settings);
+				settings = defaults;
+
+				// Save defaults immediately
+				SettingsSaveQueue.Enqueue(SettingsMapper.ToDto(settings));
 			}
 
-			Log.Debug($"Loaded {settings.Counters.Count} counters (ShowAppIcon={settings.ShowAppIcon}, Version={settings.Version})");
+			Log.Debug($"Loaded {settings.Metrics.Count} counters (ShowAppIcon={settings.Global.ShowAppIcon}, PopupWasOpen = {settings.Global.PopupWasOpen}");
 
 			try
 			{
-				// -----------------------------------------
-				// Initialize MainViewModel with full settings
-				// -----------------------------------------
 				_mainVm = new MainViewModel(settings);
 
-				// -----------------------------------------
-				// Start tray icons, UI, etc.
-				// -----------------------------------------
 				_mainVm.Start();
-				// Restore PopupWindow, if it was OPEN and PINNED on close!
+
+				// Restore popup if pinned and previously open
 				Dispatcher.InvokeAsync(() =>
 				{
-					if (settings.PopupPinned && settings.PopupWasOpen)
+					if (settings.Global.PopupPinned && settings.Global.PopupWasOpen)
 						_mainVm.ShowPopup();
 				}, DispatcherPriority.Background);
 			}
@@ -98,7 +98,8 @@ namespace PerformanceTrayMonitor
 				Log.Error($"{ex} Failed to initialize MainViewModel. Falling back to defaults.");
 
 				var defaults = new DefaultSettingsProvider().Create();
-				SettingsStore.Save(defaults);
+
+				SettingsSaveQueue.Enqueue(SettingsMapper.ToDto(defaults));
 
 				_mainVm = new MainViewModel(defaults);
 				_mainVm.Start();
@@ -109,19 +110,30 @@ namespace PerformanceTrayMonitor
 
 		protected override void OnExit(ExitEventArgs e)
 		{
-			_mainVm?.Stop();
+			Log.Debug($"OnExit: PopupIsOpen = {_mainVm.PopupIsOpen}, PopupPinned = {_mainVm.PopupPinned}");
 
 			if (_mainVm != null)
 			{
-				// Dispose all counters to release PerformanceCounter handles
+				// 1. Restore metrics BEFORE stopping anything
+				if (_mainVm.SharedConfigVm.EditorPendingEdits)
+				{
+					Log.Debug("OnExit: Pending edits detected — restoring last saved metrics snapshot.");
+					_mainVm.SharedConfigVm.RestoreMetrics(_mainVm.SharedConfigVm.LastSavedMetricsSnapshot);
+				}
+
+				// 2. Stop background sampling, timers, etc.
+				_mainVm.Stop();
+
+				// 3. Dispose all counters to release PerformanceCounter handles
 				foreach (var vm in _mainVm.Counters)
 					vm.Dispose();
 
-				// Save the PopupWindow state!
-				//Log.Debug($"OnExit: PopupIsOpen = {_mainVm.PopupIsOpen}");
-				//_mainVm.Settings.PopupWasOpen = _mainVm.PopupIsOpen;
-				// Save full settings (global + counters)
-				SettingsStore.Save(_mainVm.GetSettingsSnapshot());
+				// 4. Save full settings (global + restored metrics)
+				var dto = SettingsMapper.ToDto(_mainVm.Settings);
+				SettingsSaveQueue.Enqueue(dto);
+
+				// 5. Force final write
+				SettingsSaveQueue.Flush();
 			}
 
 			Log.Debug($"Exiting..{GetHashCode()}");

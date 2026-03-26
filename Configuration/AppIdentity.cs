@@ -17,6 +17,5 @@ namespace PerformanceTrayMonitor.Configuration
 
 		public const string AppName = "Performance Tray Monitor";
 		public const string AppDescription = "Performance Tray Monitor";
-		public const string AppVersion = "1.0.0"; // optional
 	}
 }

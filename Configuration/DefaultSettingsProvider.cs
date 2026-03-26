@@ -1,13 +1,35 @@
-﻿using System;
+﻿using PerformanceTrayMonitor.Models;
+using PerformanceTrayMonitor.Settings;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using PerformanceTrayMonitor.Models;
+using System.Windows.Media;
 
 namespace PerformanceTrayMonitor.Configuration
 {
 	internal sealed class DefaultSettingsProvider
 	{
+		public CounterSettings CreateDefaultCounter()
+		{
+			return new CounterSettings
+			{
+				Id = Guid.NewGuid(),
+				Category = "PhysicalDisk",
+				Counter = "% Disk Time",
+				Instance = "_Total",
+				DisplayName = "Disk Activity",
+				Min = 0,
+				Max = 100,
+				ShowInTray = false,
+				IconSet = "Activity",
+				UseTextTrayIcon = false,
+				TrayAccentColor = Colors.White,
+				AutoTrayBackground = true,
+				TrayBackgroundColor = Colors.Black
+			};
+		}
+		/*
 		public CounterSettingsDto CreateDefaultCounter()
 		{
 			string instance = "";
@@ -36,20 +58,28 @@ namespace PerformanceTrayMonitor.Configuration
 				Min = 0,
 				Max = 100,
 				ShowInTray = false,
-				IconSet = "Activity"
+				IconSet = "Activity",
+				UseTextTrayIcon = false,
+				TrayAccentColorArgb = unchecked((int)0xFFFFFFFF),   // White
+				AutoTrayBackground = true,
+				TrayBackgroundColorArgb = unchecked((int)0xFF000000) // Black
 			};
 		}
+		*/
 
 		public SettingsOptions Create()
 		{
-			return new SettingsOptions(
-				new List<CounterSettingsDto>
+			return new SettingsOptions
+			{
+				Global = new GlobalOptions
 				{
-				CreateDefaultCounter()
+					ShowAppIcon = true
 				},
-				true,
-				SettingsOptions.CurrentVersion
-			);
+				Metrics = new List<CounterSettings>
+				{
+					CreateDefaultCounter()
+				}
+			};
 		}
 	}
 }

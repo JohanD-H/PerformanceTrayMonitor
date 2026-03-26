@@ -1,7 +1,7 @@
 using PerformanceTrayMonitor.Common;
 using PerformanceTrayMonitor.Models;
 using System;
-using System.Collections.Generic;
+using System.Windows;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Windows.Media;
@@ -27,8 +27,14 @@ namespace PerformanceTrayMonitor.ViewModels
 
 		public CounterViewModel(CounterSettings settings)
 		{
-			Log.Debug($"CounterViewModel created: {GetHashCode()}");
-			Settings = settings;
+			Settings = settings ?? throw new ArgumentNullException(nameof(settings));
+
+			Log.Debug($"CounterViewModel created: {GetHashCode()}, Category={Category}, Counter={Counter}, Instance={Instance}");
+
+			_useTextTrayIcon = settings.UseTextTrayIcon;
+			_trayAccentColor = settings.TrayAccentColor;
+			_autoTrayBackground = settings.AutoTrayBackground;
+			_trayBackgroundColor = settings.TrayBackgroundColor;
 
 			// UI & SparkLine color
 			//var (brush, shadow) = UIColors.GetSoftColorFor(DisplayName);
@@ -40,6 +46,7 @@ namespace PerformanceTrayMonitor.ViewModels
 			AttachCounter(CreateInternalCounter(settings));
 		}
 
+		public Guid Id => Settings.Id;
 		public string Category => Settings.Category;
 		public string Counter => Settings.Counter;
 		public string Instance => Settings.Instance;
@@ -47,6 +54,10 @@ namespace PerformanceTrayMonitor.ViewModels
 		public float Max => Settings.Max;
 		public bool ShowInTray => Settings.ShowInTray;
 		public string IconSet => Settings.IconSet;
+		private bool _useTextTrayIcon;
+		private Color _trayAccentColor;
+		private bool _autoTrayBackground;
+		private Color _trayBackgroundColor;
 		private const int MaxHistory = 60;
 		private readonly ObservableCollection<float> _history = new();
 		public ObservableCollection<float> History => _history;
@@ -69,8 +80,8 @@ namespace PerformanceTrayMonitor.ViewModels
 			get => _currentValue;
 			set
 			{
-				Log.Debug($"Counter {DisplayName} updated: {value}");
-				Log.Debug($"Updating {DisplayName} on VM {GetHashCode()}");
+				//Log.Debug($"Counter {DisplayName} updated: {value}");
+				//Log.Debug($"Updating {DisplayName} on VM {GetHashCode()}");
 
 				_currentValue = value;
 				OnPropertyChanged();
@@ -96,6 +107,18 @@ namespace PerformanceTrayMonitor.ViewModels
 			Settings.Max = incoming.Max;
 			Settings.ShowInTray = incoming.ShowInTray;
 			Settings.IconSet = incoming.IconSet;
+
+			Settings.UseTextTrayIcon = incoming.UseTextTrayIcon;
+			Settings.TrayAccentColor = incoming.TrayAccentColor;
+			Settings.AutoTrayBackground = incoming.AutoTrayBackground;
+			Settings.TrayBackgroundColor = incoming.TrayBackgroundColor;
+
+			_useTextTrayIcon = incoming.UseTextTrayIcon;
+			_trayAccentColor = incoming.TrayAccentColor;
+			_autoTrayBackground = incoming.AutoTrayBackground;
+			_trayBackgroundColor = incoming.TrayBackgroundColor;
+
+			//Log.Debug($"useTextTrayIcon = {_useTextTrayIcon}");
 
 			// Re-hook the Windows counter because the Category/Instance changed
 			AttachCounter(CreateInternalCounter(Settings));
@@ -139,6 +162,51 @@ namespace PerformanceTrayMonitor.ViewModels
 				return new PerformanceCounter(s.Category, s.Counter, s.Instance, readOnly: true);
 			}
 			catch { return null; }
+		}
+
+		public bool UseTextTrayIcon
+		{
+			get => _useTextTrayIcon;
+			set
+			{
+				Log.Debug($"_useTextTrayIcon = {value}");
+				_useTextTrayIcon = value;
+				Settings.UseTextTrayIcon = value;
+				OnPropertyChanged();
+			}
+		}
+
+		public Color TrayAccentColor
+		{
+			get => _trayAccentColor;
+			set
+			{
+				_trayAccentColor = value;
+				Settings.TrayAccentColor = value;
+				OnPropertyChanged();
+			}
+		}
+
+		public bool AutoTrayBackground
+		{
+			get => _autoTrayBackground;
+			set
+			{
+				_autoTrayBackground = value;
+				Settings.AutoTrayBackground = value;
+				OnPropertyChanged();
+			}
+		}
+
+		public Color TrayBackgroundColor
+		{
+			get => _trayBackgroundColor;
+			set
+			{
+				_trayBackgroundColor = value;
+				Settings.TrayBackgroundColor = value;
+				OnPropertyChanged();
+			}
 		}
 
 		public void ForceRedraw()

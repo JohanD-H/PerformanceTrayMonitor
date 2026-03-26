@@ -1,11 +1,60 @@
 ﻿using System;
 using System.Windows.Media;
+using System.Drawing; // for Drawing.Color
 using MediaColor = System.Windows.Media.Color;
 
 namespace PerformanceTrayMonitor.Common
 {
 	public static class UIColors
 	{
+		// Convert WPF Color → System.Drawing.Color
+		public static System.Drawing.Color ToDrawingColor(this MediaColor c)
+		{
+			return System.Drawing.Color.FromArgb(c.A, c.R, c.G, c.B);
+		}
+
+		// Convert System.Drawing.Color → WPF Color
+		public static MediaColor ToMediaColor(this System.Drawing.Color c)
+		{
+			return MediaColor.FromArgb(c.A, c.R, c.G, c.B);
+		}
+
+		// Auto-contrast: returns black or white depending on luminance
+		public static System.Drawing.Color AutoContrast(System.Drawing.Color baseColor)
+		{
+			double luminance =
+				(0.299 * baseColor.R +
+				 0.587 * baseColor.G +
+				 0.114 * baseColor.B) / 255.0;
+
+			return luminance > 0.5
+				? System.Drawing.Color.FromArgb(255, 0, 0, 0)   // black
+				: System.Drawing.Color.FromArgb(255, 255, 255, 255); // white
+		}
+
+		// Lighten/darken a color by factor (0.0–1.0)
+		public static System.Drawing.Color AdjustBrightness(System.Drawing.Color c, double factor)
+		{
+			int r = (int)(c.R * factor);
+			int g = (int)(c.G * factor);
+			int b = (int)(c.B * factor);
+
+			return System.Drawing.Color.FromArgb(c.A,
+				Math.Clamp(r, 0, 255),
+				Math.Clamp(g, 0, 255),
+				Math.Clamp(b, 0, 255));
+		}
+
+		// Generate a tray background color based on accent color
+		public static System.Drawing.Color GetTrayBackground(System.Drawing.Color accent, bool autoContrast = true)
+		{
+			if (autoContrast)
+				return AutoContrast(accent);
+
+			// Default: slightly darkened version of accent
+			return AdjustBrightness(accent, 0.25);
+		}
+
 		// With luminance compensation, colors in a UI are hard....
 		public static  (SolidColorBrush Brush, double ShadowOpacity) GetSoftColorFor(string name)
 		{
