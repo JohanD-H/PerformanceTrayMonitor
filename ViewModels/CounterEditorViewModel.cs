@@ -5,6 +5,7 @@ using PerformanceTrayMonitor.Properties;
 using PerformanceTrayMonitor.Settings;
 //using PerformanceTrayMonitor.ViewModels;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -69,26 +70,121 @@ namespace PerformanceTrayMonitor.ViewModels
 			PickBackgroundColorCommand = new RelayCommand(_ => PickBackgroundColor());
 		}
 
+		private async Task LoadListAndSelectAsync(
+	Func<CancellationToken, Task> loadFunc,
+	Func<bool> isLoadValid,
+	Func<IEnumerable<string>> getList,
+	Func<string> getCurrentSelection,
+	Action<string> setSelection)
+		{
+			if (!isLoadValid())
+			{
+				setSelection("");
+				return;
+			}
+
+			_parent._instanceLoadCts?.Cancel();
+			_parent._instanceLoadCts = new CancellationTokenSource();
+			var token = _parent._instanceLoadCts.Token;
+
+			await loadFunc(token);
+
+			if (_loadingFromModel)
+				return;
+
+			var list = getList();
+
+			var current = getCurrentSelection();
+			if (list.Contains(current))
+				setSelection(current);
+			else if (list.Any())
+				setSelection(list.First());
+			else
+				setSelection("");
+		}
+
+		private Task LoadCountersAsync(string category)
+		{
+			return LoadListAndSelectAsync(
+				loadFunc: token => _parent.LoadCountersForCategoryAsync(category, token),
+				isLoadValid: () => true,
+				getList: () => _parent.CountersInCategory,
+				getCurrentSelection: () => SelectedCounter,
+				setSelection: v => SelectedCounter = v
+			);
+		}
+		private Task LoadInstancesAsync(string counter)
+		{
+			return LoadListAndSelectAsync(
+				loadFunc: token => _parent.LoadInstancesForCounterAsync(_category, counter, token),
+				isLoadValid: () =>
+					!string.IsNullOrWhiteSpace(counter) &&
+					!string.IsNullOrWhiteSpace(_category),
+				getList: () => _parent.Instances,
+				getCurrentSelection: () => _instance,
+				setSelection: v => SelectedInstance = v
+			);
+		}
+
+		private void SetAndMaybeLoad(
+			ref string field,
+			string? newValue,
+			string propertyName,
+			Func<string, Task>? loadFunc = null,
+			bool suppressDuringSelection = false)
+		{
+			var clean = newValue ?? "";
+
+			if (field == clean)
+			{
+				OnPropertyChanged(propertyName);
+				return;
+			}
+
+			field = clean;
+			OnPropertyChanged(propertyName);
+
+			if (loadFunc == null)
+				return;
+
+			if (suppressDuringSelection && _parent.IsSelectionLoadInProgress)
+				return;
+
+			_ = loadFunc(clean);
+		}
+
 		public string SelectedCategory
 		{
 			get => _category;
-			set
-			{
-				var clean = value ?? "";
-				if (_category == clean)
-				{
-					OnPropertyChanged();
-					return;
-				}
-
-				_category = clean;
-				OnPropertyChanged();
-
-				// Load counters for this category
-				_ = LoadCountersAsync(clean);
-			}
+			set => SetAndMaybeLoad(
+				ref _category,
+				value,
+				nameof(SelectedCategory),
+				LoadCountersAsync,
+				suppressDuringSelection: true);
 		}
 
+		public string SelectedCounter
+		{
+			get => _counter;
+			set => SetAndMaybeLoad(
+				ref _counter,
+				value,
+				nameof(SelectedCounter),
+				LoadInstancesAsync,
+				suppressDuringSelection: true);
+		}
+
+		public string SelectedInstance
+		{
+			get => _instance;
+			set => SetAndMaybeLoad(
+				ref _instance,
+				value,
+				nameof(SelectedInstance));
+		}
+
+		/*
 		private async Task LoadCountersAsync(string category)
 		{
 			_parent._instanceLoadCts?.Cancel();
@@ -105,30 +201,6 @@ namespace PerformanceTrayMonitor.ViewModels
 				SelectedCounter = _parent.CountersInCategory.First();
 			else
 				SelectedCounter = "";
-		}
-
-		public string SelectedCounter
-		{
-			get => _counter;
-			set
-			{
-				var clean = value ?? "";
-				if (_counter == clean)
-				{
-					OnPropertyChanged();
-					return;
-				}
-
-				_counter = clean;
-				OnPropertyChanged();
-
-				// Prevent second load cycle during ApplySelectedAsync
-				if (_parent.IsSelectionLoadInProgress)
-					return;
-
-				// Load instances for this counter
-				_ = LoadInstancesAsync(clean);
-			}
 		}
 
 		private async Task LoadInstancesAsync(string counter)
@@ -163,23 +235,7 @@ namespace PerformanceTrayMonitor.ViewModels
 				SelectedInstance = "";
 			}
 		}
-
-		public string SelectedInstance
-		{
-			get => _instance;
-			set
-			{
-				var clean = value ?? "";
-				if (_instance == clean)
-				{
-					OnPropertyChanged();
-					return;
-				}
-
-				_instance = clean;
-				OnPropertyChanged();
-			}
-		}
+		*/
 
 		public void LoadFrom(CounterViewModel vm)
 		{
@@ -248,369 +304,6 @@ namespace PerformanceTrayMonitor.ViewModels
 
 			_parent.ResetEditorDirtyState();
 		}
-
-		/*
-		public string SelectedCategory
-		{
-			get => _category;
-			set
-			{
-				string clean = value ?? "";
-
-				Log.Debug($"SelectedCategory SETTER: old='{_category}', new='{clean}', IsLoading={_parent.IsLoading}, Suppress={_parent.SuppressEditorChanges}");
-
-				// PROGRAMMATIC LOAD (LoadFrom / LoadSelectedAsync)
-				if (_parent.IsLoading || _parent.SuppressEditorChanges)
-				{
-					_category = clean;
-					OnPropertyChanged();
-					return;
-				}
-
-				// USER EDITS BELOW THIS LINE
-
-				if (_category == clean)
-					return;
-
-				_category = clean;
-				OnPropertyChanged();
-
-				// Clear counter before reload
-				_parent.SuppressEditorChanges = true;
-				SelectedCounter = string.Empty;
-				_parent.SuppressEditorChanges = false;
-
-				// Reload counters for this category
-				_ = ReloadCountersAsync(clean);
-			}
-		}
-
-		private async Task ReloadCountersAsync(string newCategory)
-		{
-			Log.Debug($"ReloadCountersAsync: newCategory = '{newCategory}', IsLoading = {_parent.IsLoading}");
-
-			try
-			{
-				_parent.SuppressEditorChanges = true;   // BLOCK ALL SelectedCounter noise
-
-				_parent._cts?.Cancel();
-				_parent._cts = new CancellationTokenSource();
-				var token = _parent._cts.Token;
-
-				await _parent.LoadCountersForCategoryAsync(newCategory, token);
-
-				if (!_parent.IsLoading && _parent.CountersInCategory.Any())
-				{
-					SelectedCounter = _parent.CountersInCategory.First();
-					Log.Debug($"ReloadCountersAsync: SelectedCounter = '{SelectedCounter}'");
-				}
-			}
-			catch (OperationCanceledException)
-			{
-				// Expected
-			}
-			finally
-			{
-				_parent.SuppressEditorChanges = false;  // Re-enable normal behavior
-			}
-		}
-
-		public string SelectedCounter
-		{
-			get => _counter;
-			set
-			{
-				string clean = value ?? "";
-
-				Log.Debug($"SelectedCounter: clean='{clean}', IsLoading={_parent.IsLoading}, " +
-						  $"programmatic={_isProgrammaticInstanceSet}, suppress={_parent.SuppressInstanceChange}");
-
-				// PROGRAMMATIC LOAD (LoadFrom / LoadSelectedAsync)
-				if (_parent.IsLoading || _parent.SuppressEditorChanges)
-				{
-					_counter = clean;
-					OnPropertyChanged();
-					return;
-				}
-
-				// AFTER loading (user edits)
-
-				// 1. Do NOT react to empty counters
-				if (string.IsNullOrWhiteSpace(clean))
-					return;
-
-				// 2. Ignore no-op assignments
-				if (_counter == clean)
-				{
-					OnPropertyChanged(); // allow refresh
-					return;
-				}
-
-				// 3. Apply the new value
-				Log.Debug($"SelectedCounter: clean = {clean}");
-				_counter = clean;
-				OnPropertyChanged();
-
-				// 4. Load instances for real counters
-				_ = LoadInstancesAsync(clean);
-			}
-		}
-
-		private async Task LoadInstancesAsync(string newCounter)
-		{
-			Log.Debug($"LoadInstancesAsync: newCounter = '{newCounter}'");
-
-			try
-			{
-				if (string.IsNullOrWhiteSpace(newCounter))
-					return;   // Do NOT load instances for an empty counter
-
-				if (string.IsNullOrEmpty(_category))
-					return;
-
-				Log.Debug($"LoadInstancesAsync: _category = {_category}");
-				// Cancel any previous load
-				// Cancel previous instance load
-				_parent._instanceLoadCts?.Cancel();
-				_parent._instanceLoadCts = new CancellationTokenSource();
-				var token = _parent._instanceLoadCts.Token;
-
-				Log.Debug($"LoadInstancesAsync: _category = {_category}");
-				await _parent.LoadInstancesForCounterAsync(_category, newCounter, token);
-
-				// Auto-select first instance if available
-				if (_parent.Instances.Any())
-				{
-					_instance = _parent.Instances.First();
-					Log.Debug($"LoadInstancesAsync: _instance = {_instance}");
-					OnPropertyChanged(nameof(SelectedInstance));
-				}
-			}
-			catch (OperationCanceledException)
-			{
-				// Expected during rapid changes
-			}
-		}
-
-		public string SelectedInstance
-		{
-			get => _instance;
-			set
-			{
-				string clean = value ?? "";
-
-				Log.Debug($"SelectedInstance: clean='{clean}', IsLoading={_parent.IsLoading}, " +
-						  $"programmatic={_isProgrammaticInstanceSet}, suppress={_parent.SuppressInstanceChange}");
-
-				// ------------------------------------------------------------
-				// SHIELD 1: Programmatic assignment (LoadFrom, auto-select)
-				// ------------------------------------------------------------
-				if (_parent.IsLoading || _parent.SuppressEditorChanges)
-				{
-					_instance = clean;
-					OnPropertyChanged();
-					return;
-				}
-
-				// ------------------------------------------------------------
-				// SHIELD 2: Parent is loading (selection change, reset, etc.)
-				// ------------------------------------------------------------
-				if (_isProgrammaticInstanceSet)
-				{
-					_instance = clean;
-					OnPropertyChanged();
-					return;
-				}
-
-				// ------------------------------------------------------------
-				// SHIELD 3: WPF post-load noise (ComboBox re-binding)
-				// ------------------------------------------------------------
-				if (_parent.SuppressInstanceChange)
-					return;
-
-				// ------------------------------------------------------------
-				// Prevent UI from clearing a valid selection
-				// ------------------------------------------------------------
-				if (string.IsNullOrEmpty(clean) && !string.IsNullOrEmpty(_instance))
-					return;
-
-				// ------------------------------------------------------------
-				// No change → no-op
-				// ------------------------------------------------------------
-				if (_instance == clean)
-					return;
-
-				// ------------------------------------------------------------
-				// Real user change
-				// ------------------------------------------------------------
-				_instance = clean;
-				OnPropertyChanged();
-			}
-		}
-		public string SelectedInstance
-		{
-			get => _instance;
-			set
-			{
-				// SAFETY RESET
-				if (_allowInstanceSetDuringLoad && !_parent.IsLoading)
-				{
-					Log.Debug("SelectedInstance: SAFETY RESET of allowDuringLoad");
-					_allowInstanceSetDuringLoad = false;
-				}
-
-				//string clean = value?.Replace("\u00A0", " ").Trim() ?? "";
-				string clean = value;
-
-				Log.Debug($"SelectedInstance: clean = '{clean}', IsLoading={_parent.IsLoading}" +
-					$", allowDuringLoad={_allowInstanceSetDuringLoad}, suppress={_parent.SuppressInstanceChange}");
-
-				// SHIELD 1: programmatic loads
-				if (_allowInstanceSetDuringLoad)
-				{
-					_instance = clean;
-					OnPropertyChanged();
-					return;
-				}
-
-				// SHIELD 2: loading noise
-				if (_parent.IsLoading)
-					return;
-
-				// SHIELD 3: WPF post-load noise
-				if (_parent.SuppressInstanceChange)
-					return;
-
-				// Prevent UI from clearing a valid selection
-				if (string.IsNullOrEmpty(clean) && !string.IsNullOrEmpty(_instance))
-					return;
-
-				Log.Debug($"SelectedInstance: _instance = '{_instance}', clean = '{clean}', result = {_instance == clean}");
-				if (_instance == clean)
-				{
-					// *** OnPropertyChanged();
-					return;
-				}
-
-				_instance = clean;
-				OnPropertyChanged();
-			}
-		}
-
-		public void LoadFrom(CounterViewModel vm)
-		{
-			Log.Debug($"LoadFrom: Category='{vm.Category}', Counter='{vm.Counter}', Instance = '{vm.Instance}'");
-
-			_parent.SuppressEditorChanges = true;
-			//_parent.IsLoading = true;
-
-			SelectedCategory = vm.Category;
-			SelectedCounter = vm.Counter;     // <-- THIS WAS MISSING
-			SelectedInstance = vm.Instance ?? "";
-
-			DisplayName = vm.DisplayName;
-			Min = vm.Min;
-			Max = vm.Max;
-			ShowInTray = vm.ShowInTray;
-			IconSet = vm.IconSet;
-			UseTextTrayIcon = vm.UseTextTrayIcon;
-			TrayAccentColor = vm.TrayAccentColor;
-			AutoTrayBackground = vm.AutoTrayBackground;
-			TrayBackgroundColor = vm.TrayBackgroundColor;
-
-			//_parent.IsLoading = false;
-			_parent.SuppressEditorChanges = false;
-			_parent.ResetEditorDirtyState();
-			Log.Debug($"LoadFrom: Category='{vm.Category}', Counter='{vm.Counter}', Instance = '{vm.Instance}'");
-		}
-		/*
-		public void LoadFrom(CounterViewModel vm)
-		{
-			Log.Debug($"LoadFrom: Category = '{vm.Category}', Counter = '{vm.Counter}'");
-			// Map the data to the private fields
-			_category = vm.Category;
-			_counter = vm.Counter;
-
-			// Fix for Windows Instance strings
-			//_instance = vm.Instance?.Replace("\u00A0", " ").Trim() ?? "";
-			_instance = vm.Instance ?? "";
-
-			_allowInstanceSetDuringLoad = true;
-			SelectedInstance = _instance;
-			_allowInstanceSetDuringLoad = false;
-			Log.Debug($"LoadFrom: SelectedInstance = '{SelectedInstance}'");
-
-
-			DisplayName = vm.DisplayName;
-			Min = vm.Min;
-			Max = vm.Max;
-			ShowInTray = vm.ShowInTray;
-			IconSet = vm.IconSet;
-			UseTextTrayIcon = vm.UseTextTrayIcon;
-			TrayAccentColor = vm.TrayAccentColor;
-			AutoTrayBackground = vm.AutoTrayBackground;
-			TrayBackgroundColor = vm.TrayBackgroundColor;
-
-			// Notify basic properties, do not use Notify.All(), seems WPF does not like that
-			OnPropertyChanged(nameof(DisplayName));
-			OnPropertyChanged(nameof(Min));
-			OnPropertyChanged(nameof(Max));
-			OnPropertyChanged(nameof(ShowInTray));
-			OnPropertyChanged(nameof(IconSet));
-			OnPropertyChanged(nameof(UseTextTrayIcon));
-			OnPropertyChanged(nameof(TrayAccentColor));
-			OnPropertyChanged(nameof(AutoTrayBackground));
-			OnPropertyChanged(nameof(TrayBackgroundColor));
-			OnPropertyChanged(nameof(ShowIconSetSelector));
-			OnPropertyChanged(nameof(ShowBackgroundColorPicker));
-			OnPropertyChanged(nameof(CanShowInTray));
-
-			// Notify these specifically. Because the ItemsSource (CountersInCategory) 
-			// is already filled, the ComboBox will see this specific 'ping', 
-			// look at its list, find the match, and display it, hopefully!
-			OnPropertyChanged(nameof(SelectedCategory));
-			OnPropertyChanged(nameof(SelectedCounter));
-			Log.Debug($"LoadFrom: _allowInstanceSetDuringLoad = {_allowInstanceSetDuringLoad}, SelectedInstance = '{SelectedInstance}'");
-		}
-
-		// Note this should use DefaultSettingsProvider.CreateDefaultCounter?
-		public void LoadDefaults()
-		{
-			var defaults = new DefaultSettingsProvider().CreateDefaultCounter();
-
-			Id = Guid.NewGuid();
-
-			SelectedCategory = defaults.Category;
-			SelectedCounter = defaults.Counter;
-			SelectedInstance = defaults.Instance;
-
-			DisplayName = defaults.DisplayName;
-			Min = defaults.Min;
-			Max = defaults.Max;
-			IconSet = defaults.IconSet;
-			ShowInTray = false;
-			UseTextTrayIcon = false;
-			TrayAccentColor = System.Windows.Media.Colors.White;
-			AutoTrayBackground = true;
-			TrayBackgroundColor = System.Windows.Media.Colors.Black;
-		}
-		*/
-
-		public CounterSettings ToSettings() => new CounterSettings
-		{
-			Category = _category,
-			Counter = _counter,
-			Instance = _instance,
-			DisplayName = _displayName,
-			Min = _min,
-			Max = _max,
-			ShowInTray = _showInTray,
-			IconSet = _iconSet,
-			UseTextTrayIcon = _useTextTrayIcon,
-			TrayAccentColor = _trayAccentColor,
-			AutoTrayBackground = _autoTrayBackground,
-			TrayBackgroundColor = _trayBackgroundColor
-		};
 
 		public bool UseTextTrayIcon
 		{

@@ -52,6 +52,17 @@
 
     </Window.Resources>
 
+    <Window.InputBindings>
+        <KeyBinding Key="P"
+                Modifiers="Control"
+                Command="{Binding TogglePopupPinnedCommand,
+                                  RelativeSource={RelativeSource AncestorType=Window}}" />
+
+        <KeyBinding Key="Escape"
+                Command="{Binding ClosePopupCommand,
+                                  RelativeSource={RelativeSource AncestorType=Window}}" />
+    </Window.InputBindings>
+
     <!-- Main Layout -->
     <DockPanel x:Name="Root"
                Background="{StaticResource AppWindowGradient}"
@@ -96,7 +107,7 @@
                           Height="28"
                           Margin="0,0,2,0"
                           IsChecked="{Binding PopupPinned}"
-                          ToolTip="Pin / Unpin">
+                          ToolTip="Pin / Unpin (Ctrl+P)">
                 <ToggleButton.Style>
                     <Style TargetType="ToggleButton">
                         <Setter Property="Content" Value="📌"/>

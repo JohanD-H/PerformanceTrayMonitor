@@ -4,7 +4,6 @@ using PerformanceTrayMonitor.Extensions;
 using PerformanceTrayMonitor.Models;
 using PerformanceTrayMonitor.Settings;
 using PerformanceTrayMonitor.Tray;
-//using PerformanceTrayMonitor.Extensions;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -158,15 +157,14 @@ namespace PerformanceTrayMonitor.ViewModels
 		public ObservableCollection<string> CountersInCategory { get; private set; } = new();
 		public ObservableCollection<string> Instances { get; private set; } = new();
 
+		public ObservableCollection<string> AvailableIconSets { get; } = new(IconSetConfig.IconSets.Keys.OrderBy(x => x));
+
 		public CounterEditorViewModel Editor { get; }
 
 		private bool _isSelectionLoadInProgress = false;
 		internal bool IsSelectionLoadInProgress => _isSelectionLoadInProgress;
 
 		/*
-		private readonly MainViewModel _main;
-		private CounterViewModel? _selected;
-
 		// The following two gates are used to indicate what is happening in the configuration
 		// 1 - GlobalEditsPending -> true = Changes are Applied, but NOT Saved/Canceled (with warning)! false = No changed in the configuration (maybe default) to Save/Canncel
 		// 2 - EditorPendingEdits -> true = There are changes in the Editor, but these changes are not Applied/Discarded, i.e.made global! false = no edits made
@@ -185,11 +183,6 @@ namespace PerformanceTrayMonitor.ViewModels
 			set { _hasAppliedChanges = value; OnPropertyChanged(); }
 		}
 		private bool _hasAppliedChanges;
-
-		// Collections
-		public ObservableCollection<string> AvailableIconSets { get; } = new(IconSetConfig.IconSets.Keys.OrderBy(x => x));
-
-		public ICommand OpenDebugIconWindowCommand { get; private set; }
 
 		*/
 		public Action? RequestClose { get; set; }
@@ -442,12 +435,15 @@ namespace PerformanceTrayMonitor.ViewModels
 			switch (e.PropertyName)
 			{
 				case nameof(Editor.SelectedCategory):
-				case nameof(Editor.SelectedCounter):
-				case nameof(Editor.SelectedInstance):
 					// Identity changed → force new metric
 					Editor.Id = Guid.Empty;
 					break;
 
+				case nameof(Editor.SelectedCounter):
+				case nameof(Editor.SelectedInstance):
+					break;
+
+				case nameof(Editor.ShowIconSetSelector):
 				case nameof(Editor.IconSet):
 					LoadIconSetPreviewFrames(Editor.IconSet);
 					break;
@@ -458,7 +454,6 @@ namespace PerformanceTrayMonitor.ViewModels
 				case nameof(Editor.UseTextTrayIcon):
 				case nameof(Editor.ShowInTray):
 				case nameof(Editor.ShowBackgroundColorPicker):
-				case nameof(Editor.ShowIconSetSelector):
 				case nameof(Editor.CurrentValue):
 					// No extra action needed — editor is already marked dirty
 					break;
@@ -791,6 +786,126 @@ namespace PerformanceTrayMonitor.ViewModels
 		}
 		*/
 
+		private T SafePerf<T>(Func<T> func, string context)
+		{
+			try
+			{
+				return func();
+			}
+			catch (Exception ex)
+			{
+				Log.Error(ex, $"PerfCounter error: {context}");
+				return default!;
+			}
+		}
+
+		private string[] SafeGetInstances(PerformanceCounterCategory cat)
+		{
+			return SafePerf(() => cat.GetInstanceNames(), "GetInstanceNames")
+				   ?? Array.Empty<string>();
+		}
+
+		private PerformanceCounter[] SafeGetCounters(PerformanceCounterCategory cat, string? instance = null)
+		{
+			return SafePerf(
+				() => instance == null ? cat.GetCounters() : cat.GetCounters(instance),
+				instance == null ? "GetCounters()" : $"GetCounters('{instance}')"
+			) ?? Array.Empty<PerformanceCounter>();
+		}
+
+		public async Task LoadCountersForCategoryAsync(string category, CancellationToken token)
+		{
+			try
+			{
+				Log.Debug($"LoadCountersForCategoryAsync: category = '{category}'");
+				token.ThrowIfCancellationRequested();
+
+				if (string.IsNullOrEmpty(category))
+					return;
+
+				var names = await RunOnBackgroundThread(() =>
+				{
+					var cat = SafePerf(() => new PerformanceCounterCategory(category), "new Category");
+					if (cat == null)
+						return Enumerable.Empty<string>();
+
+					var insts = SafeGetInstances(cat);
+					if (insts.Length == 0)
+						return SafeGetCounters(cat).Select(c => c.CounterName);
+
+					return insts
+						.SelectMany(inst => SafeGetCounters(cat, inst).Select(c => c.CounterName))
+						.Distinct();
+				}, token);
+
+				CountersInCategory = new ObservableCollection<string>(names.OrderBy(x => x));
+				OnPropertyChanged(nameof(CountersInCategory));
+			}
+			catch (OperationCanceledException)
+			{
+				Log.Debug("LoadCountersForCategoryAsync canceled");
+			}
+			catch (Exception ex)
+			{
+				Log.Error(ex, "Unexpected error in LoadCountersForCategoryAsync");
+			}
+		}
+
+		public async Task LoadInstancesForCounterAsync(string category, string counter, CancellationToken token)
+		{
+			try
+			{
+				Log.Debug($"LoadInstancesForCounterAsync: category='{category}', counter='{counter}'");
+				token.ThrowIfCancellationRequested();
+
+				if (string.IsNullOrEmpty(category) || string.IsNullOrEmpty(counter))
+					return;
+
+				var validInstances = await Task.Run(() =>
+				{
+					token.ThrowIfCancellationRequested();
+
+					var cat = SafePerf(() => new PerformanceCounterCategory(category), "new Category");
+					if (cat == null)
+						return new List<string>();
+
+					var insts = SafeGetInstances(cat);
+					if (insts.Length == 0)
+						return new List<string> { "" };
+
+					return insts
+						.Where(inst =>
+						{
+							token.ThrowIfCancellationRequested();
+							return SafeGetCounters(cat, inst).Any(c => c.CounterName == counter);
+						})
+						.OrderBy(x => x)
+						.ToList();
+				}, token);
+
+				await Application.Current.Dispatcher.InvokeAsync(() =>
+				{
+					Instances.Clear();
+					foreach (var inst in validInstances)
+					{
+						Log.Debug($"LoadInstancesForCounterAsync: Adding inst = '{inst}'");
+						Instances.Add(inst);
+					}
+
+					OnPropertyChanged(nameof(Instances));
+				});
+			}
+			catch (OperationCanceledException)
+			{
+				Log.Debug("LoadInstancesForCounterAsync canceled");
+			}
+			catch (Exception ex)
+			{
+				Log.Error(ex, "Unexpected error in LoadInstancesForCounterAsync");
+			}
+		}
+
+		/*
 		public async Task LoadCountersForCategoryAsync(string category, CancellationToken token)
 		{
 			try
@@ -973,7 +1088,6 @@ namespace PerformanceTrayMonitor.ViewModels
 			}
 		}
 
-		/*
 		private async void ReloadCounterAndInstanceListsAsync()
 		{
 			Log.Debug($"ReloadCounterAndInstanceListsAsync: 1 Editor.SelectedCategory = '{Editor.SelectedCategory}', Editor.SelectedCounter = '{Editor.SelectedCounter}'");
@@ -1063,17 +1177,22 @@ namespace PerformanceTrayMonitor.ViewModels
 		}
 		*/
 
+		private bool IsEditingExistingMetric()
+		{
+			return Selected != null &&
+				   Editor.Id != Guid.Empty &&
+				   Selected.Id == Editor.Id;
+		}
+
 		private void ApplyCounter()
 		{
 			if (Selected == null)
 				return;
 
 			Log.Debug($"ApplyCounter: Selected='{Selected.DisplayName}', EditorPending={EditorPendingEdits}" +
-					  $", Selected.Id = {Selected.Id}, Editor.Id = {Editor.Id}, editingExisting = {Selected.Id == Editor.Id}");
+			  $", Selected.Id = {Selected.Id}, Editor.Id = {Editor.Id}, editingExisting = {Selected.Id == Editor.Id}");
 
-			bool editingExisting = Selected.Id == Editor.Id;
-
-			if (editingExisting)
+			if (IsEditingExistingMetric())
 			{
 				// Update the existing metric
 				ApplyEditorToSelected();
@@ -1085,25 +1204,28 @@ namespace PerformanceTrayMonitor.ViewModels
 				settings.Id = Guid.NewGuid();
 
 				var vm = new CounterViewModel(settings);
-
 				Metrics.Add(vm);
 
-				// Select the newly created metric
 				Selected = vm;
-
 				EditorPendingEdits = false;
 			}
 
 			GlobalEditsPending = true;
 
+			UpdateUiState();
+
+			Log.Debug($"ApplyCounter: DONE — EditorPending={EditorPendingEdits}, GlobalPending={GlobalEditsPending}");
+		}
+
+		private void UpdateUiState()
+		{
 			OnPropertyChanged(nameof(MetricsCount));
 			OnPropertyChanged(nameof(TrayIconCount));
 			OnPropertyChanged(nameof(TrayIconCountDisplay));
 
 			IsAtDefaultConfiguration = CheckIfDefault();
-
-			Log.Debug($"ApplyCounter: DONE — EditorPending={EditorPendingEdits}, GlobalPending={GlobalEditsPending}");
 		}
+
 		/*
 		private void ApplyCounter()
 		{
@@ -1278,6 +1400,38 @@ namespace PerformanceTrayMonitor.ViewModels
 		private void RemoveSelected()
 		{
 			if (Selected == null)
+				return;
+
+			Log.Debug($"RemoveSelected: Metrics.Count = {Metrics.Count}");
+
+			var toRemove = Selected;
+			int idx = Metrics.IndexOf(toRemove);
+
+			Metrics.Remove(toRemove);
+
+			if (Metrics.Any())
+			{
+				// Select the next logical item
+				Selected = Metrics[Math.Min(idx, Metrics.Count - 1)];
+			}
+			else
+			{
+				// No metrics left → reset editor
+				Selected = null;
+				Editor.LoadDefaults();
+				EditorPendingEdits = false;
+			}
+
+			GlobalEditsPending = true;
+			UpdateUiState();
+
+			Log.Debug($"RemoveSelected: Metrics.Count = {Metrics.Count}");
+		}
+
+		/*
+		private void RemoveSelected()
+		{
+			if (Selected == null)
 			{
 				Log.Debug("RemoveSelected: SKIPPED (Selected is NULL)");
 				return;
@@ -1324,7 +1478,7 @@ namespace PerformanceTrayMonitor.ViewModels
 			// Update snapshot AFTER the removal is fully applied
 			//SaveSnapshot();
 		}
-		/*
+
 		private void RemoveSelected()
 		{
 			if (Selected == null)
@@ -1438,7 +1592,7 @@ namespace PerformanceTrayMonitor.ViewModels
 
 			// 1. Apply editor changes if needed
 			if (Selected != null && EditorPendingEdits)
-				ApplyEditorToSelected();
+				Selected.UpdateFromSettings(Editor.ToSettings());
 
 			// 2. Snapshot BEFORE writing to disk (for Cancel)
 			SaveSnapshot();
@@ -1465,6 +1619,40 @@ namespace PerformanceTrayMonitor.ViewModels
 					  $"IsAtDefault={IsAtDefaultConfiguration}, Metrics.Count= {Metrics.Count}");
 		}
 		/*
+		private void Save()
+		{
+			Log.Debug($"Save: Started Selected={Selected}, EditorPending={EditorPendingEdits}, " +
+					  $"GlobalPending={GlobalEditsPending}, Metrics.Count = {Metrics.Count}");
+
+			// 1. Apply editor changes if needed
+			if (Selected != null && EditorPendingEdits)
+				ApplyEditorToSelected();
+
+			// 2. Snapshot BEFORE writing to disk (for Cancel)
+			SaveSnapshot();
+
+			// 3. Build a fresh SettingsOptions from the ViewModel
+			var newSettings = SettingsMapper.FromViewModel(this);
+
+			// 4. Convert to DTO and enqueue async save
+			var dto = SettingsMapper.ToDto(newSettings);
+			SettingsSaveQueue.Enqueue(dto);
+
+			// 5. Replace runtime settings with the NEW settings
+			_main.ReplaceSettings(newSettings);
+
+			// 6. Clear dirty flags
+			GlobalEditsPending = false;
+			EditorPendingEdits = false;
+
+			// 7. Recompute default-state flag
+			IsAtDefaultConfiguration = CheckIfDefault();
+
+			Log.Debug($"Save: DONE — GlobalEditsPending={GlobalEditsPending}, " +
+					  $"EditorPendingEdits={EditorPendingEdits}, " +
+					  $"IsAtDefault={IsAtDefaultConfiguration}, Metrics.Count= {Metrics.Count}");
+		}
+
 		private void Save()
 		{
 			Log.Debug($"Save: Started Selected={Selected}, EditorPending={EditorPendingEdits}" +
@@ -1515,8 +1703,7 @@ namespace PerformanceTrayMonitor.ViewModels
 				$", EditorPendingEdits={EditorPendingEdits}" +
 				$", IsAtDefault={IsAtDefaultConfiguration}, Metrics.Count= {Metrics.Count}");
 		}
-		*/
-		/*
+
 		private void Save()
 		{
 			Log.Debug($"Save: Selected = {Selected}, HasPendingEdits = {HasPendingEdits}");

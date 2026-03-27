@@ -345,7 +345,7 @@ namespace PerformanceTrayMonitor.Tray
 			menu.Items.Add(new MenuItem
 			{
 				Header = "Show App Icon",
-				Command = new RelayCommand(_ => _mainVm.ShowAppIcon = true)
+				Command = new RelayCommand(_ => _mainVm.ShowAppIconExplicit())
 			});
 
 			// Separator for safety spacing

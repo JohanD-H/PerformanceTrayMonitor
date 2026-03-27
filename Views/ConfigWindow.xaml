@@ -469,7 +469,7 @@
 
                 <!-- Editor dirty -->
                 <TextBlock Text="Editor dirty"
-                   Foreground="#444"
+                   Foreground="#333"
                    VerticalAlignment="Center"
                    Margin="0,0,16,0"
                    Opacity="{Binding EditorPendingEdits, Converter={StaticResource BoolToOpacity}}"/>
@@ -483,7 +483,7 @@
 
                 <!-- Session dirty -->
                 <TextBlock Text="Session dirty"
-                   Foreground="#444"
+                   Foreground="#222"
                    VerticalAlignment="Center"
                    Margin="0,0,16,0"
                    Opacity="{Binding GlobalEditsPending, Converter={StaticResource BoolToOpacity}}"/>

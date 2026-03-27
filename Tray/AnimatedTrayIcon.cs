@@ -6,11 +6,12 @@ using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using System.Windows.Forms;
+using WinForms = System.Windows.Forms;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
+using System.Windows.Input;
 
 // --------------------------------------------
 // Application tray icon animation
@@ -19,7 +20,7 @@ namespace PerformanceTrayMonitor.Configuration
 {
 	internal sealed class AnimatedTrayIcon : IDisposable
 	{
-		private readonly NotifyIcon _notifyIcon;
+		private readonly WinForms.NotifyIcon _notifyIcon;
 		private readonly DispatcherTimer _timer;
 		private readonly List<Bitmap> _frames = new();
 		private readonly List<Icon> _icons = new();
@@ -34,7 +35,7 @@ namespace PerformanceTrayMonitor.Configuration
 			_sharedConfigVm = sharedConfigVm;
 			_mainVm = mainVm;
 
-			_notifyIcon = new NotifyIcon
+			_notifyIcon = new WinForms.NotifyIcon
 			{
 				Visible = true,
 				Text = AppIdentity.AppDescription
@@ -63,14 +64,14 @@ namespace PerformanceTrayMonitor.Configuration
 			AdvanceFrame();
 		}
 
-		private async void NotifyIcon_MouseUp(object? sender, MouseEventArgs e)
+		private async void NotifyIcon_MouseUp(object? sender, WinForms.MouseEventArgs e)
 		{
-			if (e.Button == MouseButtons.Right)
+			if (e.Button == WinForms.MouseButtons.Right)
 			{
 				await Task.Delay(100);
 				ShowTrayMenu();
 			}
-			else if (e.Button == MouseButtons.Left)
+			else if (e.Button == WinForms.MouseButtons.Left)
 			{
 				System.Windows.Application.Current.Dispatcher.Invoke(() =>
 				{
@@ -141,7 +142,7 @@ namespace PerformanceTrayMonitor.Configuration
 			// App Icon toggle
 			menu.Items.Add(new MenuItem
 			{
-				Header = "Hide App Icon",
+				Header = _mainVm.ShowAppIcon ? "Hide App Icon" : "Show App Icon",
 				IsEnabled = anyCounterVisible,   // <--- Grey out when no counters exist
 				Command = new RelayCommand(_ =>
 				{
@@ -176,10 +177,16 @@ namespace PerformanceTrayMonitor.Configuration
 					if (existing != null)
 					{
 						existing.Activate();
+						existing.Focus();
+						Keyboard.Focus(existing);
 						return;
 					}
 
-					new PerformanceTrayMonitor.Views.AboutWindow().Show();
+					var about = new PerformanceTrayMonitor.Views.AboutWindow();
+					about.Show();
+					about.Activate();
+					about.Focus();
+					Keyboard.Focus(about);
 				})
 			});
 

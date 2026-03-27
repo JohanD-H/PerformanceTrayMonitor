@@ -3,7 +3,7 @@ Performance Tray Monitor
 
 	A lightweight, animated performance monitor for the Windows system tray.
 
-## Description:
+# Description:
 
 	On startup an animated taskbar icon is available. 
 	Left clicking this icon will show a menu. 
@@ -20,7 +20,7 @@ Performance Tray Monitor
 
 	On startup, when no settings file exists a default Disk Activity metric is defined (but no taskbar icon is shown).
 
-## Building
+# Building
 
 	For building, I use: Microsoft Visual Studio Community 2022/2026 edition (latest)
 
@@ -41,18 +41,18 @@ Performance Tray Monitor
 
 	Build the app.
 
-## Download:
+# Download:
 	<a href="https://https://github.com/JohanD-H/PerformanceTrayMonitor/releases/latest">
 		<img src="PerformanceTrayMonitor.png" alt="Download Now" width="48" style="display:block; margin-left:0;" />
 	</a>
 
-## Installation:
+# Installation:
 
 	Unpack the <release>.zip file into a subdirectory in your root C:\, %USERPROFILE%, or %APPDATA%.
 	Do NOT install the app into %ProgramFiles% or %ProgramFiles(x86)%! 
 	The app saves it'ssettings in PerformanceTrayMonitor.json, using %ProgramFiles% or %ProgramFiles(x86)% would cause a write protection error!
 
-## Help / FAQ
+# Help / FAQ
 
 	**Where is the app window?**  
 		It’s designed to live in the **tray**. Use the tray icon context menu.
@@ -60,7 +60,7 @@ Performance Tray Monitor
 	**Can it start with Windows?** 
 		Yes.
 
-## Code Structure...
+# Code Structure...
 
 	App.xaml & App.xaml.cs
 		Main entry
@@ -98,7 +98,7 @@ Performance Tray Monitor
 		Recreates the app icon when needed (e.g., after user restores the app icon).
 
 
-## Why are there two ConfigViewModels?
+# Why are there two ConfigViewModels?
 
 	Shared ConfigViewModel (SharedConfigVm)
 		Lives for the entire lifetime of the app.
@@ -119,7 +119,7 @@ Performance Tray Monitor
 		Discarded after saving or canceling.
 		Does not affect tray icons until saved.
 
-## Metrics config
+# Metrics config
 
 	ConfigViewModel.cs
 		It is the metrics editor VM, not the shared VM!
@@ -151,7 +151,7 @@ Performance Tray Monitor
 		Shows IconSets and validates them
 		Icon testing and validation tool
 
-## IconSet(s):
+# IconSet(s):
 	
 	You can install addition (custom) .ico files into a <app directory>\Icons\<subdirectory name, a.k.a IconSet name.
 	The requirements are, at least two .ico files are required, the filename part must end on -1 for the first file, -2 for the seconds, etc. upto -10.
@@ -161,14 +161,14 @@ Performance Tray Monitor
 				min and max are the lower and upper value limits defined in the metric configuration!
 	A demonstration IconSet is defined into the Icons directory named Thumb.
 
-## .NET:
+# .NET:
 
 	Debugging commands:
 		List .NET runtimes:
 			dotnet --list-runtimes
 		Print .NET (silent) exceptions (for PerformanceTrayMonitor in this case):
 			dotnet .\PerformanceTrayMonitor.dll
-## Changes:
+# Changes:
 
 	v1.0.9564	Initial release
 	v1.0.9565	Fixed wrong UI URI, set to pack URI!

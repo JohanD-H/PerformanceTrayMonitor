@@ -15,9 +15,12 @@ namespace PerformanceTrayMonitor.Views
 	{
 		private readonly List<float> _ambientValues = new();
 		private System.Windows.Threading.DispatcherTimer _timer;
+		public ICommand CloseAboutWindow { get; }
 
 		public AboutWindow()
 		{
+			CloseAboutWindow = new RelayCommand(_ => Close());
+
 			InitializeComponent();
 			Loaded += AboutWindow_Loaded;
 			Loaded += (_, __) =>

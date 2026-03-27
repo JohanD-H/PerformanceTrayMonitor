@@ -4,7 +4,7 @@ using PerformanceTrayMonitor.Models;
 
 namespace PerformanceTrayMonitor.Extensions
 {
-	public static class CounterSettingsExtensions
+	public static class CounterSettingsDtoExtensions
 	{
 		public static CounterSettings ToSettings(this CounterSettingsDto dto)
 		{

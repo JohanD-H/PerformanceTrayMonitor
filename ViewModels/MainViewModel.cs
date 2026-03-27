@@ -11,7 +11,8 @@ using System.Diagnostics;
 using System.Linq;
 using System.Windows;
 using System.Windows.Forms;
-using System.Windows.Media;
+using System.Windows.Input;
+//using System.Windows.Media;
 using System.Windows.Threading;
 
 namespace PerformanceTrayMonitor.ViewModels
@@ -246,6 +247,10 @@ namespace PerformanceTrayMonitor.ViewModels
 			_popup.Closed += (s, e) => _popup = null;
 
 			_popup.Show();
+			// ⭐ Give the popup keyboard focus so InputBindings work
+			_popup.Activate();
+			_popup.Focus();
+			Keyboard.Focus(_popup);
 
 			// Always delay — layout needs to settle
 			_popup.Loaded += (s, e) =>
@@ -285,6 +290,16 @@ namespace PerformanceTrayMonitor.ViewModels
 			else
 			{
 				ShowPopup();
+			}
+		}
+
+		public void ShowAppIconExplicit()
+		{
+			if (!ShowAppIcon)
+			{
+				ShowAppIcon = true;
+				_trayIconManager.RebuildAllIcons();
+				SettingsSaveQueue.Enqueue(SettingsMapper.ToDto(Settings));
 			}
 		}
 

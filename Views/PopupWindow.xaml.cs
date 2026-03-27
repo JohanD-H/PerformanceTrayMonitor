@@ -1,4 +1,6 @@
-﻿using System;
+﻿using PerformanceTrayMonitor.Common;
+using PerformanceTrayMonitor.ViewModels;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Windows;
@@ -10,7 +12,6 @@ using System.Windows.Media.Animation;
 using System.Windows.Media.Effects;
 using System.Windows.Shapes;
 using System.Windows.Threading;
-using PerformanceTrayMonitor.Common;
 
 namespace PerformanceTrayMonitor.Views
 {
@@ -18,15 +19,35 @@ namespace PerformanceTrayMonitor.Views
 	{
 		private bool _isClosingAnimated;
 		private readonly Dictionary<object, (TextBlock NameBlock, Ellipse Dot)> _visualCache = new();
+		public ICommand TogglePopupPinnedCommand { get; }
+		public ICommand ClosePopupCommand { get; }
 
 		public PopupWindow()
 		{
+			// Create the command BEFORE InitializeComponent so XAML can bind to it
+			TogglePopupPinnedCommand = new RelayCommand(_ =>
+			{
+				if (DataContext is MainViewModel vm)
+				{
+					vm.PopupPinned = !vm.PopupPinned;
+				}
+			});
+
+			ClosePopupCommand = new RelayCommand(_ =>
+			{
+				Close();
+			});
+
 			InitializeComponent();
 			Opacity = 0;
 
 			Loaded += (_, __) =>
 			{
 				Width = MinWidth;
+
+				// Give the popup keyboard focus
+				Focus();
+				Keyboard.Focus(this);
 
 				void OnStatusChanged(object? s, EventArgs e)
 				{
