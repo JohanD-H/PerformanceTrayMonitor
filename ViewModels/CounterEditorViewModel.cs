@@ -71,11 +71,11 @@ namespace PerformanceTrayMonitor.ViewModels
 		}
 
 		private async Task LoadListAndSelectAsync(
-	Func<CancellationToken, Task> loadFunc,
-	Func<bool> isLoadValid,
-	Func<IEnumerable<string>> getList,
-	Func<string> getCurrentSelection,
-	Action<string> setSelection)
+			Func<CancellationToken, Task> loadFunc,
+			Func<bool> isLoadValid,
+			Func<IEnumerable<string>> getList,
+			Func<string> getCurrentSelection,
+			Action<string> setSelection)
 		{
 			if (!isLoadValid())
 			{

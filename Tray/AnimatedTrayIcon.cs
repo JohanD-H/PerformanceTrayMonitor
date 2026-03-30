@@ -1,4 +1,5 @@
 ﻿using PerformanceTrayMonitor.ViewModels;
+using PerformanceTrayMonitor.Views;
 using PerformanceTrayMonitor.Common;
 using System;
 using System.Collections.Generic;
@@ -53,7 +54,7 @@ namespace PerformanceTrayMonitor.Configuration
 
 			_timer = new DispatcherTimer
 			{
-				Interval = TimeSpan.FromMilliseconds(250)
+				Interval = TimeSpan.FromMilliseconds(TrayIconConfig.AnimatedAppUpdateTimerValue)
 			};
 			_timer.Tick += OnTimerTick;
 			_timer.Start();

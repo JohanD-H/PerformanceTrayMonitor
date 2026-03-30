@@ -13,7 +13,6 @@ namespace PerformanceTrayMonitor.ViewModels
 		public CounterSettings Settings { get; private set; }
 		private PerformanceCounter? _internalCounter;
 		private float _currentValue;
-
 		private SolidColorBrush _accentBrush;
 		public SolidColorBrush AccentBrush
 		{
@@ -24,7 +23,6 @@ namespace PerformanceTrayMonitor.ViewModels
 				OnPropertyChanged();
 			}
 		}
-
 		public CounterViewModel(CounterSettings settings)
 		{
 			Settings = settings ?? throw new ArgumentNullException(nameof(settings));
@@ -45,7 +43,6 @@ namespace PerformanceTrayMonitor.ViewModels
 
 			AttachCounter(CreateInternalCounter(settings));
 		}
-
 		public Guid Id => Settings.Id;
 		public string Category => Settings.Category;
 		public string Counter => Settings.Counter;
@@ -59,19 +56,17 @@ namespace PerformanceTrayMonitor.ViewModels
 		private bool _autoTrayBackground;
 		private Color _trayBackgroundColor;
 		private const int MaxHistory = 60;
-		private readonly ObservableCollection<float> _history = new();
+		private ObservableCollection<float> _history { get; } = new();
 		public ObservableCollection<float> History => _history;
 
-		public SolidColorBrush DisplayColor { get; }
+		//public SolidColorBrush DisplayColor { get; }
 		public double ShadowOpacity { get; private set; }
-
 		private void RecomputeAccentBrush()
 		{
 			var (brush, shadow) = UIColors.GetSoftColorFor(DisplayName);
 			AccentBrush = brush;
 			ShadowOpacity = shadow;
 		}
-
 		public string DisplayName =>
 			string.IsNullOrWhiteSpace(Settings.DisplayName) ? Settings.Counter : Settings.DisplayName;
 
@@ -80,19 +75,21 @@ namespace PerformanceTrayMonitor.ViewModels
 			get => _currentValue;
 			set
 			{
-				//Log.Debug($"Counter {DisplayName} updated: {value}");
+				Log.Debug($"Counter {DisplayName} updated: {value}");
 				//Log.Debug($"Updating {DisplayName} on VM {GetHashCode()}");
 
 				_currentValue = value;
 				OnPropertyChanged();
 
 				// Update history
-				_history.Add(value);
-				if (_history.Count > MaxHistory)
-					_history.RemoveAt(0);
+				History.Add(value);
+				if (History.Count > MaxHistory)
+					History.RemoveAt(0);
+
+				Log.Debug($"[CounterVM] History changed. VM={GetHashCode()}, HistoryCount={History?.Count}");
 
 				// Notify SparkLine
-				//OnPropertyChanged(nameof(History));
+				OnPropertyChanged(nameof(History));
 			}
 		}
 
@@ -139,6 +136,11 @@ namespace PerformanceTrayMonitor.ViewModels
 				}
 			}
 			catch { /* Counter might have vanished/stopped */ }
+		}
+
+		public void ForceNotifyHistory()
+		{
+			OnPropertyChanged(nameof(History));
 		}
 
 		public void AttachCounter(PerformanceCounter? pc)

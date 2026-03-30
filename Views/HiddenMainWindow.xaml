@@ -8,5 +8,7 @@
         Height="0"
         AllowsTransparency="True"
         Background="Transparent"
-        Visibility="Collapsed">
+        Visibility="Collapsed"
+        Opacity="0"
+        IsHitTestVisible="False">
 </Window>

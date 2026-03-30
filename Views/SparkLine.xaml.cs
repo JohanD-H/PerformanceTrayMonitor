@@ -1,142 +1,21 @@
 using PerformanceTrayMonitor.Common;
 using System;
 using System.Collections.Generic;
+using System.Collections.Specialized;
+using System.Diagnostics;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Data;
 using System.Windows.Media;
 using System.Windows.Shapes;
+using System.Windows.Threading;
 
 namespace PerformanceTrayMonitor.Views
 {
 	public partial class SparkLine : UserControl
 	{
-		private List<float> _currentValues;
-		private List<float> _targetValues;
-		private DateTime _animStart;
-		private TimeSpan _animDuration = TimeSpan.FromMilliseconds(200);
-		private bool _isAnimating = false;
-
-		public SparkLine()
-		{
-			InitializeComponent();
-			Loaded += (s, e) => Redraw();
-
-			SizeChanged += (s, e) => Redraw();
-
-			RenderOptions.SetEdgeMode(this, EdgeMode.Unspecified);
-			RenderOptions.SetBitmapScalingMode(this, BitmapScalingMode.HighQuality);
-			RenderOptions.SetClearTypeHint(this, ClearTypeHint.Enabled);
-		}
-
-		// -----------------------------
-		// Values
-		// -----------------------------
-		public IList<float> Values
-		{
-			get => (IList<float>)GetValue(ValuesProperty);
-			set => SetValue(ValuesProperty, value);
-		}
-
-		// -----------------------------
-		// Min / Max
-		// -----------------------------
-		public double Min
-		{
-			get => (double)GetValue(MinProperty);
-			set => SetValue(MinProperty, value);
-		}
-
-		public static readonly DependencyProperty MinProperty =
-			DependencyProperty.Register(nameof(Min), typeof(double),
-				typeof(SparkLine),
-				new FrameworkPropertyMetadata(0.0,
-					FrameworkPropertyMetadataOptions.AffectsRender,
-					OnAnyPropertyChanged));
-
-		public double Max
-		{
-			get => (double)GetValue(MaxProperty);
-			set => SetValue(MaxProperty, value);
-		}
-
-		public static readonly DependencyProperty MaxProperty =
-			DependencyProperty.Register(nameof(Max), typeof(double),
-				typeof(SparkLine),
-				new FrameworkPropertyMetadata(100.0,
-					FrameworkPropertyMetadataOptions.AffectsRender,
-					OnAnyPropertyChanged));
-
-		// -----------------------------
-		// Stroke (NEW)
-		// -----------------------------
-		public Brush Stroke
-		{
-			get => (Brush)GetValue(StrokeProperty);
-			set => SetValue(StrokeProperty, value);
-		}
-
-		public static readonly DependencyProperty StrokeProperty =
-			DependencyProperty.Register(nameof(Stroke), typeof(Brush),
-				typeof(SparkLine),
-				new FrameworkPropertyMetadata(Brushes.Lime,
-					FrameworkPropertyMetadataOptions.AffectsRender,
-					OnAnyPropertyChanged));
-
-		public double StrokeThickness
-		{
-			get => (double)GetValue(StrokeThicknessProperty);
-			set => SetValue(StrokeThicknessProperty, value);
-		}
-
-		public static readonly DependencyProperty StrokeThicknessProperty =
-			DependencyProperty.Register(nameof(StrokeThickness), typeof(double),
-				typeof(SparkLine),
-				new FrameworkPropertyMetadata(1.0,
-					FrameworkPropertyMetadataOptions.AffectsRender,
-					OnAnyPropertyChanged));
-
-		private void Animate(object sender, EventArgs e)
-		{
-			//Log.Debug($"[SparkLine] Animate tick. isAnimating={_isAnimating}, targetCount={_targetValues?.Count}");
-
-			if (!_isAnimating || _targetValues == null)
-				return;
-
-			double t = (DateTime.Now - _animStart).TotalMilliseconds /
-					   _animDuration.TotalMilliseconds;
-
-			if (t >= 1.0)
-			{
-				//Log.Debug("[SparkLine] Animation finished.");
-
-				_currentValues = new List<float>(_targetValues);
-				_isAnimating = false;
-				CompositionTarget.Rendering -= Animate;
-				Redraw();
-				return;
-			}
-
-			// EaseInOut
-			double eased = EaseInOut(t);
-
-			for (int i = 0; i < _currentValues.Count; i++)
-			{
-				float a = _currentValues[i];
-				float b = _targetValues[i];
-				_currentValues[i] = (float)(a + (b - a) * eased);
-				//if (i == 0)
-				//	Log.Debug($"[SparkLine] Animating first point: {a} -> {b} (eased={eased})");
-			}
-
-			Redraw();
-		}
-
-		private double EaseInOut(double t)
-		{
-			return t < 0.5
-				? 2 * t * t
-				: 1 - Math.Pow(-2 * t + 2, 2) / 2;
-		}
+		private IList<float>? _valuesSource;
+		private StreamGeometry? _geometry;
 
 		public static readonly DependencyProperty ValuesProperty =
 			DependencyProperty.Register(
@@ -145,40 +24,103 @@ namespace PerformanceTrayMonitor.Views
 				typeof(SparkLine),
 				new PropertyMetadata(null, OnValuesChanged));
 
+		public static readonly DependencyProperty MinProperty =
+			DependencyProperty.Register(nameof(Min), typeof(double),
+				typeof(SparkLine),
+				new FrameworkPropertyMetadata(0.0,
+					FrameworkPropertyMetadataOptions.AffectsRender,
+					OnAnyPropertyChanged));
+
+		public static readonly DependencyProperty MaxProperty =
+			DependencyProperty.Register(nameof(Max), typeof(double),
+				typeof(SparkLine),
+				new FrameworkPropertyMetadata(100.0,
+					FrameworkPropertyMetadataOptions.AffectsRender,
+					OnAnyPropertyChanged));
+
+		public static readonly DependencyProperty StrokeProperty =
+			DependencyProperty.Register(nameof(Stroke), typeof(Brush),
+				typeof(SparkLine),
+				new FrameworkPropertyMetadata(Brushes.Lime,
+					FrameworkPropertyMetadataOptions.AffectsRender,
+					OnAnyPropertyChanged));
+
+		public static readonly DependencyProperty StrokeThicknessProperty =
+			DependencyProperty.Register(nameof(StrokeThickness), typeof(double),
+				typeof(SparkLine),
+				new FrameworkPropertyMetadata(1.0,
+					FrameworkPropertyMetadataOptions.AffectsRender,
+					OnAnyPropertyChanged));
+
+		public SparkLine()
+		{
+			Log.Debug($"SparkLine created: {GetHashCode()}");
+
+			InitializeComponent();
+
+			Loaded += (_, __) => Redraw();
+			SizeChanged += (_, __) => Redraw();
+
+			RenderOptions.SetEdgeMode(this, EdgeMode.Unspecified);
+			RenderOptions.SetBitmapScalingMode(this, BitmapScalingMode.HighQuality);
+			RenderOptions.SetClearTypeHint(this, ClearTypeHint.Enabled);
+		}
+
+		public IList<float> Values
+		{
+			get => (IList<float>)GetValue(ValuesProperty);
+			set
+			{
+				Log.Debug($"Value set: value = {value}");
+				SetValue(ValuesProperty, value);
+			}
+		}
+
+		public double Min
+		{
+			get => (double)GetValue(MinProperty);
+			set => SetValue(MinProperty, value);
+		}
+
+		public double Max
+		{
+			get => (double)GetValue(MaxProperty);
+			set => SetValue(MaxProperty, value);
+		}
+
+		public Brush Stroke
+		{
+			get => (Brush)GetValue(StrokeProperty);
+			set => SetValue(StrokeProperty, value);
+		}
+
+		public double StrokeThickness
+		{
+			get => (double)GetValue(StrokeThicknessProperty);
+			set => SetValue(StrokeThicknessProperty, value);
+		}
+
 		private static void OnValuesChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
 		{
 			var spark = (SparkLine)d;
-			var value = (IList<float>)e.NewValue;
 
-			if (value == null || value.Count == 0)
-			{
-				spark._currentValues = null;
-				spark._targetValues = null;
-				spark._isAnimating = false;
-				return;
-			}
+			if (e.OldValue is INotifyCollectionChanged oldCollection)
+				oldCollection.CollectionChanged -= spark.OnCollectionChanged;
 
-			// Initialize current values if first time
-			if (spark._currentValues == null)
-				spark._currentValues = new List<float>(value);
+			if (e.NewValue is INotifyCollectionChanged newCollection)
+				newCollection.CollectionChanged += spark.OnCollectionChanged;
 
-			// Set new target
-			spark._targetValues = new List<float>(value);
+			// *** This is the missing link ***
+			spark._valuesSource = e.NewValue as IList<float>;
 
-			// Start animation
-			spark._animStart = DateTime.Now;
-			spark._isAnimating = true;
-
-			CompositionTarget.Rendering -= spark.Animate;
-			CompositionTarget.Rendering += spark.Animate;
-
-			// Force redraw
 			spark.Redraw();
 		}
 
-		// -----------------------------
-		// Redraw
-		// -----------------------------
+		private void OnCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+		{
+			Redraw();
+		}
+
 		private static void OnAnyPropertyChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
 		{
 			((SparkLine)d).Redraw();
@@ -186,87 +128,129 @@ namespace PerformanceTrayMonitor.Views
 
 		private void Redraw()
 		{
-			Log.Debug($"[SparkLine] Redraw called. currentValues? {_currentValues != null}, count={_currentValues?.Count}, size={ActualWidth}x{ActualHeight}");
-			Log.Debug($"[SparkLine] Stroke brush: {Stroke}");
+			var values = _valuesSource;
 
-			Root.Children.Clear();
-
-			if (_currentValues == null || _currentValues.Count < 2 || ActualWidth <= 0 || ActualHeight <= 0)
+			if (values == null || values.Count == 0 || ActualWidth <= 0 || ActualHeight <= 0)
 			{
-				Log.Debug("[SparkLine] Early exit: invalid state.");
+				_geometry = null;
+				InvalidateVisual();
 				return;
 			}
+			Log.Debug($"Redraw: Count = {values.Count}");
 
+			var count = values.Count;
+			var width = ActualWidth;
+			var height = ActualHeight;
+
+			var stepX = count > 1 ? width / (count - 1) : 0;
+			var geo = new StreamGeometry();
+
+			using (var ctx = geo.Open())
+			{
+				for (int i = 0; i < count; i++)
+				{
+					var x = i * stepX;
+					var y = MapToY(values[i], height);
+
+					if (i == 0)
+						ctx.BeginFigure(new Point(x, y), false, false);
+					else
+						ctx.LineTo(new Point(x, y), true, false);
+				}
+			}
+
+			geo.Freeze();
+			_geometry = geo;
+			InvalidateVisual();
+		}
+
+		private double MapToY(float value, double height)
+		{
 			double min = Min;
 			double max = Max;
 			if (max <= min)
 				max = min + 1;
 
-			double w = ActualWidth;
-			double h = ActualHeight;
-			double dx = w / (_currentValues.Count - 1);
-			double range = max - min;
+			double t = (value - min) / (max - min);
+			t = Math.Clamp(t, 0, 1);
 
-			double strokeThickness = StrokeThickness > 0
-				? StrokeThickness
-				:
-				(w < 140 ? 1.0 :
-				 w < 200 ? 1.25 :
-						   1.5);
-
-			var pts = new List<Point>(_currentValues.Count);
-			for (int i = 0; i < _currentValues.Count; i++)
-			{
-				double x = i * dx;
-
-				double t = (_currentValues[i] - min) / range;
-				t = Math.Clamp(t, 0, 1);
-
-				double y = h - (t * h);
-				y = Math.Floor(y);   // if you want crisp pixel alignment
-
-				pts.Add(new Point(x, y));
-			}
-
-			bool smooth = false;
-
-			var geo = new StreamGeometry();
-			using (var ctx = geo.Open())
-			{
-				ctx.BeginFigure(pts[0], false, false);
-
-				if (!smooth)
-				{
-					for (int i = 1; i < pts.Count; i++)
-						ctx.LineTo(pts[i], true, false);
-				}
-				else
-				{
-					for (int i = 1; i < pts.Count; i++)
-					{
-						var prev = pts[i - 1];
-						var curr = pts[i];
-						var mid = new Point(
-							(prev.X + curr.X) / 2,
-							(prev.Y + curr.Y) / 2);
-
-						ctx.QuadraticBezierTo(prev, mid, true, false);
-					}
-				}
-			}
-			geo.Freeze();
-
-			//Log.Debug($"[SparkLine] Drawing {pts.Count} points. First={pts[0]}, Last={pts[^1]}");
-
-			var path = new Path
-			{
-				Stroke = Stroke,
-				StrokeThickness = strokeThickness,
-				Data = geo,
-				SnapsToDevicePixels = true
-			};
-
-			Root.Children.Add(path);
+			double y = height - (t * height);
+			return Math.Floor(y);
 		}
+
+		protected override void OnRender(DrawingContext dc)
+		{
+			if (Values == null || Values.Count == 0)
+				return;
+
+			double width = ActualWidth;
+			double height = ActualHeight;
+
+			Log.Debug($"SparkLine: width={width}, height={height}");
+
+			if (width <= 0 || height <= 0)
+				return;
+
+			// Build the polyline
+			StreamGeometry geometry = new StreamGeometry();
+
+			using (var ctx = geometry.Open())
+			{
+				double xStep = width / (Values.Count - 1);
+
+				for (int i = 0; i < Values.Count; i++)
+				{
+					double x = Math.Round(i * xStep) + 0.5; // snap to pixel
+					double y = Math.Round(ScaleY(Values[i], height)) + 0.5;
+
+					Log.Debug($"Y[{i}] = {ScaleY(Values[i], height)}");
+
+					if (i == 0)
+						ctx.BeginFigure(new Point(x, y), false, false);
+					else
+						ctx.LineTo(new Point(x, y), true, false);
+				}
+			}
+
+			geometry.Freeze();
+
+			Pen pen = new Pen(Stroke, StrokeThickness);
+			pen.Freeze();
+
+			// Pixel snapping
+			GuidelineSet guidelines = new GuidelineSet();
+			guidelines.GuidelinesX.Add(0.5);
+			guidelines.GuidelinesY.Add(0.5);
+			dc.PushGuidelineSet(guidelines);
+
+			dc.DrawGeometry(null, pen, geometry);
+
+			dc.Pop();
+		}
+
+		private double ScaleY(double value, double height)
+		{
+			const double padding = 2.0;
+
+			double usable = height - padding * 2;
+			if (usable <= 0) return height / 2;
+
+			double t = (value - Min) / (Max - Min);
+			double y = (1.0 - t) * usable + padding;
+
+			return y;
+		}
+		/*
+		protected override void OnRender(DrawingContext dc)
+		{
+			base.OnRender(dc);
+
+			if (_geometry == null || Stroke == null || StrokeThickness <= 0)
+				return;
+
+			var pen = new Pen(Stroke, StrokeThickness) { StartLineCap = PenLineCap.Flat, EndLineCap = PenLineCap.Flat };
+			dc.DrawGeometry(null, pen, _geometry);
+		}
+		*/
 	}
 }

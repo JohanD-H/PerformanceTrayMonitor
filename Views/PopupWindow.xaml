@@ -158,7 +158,9 @@
                       HorizontalScrollBarVisibility="Disabled">
 
             <ItemsControl x:Name="MetricsList"
-                          ItemsSource="{Binding Counters}">
+                          ItemsSource="{Binding Counters}"
+                          VirtualizingPanel.IsVirtualizing="False"
+                          ScrollViewer.CanContentScroll="False">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
 
@@ -170,32 +172,44 @@
 
                             <StackPanel>
 
-                                <!-- Display Name + Dot -->
-                                <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
-                                    <Ellipse Width="10"
-                                             Height="10"
-                                             VerticalAlignment="Center"
-                                             Margin="0,0,6,0"
-                                             Fill="{Binding CurrentValue, Converter={StaticResource ActivityToBrush}}"/>
-                                    <TextBlock x:Name="DisplayNameBlock"
+                                <Border MouseLeftButtonUp="ShowGraph_Click"
+                                        Cursor="Hand"
+                                        Margin="4"
+                                        Padding="6"
+                                        BorderBrush="#555"
+                                        BorderThickness="1"
+                                        CornerRadius="3">
+
+                                    <!-- Display Name + Dot -->
+                                    <StackPanel Orientation="Horizontal"
+                                            Margin="0,0,0,4">
+                                        <Ellipse Width="10"
+                                                Height="10"
+                                                VerticalAlignment="Center"
+                                                Margin="0,0,6,0"
+                                                Fill="{Binding CurrentValue, Converter={StaticResource ActivityToBrush}}"/>
+                                        <TextBlock x:Name="DisplayNameBlock"
                                                Text="{Binding DisplayName}"
                                                Foreground="{Binding AccentBrush}"
                                                FontWeight="Bold"
                                                VerticalAlignment="Center">
-                                        <TextBlock.Effect>
-                                            <DropShadowEffect Color="Black"
+                                               <!-- MouseLeftButtonDown="DisplayNameBlock_MouseLeftButtonDown" -->
+                                            <TextBlock.Effect>
+                                                <DropShadowEffect Color="Black"
                                                               BlurRadius="2"
                                                               ShadowDepth="0"
-                                                              Opacity="0.35"/>
-                                        </TextBlock.Effect>
-                                    </TextBlock>
-                                </StackPanel>
+                                                              Opacity="0.5"/>
+                                            </TextBlock.Effect>
+                                        </TextBlock>
+                                    </StackPanel>
+
+                                </Border>
 
                                 <!-- Sparkline + Value -->
                                 <Grid Height="24"
                                       Background="{StaticResource SparklineGridBrush}">
 
-                                    <local:SparkLine Values="{Binding History}"
+                                    <local:SparkLine Values="{Binding Path=History, Mode=OneWay}"
                                                      Min="{Binding Min}"
                                                      Max="{Binding Max}"
                                                      Stroke="{Binding AccentBrush}"
@@ -204,7 +218,8 @@
                                             <DropShadowEffect Color="Black"
                                                               BlurRadius="4"
                                                               ShadowDepth="0"
-                                                              Opacity="{Binding ShadowOpacity}"/>
+                                                              Opacity="0.5"
+                                            />
                                         </local:SparkLine.Effect>
                                     </local:SparkLine>
 
@@ -219,7 +234,7 @@
                                             <DropShadowEffect Color="Black"
                                                               BlurRadius="3"
                                                               ShadowDepth="0"
-                                                              Opacity="0.6"/>
+                                                              Opacity="0.5"/>
                                         </TextBlock.Effect>
                                     </TextBlock>
 

@@ -1,6 +1,10 @@
-﻿using System;
+﻿using PerformanceTrayMonitor.Common;
+using PerformanceTrayMonitor.Configuration;
+using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Windows;
 
 namespace PerformanceTrayMonitor.Configuration
 {
@@ -10,28 +14,22 @@ namespace PerformanceTrayMonitor.Configuration
 		{
 			var result = new Dictionary<string, IconSetDefinition>(StringComparer.OrdinalIgnoreCase);
 
-			result["Activity"] = Build("Activity", "activity", 5);
-
-			result["Disk 1"] = Build("Disk 1", "disk", 5, "Disk-1");
-			result["Disk 2"] = Build("Disk 2", "disk", 5, "Disk-2");
-			result["Graphic"] = Build("Graphic", "graphic", 5);
-			result["Memory"] = Build("Memory", "memory", 5);
-			result["Network"] = Build("Network", "network", 5);
-			result["Smileys"] = Build("Smileys", "smiley", 5);
-			result["WiFi 1"] = Build("WiFi 1", "wifi", 5, "WiFi-1");
-			result["WiFi 2"] = Build("WiFi 2", "wifi", 5, "WiFi-2");
+			foreach (var info in EmbeddedIconManifest.Sets)
+			{
+				Log.Debug($"GetEmbeddedSets: Name = {info.Name}");
+				var definition = Build(info);
+				result[info.Name] = definition;
+			}
 
 			return result;
 		}
 
-		private static IconSetDefinition Build(string name, string prefix, int count, string? folderOverride = null)
+		private static IconSetDefinition Build(EmbeddedIconSetInfo info)
 		{
-			string folder = folderOverride ?? name;
-
-			var frames = Enumerable.Range(1, count)
+			var frames = Enumerable.Range(1, info.Frames)
 				.Select(i =>
 					new Uri(
-						$"pack://application:,,,/{Paths.EmbeddedIconsRoot}/{Paths.CounterIconsFolder}/{folder}/{prefix}-{i}.ico",
+						$"pack://application:,,,/Resources/Icons/Counter/{info.Folder}/{info.Prefix}-{i}.ico",
 						UriKind.Absolute
 					).AbsoluteUri
 				)
@@ -39,8 +37,8 @@ namespace PerformanceTrayMonitor.Configuration
 
 			return new IconSetDefinition
 			{
-				Name = name,
-				Prefix = prefix.Trim(),
+				Name = info.Name,
+				Prefix = info.Prefix,
 				Frames = frames,
 				IsEmbedded = true
 			};

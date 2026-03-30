@@ -26,6 +26,19 @@ namespace PerformanceTrayMonitor.Models
 			return true;
 		}
 
+		public string FullCounterPath
+		{
+			get
+			{
+				// Example: Category = "Processor", Instance = "_Total", Counter = "% Processor Time"
+
+				if (!string.IsNullOrWhiteSpace(Instance))
+					return $@"\\{Category}({Instance})\{Counter}";
+
+				return $@"\\{Category}\{Counter}";
+			}
+		}
+
 		// Stable identity so TrayIconManager can match settings safely
 		public Guid Id { get; set; } = Guid.NewGuid();
 

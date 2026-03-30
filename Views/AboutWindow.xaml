@@ -20,139 +20,149 @@
                                   RelativeSource={RelativeSource AncestorType=Window}}" />
     </Window.InputBindings>
 
-    <Border CornerRadius="10"
-            BorderBrush="#33000000"
-            BorderThickness="1"
+    <Grid>
+        <Grid.Clip>
+            <RectangleGeometry RadiusX="10" RadiusY="10"
+                           Rect="0,0,420,270"/>
+        </Grid.Clip>
+
+        <!-- Shadow layer -->
+        <Border CornerRadius="10"
             Background="#F8FFFFFF"
-            SnapsToDevicePixels="True">
+            SnapsToDevicePixels="True"
+            ClipToBounds="True">
+            
+            <!-- Root panel for scale animation -->
+            <Grid x:Name="Root"
+                  Background="{StaticResource AppWindowGradient}"
+                  RenderTransformOrigin="0.5,0.5">
 
-        <Border.Effect>
-            <DropShadowEffect BlurRadius="12"
-                              ShadowDepth="0"
-                              Opacity="0.25"/>
-        </Border.Effect>
+                <Grid.RenderTransform>
+                    <ScaleTransform ScaleX="0.98" ScaleY="0.98"/>
+                </Grid.RenderTransform>
 
-        <!-- Root panel for scale animation -->
-        <Grid x:Name="Root"
-              Background="{StaticResource AppWindowGradient}"
-              RenderTransformOrigin="0.5,0.5">
+                <Button Content="✕"
+                        Width="26"
+                        Height="26"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Top"
+                        Margin="0 6 6 0"
+                        Background="Transparent"
+                        BorderBrush="Transparent"
+                        Foreground="#555"
+                        FontWeight="Bold"
+                        Click="OkButton_Click"
+                        ToolTip="Close">
+                    <Button.Style>
+                        <Style TargetType="Button">
+                            <Setter Property="Background" Value="Transparent"/>
+                            <Setter Property="Foreground" Value="#555"/>
+                            <Setter Property="BorderBrush" Value="Transparent"/>
+                            <Style.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter Property="Background" Value="#666"/>
+                                    <Setter Property="Foreground" Value="White"/>
+                                </Trigger>
+                                <Trigger Property="IsPressed" Value="True">
+                                    <Setter Property="Background" Value="#888"/>
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                </Button>
 
-            <Grid.RenderTransform>
-                <ScaleTransform ScaleX="0.98" ScaleY="0.98"/>
-            </Grid.RenderTransform>
+                <!-- Ambient sparkline (unchanged!) -->
+                <local:SparkLine x:Name="BackgroundSparkline"
+                                 Stroke="{x:Static Brushes.DeepSkyBlue}"
+                                 StrokeThickness="2"
+                                 Opacity="0.35"
+                                 IsHitTestVisible="False"
+                                 Margin="0"/>
 
-            <Button Content="✕"
-                    Width="26"
-                    Height="26"
-                    HorizontalAlignment="Right"
-                    VerticalAlignment="Top"
-                    Margin="0 6 6 0"
-                    Background="Transparent"
-                    BorderBrush="Transparent"
-                    Foreground="#555"
-                    FontWeight="Bold"
-                    Click="OkButton_Click"
-                    ToolTip="Close">
-                <Button.Style>
-                    <Style TargetType="Button">
-                        <Setter Property="Background" Value="Transparent"/>
-                        <Setter Property="Foreground" Value="#555"/>
-                        <Setter Property="BorderBrush" Value="Transparent"/>
-                        <Style.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Background" Value="#666"/>
-                                <Setter Property="Foreground" Value="White"/>
-                            </Trigger>
-                            <Trigger Property="IsPressed" Value="True">
-                                <Setter Property="Background" Value="#888"/>
-                            </Trigger>
-                        </Style.Triggers>
-                    </Style>
-                </Button.Style>
-            </Button>
-
-            <!-- Ambient sparkline (unchanged!) -->
-            <local:SparkLine x:Name="BackgroundSparkline"
-                             Stroke="{x:Static Brushes.DeepSkyBlue}"
-                             StrokeThickness="2"
-                             Opacity="0.35"
-                             IsHitTestVisible="False"
-                             Margin="0"/>
-
-            <!-- Content -->
-            <StackPanel Margin="20"
-                        VerticalAlignment="Center">
-
-                <!-- Title row -->
-                <StackPanel Orientation="Horizontal"
-                            Margin="0 0 0 8"
+                <!-- Content -->
+                <StackPanel Margin="20"
                             VerticalAlignment="Center">
 
-                    <Image Source="pack://application:,,,/PerformanceTrayMonitor.png"
-                           Width="20"
-                           Height="20"
-                           SnapsToDevicePixels="True"
-                           UseLayoutRounding="True"/>
+                    <!-- Title row -->
+                    <StackPanel Orientation="Horizontal"
+                                Margin="0 0 0 8"
+                                VerticalAlignment="Center">
 
-                    <TextBlock x:Name="TitleText"
-                               Text="Performance Tray Monitor"
-                               FontSize="20"
-                               FontWeight="Bold"
-                               Foreground="#222"/>
+                        <Image Source="pack://application:,,,/PerformanceTrayMonitor.png"
+                               Width="20"
+                               Height="20"
+                               SnapsToDevicePixels="True"
+                               UseLayoutRounding="True"/>
+
+                        <TextBlock x:Name="TitleText"
+                                   Text="Performance Tray Monitor"
+                                   FontSize="20"
+                                   FontWeight="Bold"
+                                   Foreground="#222"/>
+                    </StackPanel>
+
+                    <!-- Version -->
+                    <TextBlock x:Name="VersionTextBlock"
+                               FontSize="14"
+                               Foreground="#444"
+                               Margin="0 0 0 12"
+                               Text="Version ..." />
+
+                    <!-- Credits -->
+                    <TextBlock Text="Created by Johan, animation concepts inspired by Copilot."
+                               TextWrapping="Wrap"
+                               FontSize="13"
+                               Foreground="#444"
+                               Margin="0 0 0 12"/>
+
+                    <!-- Email -->
+                    <TextBlock FontSize="12"
+                               Foreground="#444"
+                               Margin="0 0 0 2">
+                        email:
+                        <Hyperlink NavigateUri="mailto:johandh.apps@gmail.com"
+                                   RequestNavigate="Hyperlink_RequestNavigate">
+                            johandh.apps@gmail.com
+                        </Hyperlink>
+                    </TextBlock>
+
+                    <!-- GitHub link -->
+                    <TextBlock FontSize="12"
+                               Foreground="#444"
+                               Margin="0 0 0 12">
+                        GitHub:
+                        <Hyperlink NavigateUri="https://github.com/JohanD-H/PerformanceTrayMonitor"
+                                   RequestNavigate="Hyperlink_RequestNavigate">
+                            JohanD-H/PerformanceTrayMonitor
+                        </Hyperlink>
+                    </TextBlock>
+
+                    <!-- Description -->
+                    <TextBlock Text="A lightweight, animated performance monitor for the Windows system tray."
+                               TextWrapping="Wrap"
+                               FontSize="13"
+                               Foreground="#444"
+                               Margin="0 0 0 20"/>
+
+                    <!-- OK button -->
+                    <Button Content="OK"
+                            Width="80"
+                            HorizontalAlignment="Center"
+                            Padding="6 2"
+                            Margin="0 10 0 0"
+                            Click="OkButton_Click"/>
                 </StackPanel>
 
-                <!-- Version -->
-                <TextBlock x:Name="VersionTextBlock"
-                           FontSize="14"
-                           Foreground="#444"
-                           Margin="0 0 0 12"
-                           Text="Version ..." />
+            </Grid>
+        </Border>
 
-                <!-- Credits -->
-                <TextBlock Text="Created by Johan, animation concepts inspired by Copilot."
-                           TextWrapping="Wrap"
-                           FontSize="13"
-                           Foreground="#444"
-                           Margin="0 0 0 12"/>
-
-                <!-- Email -->
-                <TextBlock FontSize="12"
-                           Foreground="#444"
-                           Margin="0 0 0 2">
-                    email:
-                    <Hyperlink NavigateUri="mailto:johandh.apps@gmail.com"
-                               RequestNavigate="Hyperlink_RequestNavigate">
-                        johandh.apps@gmail.com
-                    </Hyperlink>
-                </TextBlock>
-
-                <!-- GitHub link -->
-                <TextBlock FontSize="12"
-                           Foreground="#444"
-                           Margin="0 0 0 12">
-                    GitHub:
-                    <Hyperlink NavigateUri="https://github.com/JohanD-H/PerformanceTrayMonitor"
-                               RequestNavigate="Hyperlink_RequestNavigate">
-                        JohanD-H/PerformanceTrayMonitor
-                    </Hyperlink>
-                </TextBlock>
-
-                <!-- Description -->
-                <TextBlock Text="A lightweight, animated performance monitor for the Windows system tray."
-                           TextWrapping="Wrap"
-                           FontSize="13"
-                           Foreground="#444"
-                           Margin="0 0 0 20"/>
-
-                <!-- OK button -->
-                <Button Content="OK"
-                        Width="80"
-                        HorizontalAlignment="Center"
-                        Padding="6 2"
-                        Margin="0 10 0 0"
-                        Click="OkButton_Click"/>
-            </StackPanel>
-
-        </Grid>
-    </Border>
+        <Border CornerRadius="10">
+            <Border.Effect>
+                <DropShadowEffect BlurRadius="16"
+                              ShadowDepth="0"
+                              Opacity="0.25"/>
+            </Border.Effect>
+        </Border>
+        
+    </Grid>
 </Window>

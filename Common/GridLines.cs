@@ -1,0 +1,84 @@
+﻿using System;
+using System.Windows;
+using System.Windows.Media;
+
+namespace PerformanceTrayMonitor.Views
+{
+	public class GridLines : FrameworkElement
+	{
+		public double CellWidth
+		{
+			get => (double)GetValue(CellWidthProperty);
+			set => SetValue(CellWidthProperty, value);
+		}
+
+		public static readonly DependencyProperty CellWidthProperty =
+			DependencyProperty.Register(nameof(CellWidth), typeof(double), typeof(GridLines),
+				new FrameworkPropertyMetadata(16.0, FrameworkPropertyMetadataOptions.AffectsRender));
+
+		public double CellHeight
+		{
+			get => (double)GetValue(CellHeightProperty);
+			set => SetValue(CellHeightProperty, value);
+		}
+
+		public static readonly DependencyProperty CellHeightProperty =
+			DependencyProperty.Register(nameof(CellHeight), typeof(double), typeof(GridLines),
+				new FrameworkPropertyMetadata(12.0, FrameworkPropertyMetadataOptions.AffectsRender));
+
+		public Brush LineBrush
+		{
+			get => (Brush)GetValue(LineBrushProperty);
+			set => SetValue(LineBrushProperty, value);
+		}
+
+		public static readonly DependencyProperty LineBrushProperty =
+			DependencyProperty.Register(nameof(LineBrush), typeof(Brush), typeof(GridLines),
+				new FrameworkPropertyMetadata(new SolidColorBrush(Color.FromArgb(0x30, 0, 0, 0)),
+					FrameworkPropertyMetadataOptions.AffectsRender));
+
+		public double LineThickness
+		{
+			get => (double)GetValue(LineThicknessProperty);
+			set => SetValue(LineThicknessProperty, value);
+		}
+
+		public static readonly DependencyProperty LineThicknessProperty =
+			DependencyProperty.Register(nameof(LineThickness), typeof(double), typeof(GridLines),
+				new FrameworkPropertyMetadata(1.0, FrameworkPropertyMetadataOptions.AffectsRender));
+
+		protected override void OnRender(DrawingContext dc)
+		{
+			double width = ActualWidth;
+			double height = ActualHeight;
+
+			height = Math.Floor(height / CellHeight) * CellHeight;
+
+			if (width <= 0 || height <= 0)
+				return;
+
+			Pen pen = new Pen(LineBrush, LineThickness);
+			pen.Freeze();
+
+			// Snap to pixel boundaries
+			double half = LineThickness / 2.0;
+
+			// Snap drawing width (not layout width)
+			double snappedWidth = Math.Floor(width / CellWidth) * CellWidth;
+
+			// Vertical lines
+			for (double x = 0; x <= snappedWidth; x += CellWidth)
+			{
+				dc.DrawLine(pen, new Point(x + half, 0), new Point(x + half, height));
+			}
+
+			// Horizontal lines
+			double snappedHeight = Math.Floor(height / CellHeight) * CellHeight;
+
+			for (double y = 0; y <= snappedHeight; y += CellHeight)
+			{
+				dc.DrawLine(pen, new Point(0, y + half), new Point(width, y + half));
+			}
+		}
+	}
+}

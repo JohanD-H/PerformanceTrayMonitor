@@ -1,0 +1,197 @@
+<Window x:Class="PerformanceTrayMonitor.Views.DebugIconWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Icon Preview"
+        SizeToContent="Height"
+        MinWidth="250"
+        MinHeight="300"
+        Width="400"
+        MaxWidth="730"
+        MaxHeight="550"
+        WindowStartupLocation="CenterOwner"
+        Background="{StaticResource AppWindowGradient}">
+
+    <Window.InputBindings>
+        <KeyBinding Key="Escape"
+                    Command="{Binding CloseCommand,
+                                      RelativeSource={RelativeSource AncestorType=Window}}" />
+    </Window.InputBindings>
+
+    <Grid Margin="10"
+      HorizontalAlignment="Stretch">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <!-- Selector -->
+            <RowDefinition Height="Auto"/>
+            <!-- Diagnostics -->
+            <RowDefinition Height="*"/>
+            <!-- Sprite grid -->
+            <RowDefinition Height="Auto"/>
+            <!-- Status bar -->
+        </Grid.RowDefinitions>
+
+        <!-- ========================================================= -->
+        <!-- Icon Set Selector -->
+        <!-- ========================================================= -->
+        <ComboBox x:Name="SetSelector"
+                  HorizontalAlignment="Stretch"
+                  MaxWidth="180"
+                  FontSize="13"
+                  Padding="4,2"
+                  Margin="0,0,0,6"
+                  SelectionChanged="SetSelector_SelectionChanged"/>
+
+        <!-- ========================================================= -->
+        <!-- Diagnostics Card -->
+        <!-- ========================================================= -->
+        <Border x:Name="DiagCard"
+        Grid.Row="1"
+        Padding="12"
+        Margin="0,0,0,8"
+        CornerRadius="6"
+        BorderThickness="2">
+
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <TextBlock x:Name="DiagHeader"
+                   Grid.Row="0"
+                   FontWeight="Bold"
+                   FontSize="16"
+                   Margin="0,0,0,4"/>
+
+                <TextBlock x:Name="DiagMeta"
+                   Grid.Row="1"
+                   TextWrapping="Wrap"
+                   Margin="0,0,0,4"/>
+
+                <Expander x:Name="DiagErrors"
+                  Grid.Row="2"
+                  Header="Errors"
+                  Visibility="Collapsed">
+
+                    <ScrollViewer HorizontalScrollBarVisibility="Auto"
+                          VerticalScrollBarVisibility="Auto"
+                          Padding="2">
+
+                        <ItemsControl x:Name="DiagErrorList">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding}"
+                                       TextWrapping="NoWrap"
+                                       Margin="0,0,0,2"/>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                    </ScrollViewer>
+
+                </Expander>
+
+            </Grid>
+
+        </Border>
+
+        <!-- ========================================================= -->
+        <!-- Sprite Grid -->
+        <!-- ========================================================= -->
+        <ScrollViewer Grid.Row="2"
+                      Padding="2"
+                      HorizontalAlignment="Center"
+                      VerticalScrollBarVisibility="Auto">
+            <WrapPanel x:Name="SpriteGrid"
+                       Orientation="Horizontal"
+                       Margin="0,6,0,0"/>
+        </ScrollViewer>
+
+        <!-- ========================================================= -->
+        <!-- Status Bar -->
+        <!-- ========================================================= -->
+        <Border Grid.Row="3"
+                Height="26"
+                Margin="0,8,0,0"
+                Background="#80D0F0FF"
+                BorderBrush="#33000000"
+                BorderThickness="1,1,1,0">
+            <Grid Margin="8,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Global stats -->
+                <StackPanel Orientation="Horizontal"
+                            VerticalAlignment="Center"
+                            Opacity="0.75">
+                    <TextBlock x:Name="StatusFrames"
+                               Margin="0,0,8,0"
+                               Foreground="#444"/>
+                    <TextBlock x:Name="StatusValid"
+                               Margin="0,0,8,0"
+                               Foreground="#444"/>
+                    <TextBlock x:Name="StatusValidState"
+                               Margin="0,0,8,0"
+                               Foreground="#444"/>
+                    <TextBlock x:Name="StatusInvalidState"
+                               Margin="0,0,8,0"
+                               Foreground="#444"/>
+                </StackPanel>
+
+                <!-- Separator -->
+                <TextBlock Grid.Column="1"
+                           Text="|"
+                           Margin="8,0"
+                           VerticalAlignment="Center"
+                           Opacity="0.5"/>
+
+                <!-- Set stats -->
+                <StackPanel Grid.Column="2"
+                            Orientation="Horizontal"
+                            VerticalAlignment="Center"
+                            HorizontalAlignment="Center">
+                    <TextBlock x:Name="StatusSetFrames"
+                               Margin="8,0,8,0"
+                               Foreground="#444"/>
+                    <TextBlock x:Name="StatusSetValidity"
+                               Margin="0,0,8,0"
+                               Foreground="#444"/>
+                </StackPanel>
+
+                <!-- Separator -->
+                <TextBlock Grid.Column="3"
+                           Text="|"
+                           Margin="8,0"
+                           VerticalAlignment="Center"
+                           Opacity="0.5"/>
+
+                <!-- Set state -->
+                <TextBlock x:Name="StatusSetState"
+                           Grid.Column="4"
+                           VerticalAlignment="Center"
+                           Foreground="#444"/>
+                
+                <!-- Slider -->
+                <Slider x:Name="ZoomSlider"
+                        Grid.Column="5"
+                        Width="120"
+                        Minimum="32"
+                        Maximum="128"
+                        Value="64"
+                        TickFrequency="16"
+                        IsSnapToTickEnabled="True"
+                        VerticalAlignment="Center"
+                        Margin="12,0,0,0"/>
+
+            </Grid>
+        </Border>
+
+    </Grid>
+</Window>

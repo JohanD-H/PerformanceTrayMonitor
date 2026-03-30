@@ -77,7 +77,7 @@ namespace PerformanceTrayMonitor.Tray
 				});
 			};
 
-			_updateTimer = new Timer { Interval = 50 };
+			_updateTimer = new Timer { Interval = TrayIconConfig.AnimatedCounterUpdateTimerValue };
 			_updateTimer.Tick += (_, _) => UpdateIcon();
 			_updateTimer.Start();
 		}

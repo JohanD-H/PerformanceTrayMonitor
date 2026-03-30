@@ -1,4 +1,5 @@
 ﻿using PerformanceTrayMonitor.Common;
+using PerformanceTrayMonitor.Extensions;
 using PerformanceTrayMonitor.ViewModels;
 using System;
 using System.Collections.Generic;
@@ -22,8 +23,10 @@ namespace PerformanceTrayMonitor.Views
 		public ICommand TogglePopupPinnedCommand { get; }
 		public ICommand ClosePopupCommand { get; }
 
-		public PopupWindow()
+		public PopupWindow(MainViewModel vm)
 		{
+			DataContext = vm;
+
 			// Create the command BEFORE InitializeComponent so XAML can bind to it
 			TogglePopupPinnedCommand = new RelayCommand(_ =>
 			{
@@ -41,19 +44,27 @@ namespace PerformanceTrayMonitor.Views
 			InitializeComponent();
 			Opacity = 0;
 
+			Log.Debug($"Popup DataContext instance: {DataContext?.GetHashCode()}");
+
 			Loaded += (_, __) =>
 			{
+				MetricsList.DataContext = DataContext;
+
 				Width = MinWidth;
 
-				// Give the popup keyboard focus
 				Focus();
 				Keyboard.Focus(this);
 
-				void OnStatusChanged(object? s, EventArgs e)
+				MetricsList.ItemContainerGenerator.StatusChanged += (_, __) =>
 				{
 					if (MetricsList.ItemContainerGenerator.Status == GeneratorStatus.ContainersGenerated)
 					{
-						MetricsList.ItemContainerGenerator.StatusChanged -= OnStatusChanged;
+						// ⭐ Force each CounterVM to re-notify its History property
+						foreach (var vm in ((MainViewModel)DataContext).Counters)
+						{
+							Log.Debug($"Loaded: VM hash = {vm?.GetHashCode()}");
+							vm.ForceNotifyHistory();
+						}
 
 						Dispatcher.InvokeAsync(
 							() =>
@@ -64,9 +75,7 @@ namespace PerformanceTrayMonitor.Views
 							DispatcherPriority.ApplicationIdle
 						);
 					}
-				}
-
-				MetricsList.ItemContainerGenerator.StatusChanged += OnStatusChanged;
+				};
 			};
 		}
 
@@ -100,6 +109,16 @@ namespace PerformanceTrayMonitor.Views
 				EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
 			};
 			BeginAnimation(Window.OpacityProperty, fadeIn);
+		}
+
+		private void MetricName_Click(object sender, MouseButtonEventArgs e)
+		{
+			if (sender is TextBlock tb &&
+				tb.DataContext is CounterViewModel vm &&
+				DataContext is MainViewModel main)
+			{
+				main.ShowGraph(vm);
+			}
 		}
 
 		// ------------------------------------------------------------
@@ -214,6 +233,22 @@ namespace PerformanceTrayMonitor.Views
 				if (nameBlock != null)
 					_visualCache[item] = (nameBlock, dot);
 			}
+		}
+
+		private void DisplayNameBlock_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+		{
+			if (DataContext is MainViewModel main &&
+				(sender as FrameworkElement)?.DataContext is CounterViewModel vm)
+			{
+				main.ShowGraph(vm);
+			}
+		}
+
+		private void ShowGraph_Click(object sender, MouseButtonEventArgs e)
+		{
+			if (DataContext is MainViewModel main && 
+				sender is FrameworkElement fe && fe.DataContext is CounterViewModel vm)
+				main.ShowGraph(vm);
 		}
 
 		private T? FindChild<T>(DependencyObject parent, Func<T, bool>? predicate = null) where T : DependencyObject

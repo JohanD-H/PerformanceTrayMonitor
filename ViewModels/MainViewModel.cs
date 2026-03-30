@@ -1,5 +1,4 @@
 ﻿using PerformanceTrayMonitor.Common;
-using PerformanceTrayMonitor.Configuration;
 using PerformanceTrayMonitor.Managers;
 using PerformanceTrayMonitor.Models;
 using PerformanceTrayMonitor.Settings;
@@ -8,11 +7,11 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
-using System.Linq;
+//using System.Linq;
 using System.Windows;
 using System.Windows.Forms;
 using System.Windows.Input;
-//using System.Windows.Media;
+using System.Windows.Media.Animation;
 using System.Windows.Threading;
 
 namespace PerformanceTrayMonitor.ViewModels
@@ -192,13 +191,14 @@ namespace PerformanceTrayMonitor.ViewModels
 			foreach (var c in Counters)
 				c.Update(); // Update historical counter value
 
-			_popup = new PopupWindow
+			Log.Debug($"Metric: DataContext instance: {this?.GetHashCode()}");
+			_popup = new PopupWindow(this)
 			{
 				WindowStartupLocation = Settings.Global.PopupPinned
 					? WindowStartupLocation.Manual
 					: WindowStartupLocation.CenterScreen,
 
-				DataContext = this,
+				//DataContext = this,
 				Owner = Settings.Global.PopupPinned ? null : System.Windows.Application.Current.MainWindow
 			};
 
@@ -247,10 +247,20 @@ namespace PerformanceTrayMonitor.ViewModels
 			_popup.Closed += (s, e) => _popup = null;
 
 			_popup.Show();
+			_popup.Opacity = 1;
 			// ⭐ Give the popup keyboard focus so InputBindings work
 			_popup.Activate();
 			_popup.Focus();
 			Keyboard.Focus(_popup);
+			/*
+			var fade = new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(150))
+			{
+				EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
+			};
+
+			_popup.BeginAnimation(Window.OpacityProperty, fade);
+
+			*/
 
 			// Always delay — layout needs to settle
 			_popup.Loaded += (s, e) =>
@@ -338,6 +348,12 @@ namespace PerformanceTrayMonitor.ViewModels
 
 			// Persist the change
 			SettingsSaveQueue.Enqueue(SettingsMapper.ToDto(Settings));
+		}
+
+		public void ShowGraph(CounterViewModel vm)
+		{
+			var window = new MetricGraphWindow(vm);
+			window.Show();
 		}
 
 		// ------------------------------------------------------------

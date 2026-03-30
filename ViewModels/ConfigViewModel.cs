@@ -4,6 +4,7 @@ using PerformanceTrayMonitor.Extensions;
 using PerformanceTrayMonitor.Models;
 using PerformanceTrayMonitor.Settings;
 using PerformanceTrayMonitor.Tray;
+using PerformanceTrayMonitor.Views;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -16,6 +17,7 @@ using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement.StartPanel;
 
 namespace PerformanceTrayMonitor.ViewModels
 {
@@ -78,6 +80,7 @@ namespace PerformanceTrayMonitor.ViewModels
 			}
 		}
 		private bool _isAtDefaultConfiguration;
+		private bool _pendingPreviewUpdate;
 
 		// ============================================================
 		//  INTERNAL SHIELDS (minimal, intentional)
@@ -513,11 +516,20 @@ namespace PerformanceTrayMonitor.ViewModels
 					Editor.SelectedInstance = savedInstance;
 				else if (Instances.Any())
 					Editor.SelectedInstance = Instances.First();
-				Log.Debug($"ApplySelectedAsync: EEditor.SelectedInstance = {Editor.SelectedInstance}");
+				Log.Debug($"ApplySelectedAsync: Editor.SelectedInstance = {Editor.SelectedInstance}");
 			}
 			finally
 			{
 				EndLoading();
+
+				// Flush deferred preview update here
+
+				if (_pendingPreviewUpdate)
+				{
+					_pendingPreviewUpdate = false;
+					UpdatePreview();
+				}
+
 				_isSelectionLoadInProgress = false;
 
 				// NOW it is safe to allow auto-select again
@@ -2137,6 +2149,12 @@ namespace PerformanceTrayMonitor.ViewModels
 
 		public void UpdatePreview()
 		{
+			if (IsLoading || IsSelectionLoadInProgress)
+			{
+				_pendingPreviewUpdate = true;
+				return;
+			}
+
 			// Always read from the Editor, not from ConfigViewModel
 			if (!Editor.UseTextTrayIcon)
 			{
@@ -2212,10 +2230,10 @@ namespace PerformanceTrayMonitor.ViewModels
 
 		private void OpenDebugIconWindow()
 		{
-			if (PerformanceTrayMonitor.ViewModels.DebugIconWindow.IsOpen)
+			if (PerformanceTrayMonitor.Views.DebugIconWindow.IsOpen)
 				return;
 
-			var win = new PerformanceTrayMonitor.ViewModels.DebugIconWindow(Editor.IconSet)
+			var win = new PerformanceTrayMonitor.Views.DebugIconWindow(Editor.IconSet)
 			{
 				Owner = System.Windows.Application.Current.MainWindow
 			};
