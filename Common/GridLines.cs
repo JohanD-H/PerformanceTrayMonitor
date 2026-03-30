@@ -60,24 +60,44 @@ namespace PerformanceTrayMonitor.Views
 			Pen pen = new Pen(LineBrush, LineThickness);
 			pen.Freeze();
 
+			Brush AxisBrush = new SolidColorBrush(Color.FromArgb(0x66, 0, 0, 0)); // fully opaque black
+			AxisBrush.Freeze();
+
+			// Axis-strength pen
+			Pen axisPen = new Pen(AxisBrush, LineThickness * 2);
+			axisPen.Freeze();
+
 			// Snap to pixel boundaries
 			double half = LineThickness / 2.0;
 
+			// Snap drawing height (not layout height)
+			double snappedHeight = Math.Floor(height / CellHeight) * CellHeight;
+
 			// Snap drawing width (not layout width)
-			double snappedWidth = Math.Floor(width / CellWidth) * CellWidth;
+			double snappedWidth =  Math.Floor(width / CellWidth) * CellWidth;
 
 			// Vertical lines
 			for (double x = 0; x <= snappedWidth; x += CellWidth)
 			{
-				dc.DrawLine(pen, new Point(x + half, 0), new Point(x + half, height));
+				bool isRightMost = Math.Abs(x - snappedWidth) < 0.1;
+
+				dc.DrawLine(
+					isRightMost ? axisPen : pen,
+					new Point(x + half, 0),
+					new Point(x + half, snappedHeight)
+				);
 			}
 
 			// Horizontal lines
-			double snappedHeight = Math.Floor(height / CellHeight) * CellHeight;
-
 			for (double y = 0; y <= snappedHeight; y += CellHeight)
 			{
-				dc.DrawLine(pen, new Point(0, y + half), new Point(width, y + half));
+				bool isBottom = Math.Abs(y - snappedHeight) < 0.1;
+
+				dc.DrawLine(
+					isBottom ? axisPen : pen,
+					new Point(0, y + half),
+					new Point(snappedWidth, y + half)
+				);
 			}
 		}
 	}

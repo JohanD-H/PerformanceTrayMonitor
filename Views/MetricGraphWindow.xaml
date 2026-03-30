@@ -2,15 +2,15 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:PerformanceTrayMonitor.Views"
-        xmlns:conv="clr-namespace:PerformanceTrayMonitor.Converters"
         Title="Metric Graph"
         Width="430"
         Height="260"
         WindowStyle="None"
-        ResizeMode="NoResize"
+        ResizeMode="CanResize"
         Background="Transparent"
         AllowsTransparency="True"
         MouseLeftButtonDown="Window_MouseLeftButtonDown">
+    <!-- ResizeMode="NoResize" -->
 
     <Window.Resources>
         <DrawingBrush x:Key="SparklineGridBrush"
@@ -35,8 +35,6 @@
             </DrawingBrush.Drawing>
         </DrawingBrush>
 
-        <conv:SnapToGridHeightConverter x:Key="SnapToGridHeightConverter"/>
-        
     </Window.Resources>
 
     <!-- Background="#FFCFC4D0" -->
@@ -87,14 +85,14 @@
             <!-- Graph -->
             <Grid Grid.Row="1">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="20"/>
-                    <!-- Labels only -->
                     <ColumnDefinition Width="*"/>
+                    <!-- Labels only -->
+                    <ColumnDefinition Width="20"/>
                     <!-- Plot area -->
                 </Grid.ColumnDefinitions>
 
                 <!-- Y-axis LABELS -->
-                <Grid Grid.Column="0">
+                <Grid Grid.Column="1">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <!-- Max -->
@@ -107,35 +105,24 @@
                     <TextBlock Grid.Row="0"
                                Text="{Binding Max}"
                                Foreground="#FF120D0D"
-                               FontSize="10"/>
+                               FontSize="10"
+                               HorizontalAlignment="Right"/>
 
                     <TextBlock Grid.Row="2"
                                Text="{Binding Min}"
                                Foreground="#FF120D0D"
-                               FontSize="10"/>
+                               FontSize="10"
+                               HorizontalAlignment="Right"/>
                 </Grid>
 
                 <!-- Plot area (grid + sparkline + axes) -->
-                <Grid Grid.Column="1">
-                    
-                    <!-- Grid -->
+                <Grid Grid.Column="0">
+
+                    <!-- Grid  + axes -->
                     <local:GridLines CellWidth="16"
                                      CellHeight="12"
                                      LineThickness="1"
-                                     LineBrush="#30000000"/>
-
-                    <!-- Y-axis line -->
-                    <Line X1="0" Y1="0"
-                          X2="0"
-                          Y2="{Binding ActualHeight, RelativeSource={RelativeSource AncestorType=local:SparkLine}}"
-                          Stroke="#66000000"
-                          StrokeThickness="2"
-                          HorizontalAlignment="Left"/>
-
-                    <!-- X-axis -->
-                    <local:XAxis LineBrush="#55000000"
-                                 LineThickness="2"
-                                 VerticalAlignment="Bottom"/>
+                                     LineBrush="#20000000"/>
 
                     <!-- Sparkline (TOPMOST) -->
                     <local:SparkLine x:Name="Spark"
@@ -144,7 +131,8 @@
                                      Max="{Binding Max}"
                                      Stroke="{Binding AccentBrush}"
                                      StrokeThickness="2"
-                                     Opacity="0.85"/>
+                                     Opacity="0.85"
+                                     Margin="0,0,0,3"/>
                 </Grid>
 
             </Grid>

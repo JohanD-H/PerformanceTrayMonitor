@@ -54,7 +54,7 @@ namespace PerformanceTrayMonitor.Views
 
 		public SparkLine()
 		{
-			Log.Debug($"SparkLine created: {GetHashCode()}");
+			//Log.Debug($"SparkLine created: {GetHashCode()}");
 
 			InitializeComponent();
 
@@ -71,7 +71,7 @@ namespace PerformanceTrayMonitor.Views
 			get => (IList<float>)GetValue(ValuesProperty);
 			set
 			{
-				Log.Debug($"Value set: value = {value}");
+				//Log.Debug($"Value set: value = {value}");
 				SetValue(ValuesProperty, value);
 			}
 		}
@@ -136,7 +136,7 @@ namespace PerformanceTrayMonitor.Views
 				InvalidateVisual();
 				return;
 			}
-			Log.Debug($"Redraw: Count = {values.Count}");
+			//Log.Debug($"Redraw: Count = {values.Count}");
 
 			var count = values.Count;
 			var width = ActualWidth;
@@ -186,7 +186,7 @@ namespace PerformanceTrayMonitor.Views
 			double width = ActualWidth;
 			double height = ActualHeight;
 
-			Log.Debug($"SparkLine: width={width}, height={height}");
+			//Log.Debug($"SparkLine: width={width}, height={height}");
 
 			if (width <= 0 || height <= 0)
 				return;
@@ -203,7 +203,7 @@ namespace PerformanceTrayMonitor.Views
 					double x = Math.Round(i * xStep) + 0.5; // snap to pixel
 					double y = Math.Round(ScaleY(Values[i], height)) + 0.5;
 
-					Log.Debug($"Y[{i}] = {ScaleY(Values[i], height)}");
+					//Log.Debug($"Y[{i}] = {ScaleY(Values[i], height)}");
 
 					if (i == 0)
 						ctx.BeginFigure(new Point(x, y), false, false);

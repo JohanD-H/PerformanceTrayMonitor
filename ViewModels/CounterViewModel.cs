@@ -75,7 +75,7 @@ namespace PerformanceTrayMonitor.ViewModels
 			get => _currentValue;
 			set
 			{
-				Log.Debug($"Counter {DisplayName} updated: {value}");
+				//Log.Debug($"Counter {DisplayName} updated: {value}");
 				//Log.Debug($"Updating {DisplayName} on VM {GetHashCode()}");
 
 				_currentValue = value;
@@ -86,7 +86,7 @@ namespace PerformanceTrayMonitor.ViewModels
 				if (History.Count > MaxHistory)
 					History.RemoveAt(0);
 
-				Log.Debug($"[CounterVM] History changed. VM={GetHashCode()}, HistoryCount={History?.Count}");
+				//Log.Debug($"[CounterVM] History changed. VM={GetHashCode()}, HistoryCount={History?.Count}");
 
 				// Notify SparkLine
 				OnPropertyChanged(nameof(History));
