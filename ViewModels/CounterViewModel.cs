@@ -5,6 +5,7 @@ using System.Windows;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Windows.Media;
+using PerformanceTrayMonitor.Configuration;
 
 namespace PerformanceTrayMonitor.ViewModels
 {
@@ -48,7 +49,9 @@ namespace PerformanceTrayMonitor.ViewModels
 		private Color _trayAccentColor;
 		private bool _autoTrayBackground;
 		private Color _trayBackgroundColor;
-		private const int MaxHistory = 60;
+
+		//private const int MaxHistory = 60;
+
 		private ObservableCollection<float> _history { get; } = new();
 		public ObservableCollection<float> History => _history;
 
@@ -73,7 +76,7 @@ namespace PerformanceTrayMonitor.ViewModels
 
 				// Update history
 				History.Add(value);
-				if (History.Count > MaxHistory)
+				if (History.Count > TrayIconConfig.MaximumNumberOfHistoryValues)
 					History.RemoveAt(0);
 
 				// Notify SparkLine

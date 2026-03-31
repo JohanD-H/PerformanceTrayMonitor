@@ -51,6 +51,7 @@ namespace PerformanceTrayMonitor.Views
 		{
 
 			InitializeComponent();
+			ClipToBounds = true;
 
 			Loaded += (_, __) => Redraw();
 			SizeChanged += (_, __) => Redraw();

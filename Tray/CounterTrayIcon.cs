@@ -216,7 +216,6 @@ namespace PerformanceTrayMonitor.Tray
 				Log.Debug($"[Network] Raw value = {value}, index = {index}");
 			}
 #endif
-
 			if (index != _lastFrameIndex)
 			{
 				_lastFrameIndex = index;
@@ -229,6 +228,7 @@ namespace PerformanceTrayMonitor.Tray
 				_notifyIcon.Icon = _lastClone;
 			}
 		}
+
 		private void UpdateTextIcon(double value)
 		{
 			string text = FormatValueForTray(value);

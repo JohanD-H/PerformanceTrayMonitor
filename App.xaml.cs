@@ -34,9 +34,9 @@ namespace PerformanceTrayMonitor
 				builder.SetMinimumLevel(LogLevel.None);
 #endif
 			});
-			Log.Logger = loggerFactory.CreateLogger("App");
+			//Log.Logger = loggerFactory.CreateLogger("App");
 
-			Log.Debug($"Startup: {GetHashCode()}");
+			//Log.Debug($"Startup: {GetHashCode()}");
 
 			base.OnStartup(e);
 

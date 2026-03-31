@@ -117,7 +117,7 @@
                 </Grid>
 
                 <!-- Plot area (grid + sparkline + axes) -->
-                <Grid Grid.Column="0">
+                <Grid Grid.Column="0" ClipToBounds="True">
 
                     <!-- Grid  + axes -->
                     <local:GridLines CellWidth="16"
@@ -133,7 +133,9 @@
                                      Stroke="{Binding AccentBrush}"
                                      StrokeThickness="2"
                                      Opacity="0.85"
-                                     Margin="0,0,0,3"/>
+                                     Margin="0,0,0,3"
+                                     SnapsToDevicePixels="True"
+                                     UseLayoutRounding="True"/>
                 </Grid>
 
             </Grid>

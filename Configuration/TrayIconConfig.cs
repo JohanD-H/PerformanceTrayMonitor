@@ -33,5 +33,13 @@ namespace PerformanceTrayMonitor.Configuration
 		// Number of milliseconds between tray icon updates
 		public const double AnimatedAppUpdateTimerValue = 250.0;
 
+		// Maximum number of history values stored
+		// Use for graphical display of the metric 
+		public const int MaximumNumberOfHistoryValues = 60;
+
+		//
+		//
+		public const double IconSetPreviewTimer = 1.0;
+
 	}
 }

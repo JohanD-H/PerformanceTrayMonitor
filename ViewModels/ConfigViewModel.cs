@@ -40,6 +40,7 @@ namespace PerformanceTrayMonitor.ViewModels
 				if (_globalEditsPending == value) return;
 				_globalEditsPending = value;
 				OnPropertyChanged();
+				OnPropertyChanged(nameof(AnyPendingEdits));
 				RefreshCommandStates();
 			}
 		}
@@ -57,11 +58,16 @@ namespace PerformanceTrayMonitor.ViewModels
 				if (_editorPendingEdits == value) return;
 				_editorPendingEdits = value;
 				OnPropertyChanged();
+				OnPropertyChanged(nameof(AnyPendingEdits));
 				RefreshCommandStates();
 			}
 		}
 		private bool _editorPendingEdits;
-
+		
+		/// <summary>
+		/// True when the editor UI has unsaved changes or edits for the currently selected metric.
+		/// This drives Details in the UI.
+		/// </summary>
 		public bool AnyPendingEdits => EditorPendingEdits || GlobalEditsPending;
 
 		/// <summary>
@@ -108,6 +114,12 @@ namespace PerformanceTrayMonitor.ViewModels
 			{
 				_isLoading = value;
 				OnPropertyChanged();
+				// Flush pending preview updates when loading finishes
+				if (!_isLoading && _pendingPreviewUpdate)
+				{
+					_pendingPreviewUpdate = false;
+					UpdateDynamicPreview();
+				}
 			}
 		}
 
@@ -153,8 +165,29 @@ namespace PerformanceTrayMonitor.ViewModels
 
 		public CounterEditorViewModel Editor { get; }
 
-		private bool _isSelectionLoadInProgress = false;
-		internal bool IsSelectionLoadInProgress => _isSelectionLoadInProgress;
+		//private bool _isSelectionLoadInProgress = false;
+		//internal bool IsSelectionLoadInProgress => _isSelectionLoadInProgress;
+
+		private bool _isSelectionLoadInProgress;
+		internal bool IsSelectionLoadInProgress
+		{
+			get => _isSelectionLoadInProgress;
+			private set
+			{
+				if (_isSelectionLoadInProgress == value)
+					return;
+
+				_isSelectionLoadInProgress = value;
+				OnPropertyChanged();
+
+				// Flush pending preview updates when selection load finishes
+				if (!_isSelectionLoadInProgress && _pendingPreviewUpdate)
+				{
+					_pendingPreviewUpdate = false;
+					UpdateDynamicPreview();
+				}
+			}
+		}
 
 		public Action? RequestClose { get; set; }
 		private DispatcherTimer _previewTimer;
@@ -335,19 +368,19 @@ namespace PerformanceTrayMonitor.ViewModels
 			// ------------------------------------------------------------
 			// Update preview + status bar
 			// ------------------------------------------------------------
-			UpdatePreview();
+			UpdateDynamicPreview();
 			OnPropertyChanged(nameof(MetricsCount));
 			OnPropertyChanged(nameof(StatusText));
 		}
 
 		private async Task ApplySelectedAsync(CounterViewModel vm)
 		{
-			if (_isSelectionLoadInProgress)
+			if (IsSelectionLoadInProgress)
 			{
 				return;
 			}
 
-			_isSelectionLoadInProgress = true;
+			IsSelectionLoadInProgress = true;
 			_suppressAutoSelect = true;
 			BeginLoading();
 
@@ -377,15 +410,16 @@ namespace PerformanceTrayMonitor.ViewModels
 			{
 				EndLoading();
 
-				// Flush deferred preview update here
-
+				IsSelectionLoadInProgress = false;
+				/* Flush deferred preview update here
 				if (_pendingPreviewUpdate)
 				{
 					_pendingPreviewUpdate = false;
-					UpdatePreview();
+					UpdateDynamicPreview();
 				}
-
-				_isSelectionLoadInProgress = false;
+				*/
+				LoadIconSetPreviewFrames(Editor.IconSet);
+				//UpdateDynamicPreview();
 
 				// NOW it is safe to allow auto-select again
 				_suppressAutoSelect = false;
@@ -835,7 +869,7 @@ namespace PerformanceTrayMonitor.ViewModels
 
 			_previewTimer = new DispatcherTimer
 			{
-				Interval = TimeSpan.FromSeconds(1.0)
+				Interval = TimeSpan.FromSeconds(TrayIconConfig.IconSetPreviewTimer)
 			};
 
 			_previewTimer.Tick += (_, __) => UpdateDynamicPreview();
@@ -984,14 +1018,17 @@ namespace PerformanceTrayMonitor.ViewModels
 			IconSetPreviewFrames = frames.ToArray();
 		}
 
+		/*
 		public void UpdatePreview()
 		{
 			if (IsLoading || IsSelectionLoadInProgress)
 			{
+				Log.Debug($"UpdatePreview: Early exit, no preview! IsLOading = {IsLoading}, IsSelectionLoadInProgress = {IsSelectionLoadInProgress}");
 				_pendingPreviewUpdate = true;
 				return;
 			}
 
+			Log.Debug($"UpdatePreview: Editor.UseTestTrayIcon = {Editor.UseTextTrayIcon}");
 			// Always read from the Editor, not from ConfigViewModel
 			if (!Editor.UseTextTrayIcon)
 			{
@@ -1016,6 +1053,7 @@ namespace PerformanceTrayMonitor.ViewModels
 				bg,
 				dpiScale);
 		}
+		*/
 
 		private void UpdateDynamicPreview()
 		{

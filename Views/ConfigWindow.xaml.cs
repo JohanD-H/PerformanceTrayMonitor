@@ -18,6 +18,8 @@ namespace PerformanceTrayMonitor.Views
 
 			this.Closing += ConfigWindow_Closing;
 
+			//vm.UpdatePreview();
+
 			Loaded += (_, __) => vm.StartPreviewTimer();
 
 			vm.ConfirmCancel = () =>
