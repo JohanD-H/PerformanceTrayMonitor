@@ -183,10 +183,11 @@
                     </Grid.RowDefinitions>
 
                     <StackPanel Grid.Row="0">
+                        
                         <TextBlock Text="Details"
                                    FontSize="14"
                                    Margin="0,0,0,8"
-                                   FontWeight="{Binding HasPendingEdits,
+                                   FontWeight="{Binding AnyPendingEdits,
                                                 Converter={StaticResource BoolToFontWeight}}"/>
 
                         <!-- Display Name -->

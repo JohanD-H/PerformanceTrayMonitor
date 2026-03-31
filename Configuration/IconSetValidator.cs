@@ -15,7 +15,6 @@ namespace PerformanceTrayMonitor.Configuration
 		{
 			try
 			{
-				//Log.Debug($"VALIDATING Name = {set.Name}");
 				return
 					HasMinimumFrames(set) &&
 					HasMaximumFrames(set) &&
@@ -38,8 +37,6 @@ namespace PerformanceTrayMonitor.Configuration
 				Log.Error($"Icon set '{set.Name}' rejected: requires at least {MinFrames} frames.");
 				return false;
 			}
-			//Log.Debug("HasMinimumFrames OK");
-
 			return true;
 		}
 
@@ -50,8 +47,6 @@ namespace PerformanceTrayMonitor.Configuration
 				Log.Error($"Icon set '{set.Name}' rejected: contains {set.Frames.Count} frames, maximum allowed is {MaxFrames}.");
 				return false;
 			}
-			//Log.Debug("HasMaximumFrames OK");
-
 			return true;
 		}
 
@@ -67,8 +62,6 @@ namespace PerformanceTrayMonitor.Configuration
 				Log.Error($"Icon set '{set.Name}' rejected: inconsistent prefixes ({string.Join(", ", prefixes)}).");
 				return false;
 			}
-			//Log.Debug("HasConsistentPrefix OK");
-
 			return true;
 		}
 
@@ -94,8 +87,6 @@ namespace PerformanceTrayMonitor.Configuration
 				Log.Error($"Icon set '{set.Name}' rejected: frame numbers must be 1..{indices.Count}.");
 				return false;
 			}
-			//Log.Debug("HasContinuousIndices OK");
-
 			return true;
 		}
 
@@ -118,8 +109,6 @@ namespace PerformanceTrayMonitor.Configuration
 					return false;
 				}
 			}
-
-			//Log.Debug("FramesAreLoadable OK");
 			return true;
 		}
 
@@ -161,8 +150,6 @@ namespace PerformanceTrayMonitor.Configuration
 					return false;
 				}
 			}
-
-			//Log.Debug("FramesHaveConsistentDimensions OK");
 			return true;
 		}
 	}

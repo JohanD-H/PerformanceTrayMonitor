@@ -1,5 +1,4 @@
 ﻿using PerformanceTrayMonitor.Common;
-using PerformanceTrayMonitor.Extensions;
 using PerformanceTrayMonitor.ViewModels;
 using System;
 using System.Collections.Generic;
@@ -44,8 +43,6 @@ namespace PerformanceTrayMonitor.Views
 			InitializeComponent();
 			Opacity = 0;
 
-			Log.Debug($"Popup DataContext instance: {DataContext?.GetHashCode()}");
-
 			Loaded += (_, __) =>
 			{
 				MetricsList.DataContext = DataContext;
@@ -62,7 +59,6 @@ namespace PerformanceTrayMonitor.Views
 						// ⭐ Force each CounterVM to re-notify its History property
 						foreach (var vm in ((MainViewModel)DataContext).Counters)
 						{
-							Log.Debug($"Loaded: VM hash = {vm?.GetHashCode()}");
 							vm.ForceNotifyHistory();
 						}
 
@@ -185,10 +181,7 @@ namespace PerformanceTrayMonitor.Views
 
 		private void ApplyAccentColors()
 		{
-			//Dispatcher.BeginInvoke(new Action(() =>
-			//{
-				ApplyAccentColorsCore();
-			//}), DispatcherPriority.Loaded);
+			ApplyAccentColorsCore();
 		}
 
 		private void ApplyAccentColorsCore()
@@ -209,8 +202,6 @@ namespace PerformanceTrayMonitor.Views
 					ShadowDepth = 0,
 					Opacity = shadowOpacity
 				};
-
-				// dot.Fill = brush; // optional
 			}
 		}
 

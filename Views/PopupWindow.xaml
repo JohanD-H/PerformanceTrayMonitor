@@ -176,9 +176,7 @@
                                         Cursor="Hand"
                                         Margin="4"
                                         Padding="6"
-                                        BorderBrush="#555"
-                                        BorderThickness="1"
-                                        CornerRadius="3">
+                                        ToolTip="Enlarge Graph">
 
                                     <!-- Display Name + Dot -->
                                     <StackPanel Orientation="Horizontal"

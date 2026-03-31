@@ -1,4 +1,7 @@
-﻿// -------------------------------------------
+﻿using System;
+using System.Windows;
+
+// -------------------------------------------
 // Tray icon settimgs
 // -------------------------------------------
 namespace PerformanceTrayMonitor.Configuration

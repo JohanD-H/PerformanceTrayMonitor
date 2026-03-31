@@ -1,6 +1,6 @@
 ﻿using System;
+using System.Windows;
 using System.Windows.Media;
-using System.Drawing; // for Drawing.Color
 using MediaColor = System.Windows.Media.Color;
 
 namespace PerformanceTrayMonitor.Common

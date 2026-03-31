@@ -7,7 +7,6 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using static PerformanceTrayMonitor.Views.DebugIconWindow;
 
 namespace PerformanceTrayMonitor.Views
 {
@@ -117,7 +116,7 @@ namespace PerformanceTrayMonitor.Views
 				}
 				catch (Exception ex)
 				{
-					Log.Debug(ex, $"Skipping IconSet {uri}");
+					// Nothing
 				}
 
 				var border = new Border

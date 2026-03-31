@@ -135,10 +135,8 @@ namespace PerformanceTrayMonitor.Tray
 				return 0; // always show first frame
 
 			double val = Math.Max(min, Math.Min(max, value));
-			//Log.Debug($"val = {val}");
 
 			double normalized = (val - min) / (max - min);
-			//Log.Debug($"normalized = {normalized}");
 
 			// Below both work, but pick what feels best.
 			//

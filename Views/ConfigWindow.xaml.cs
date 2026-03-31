@@ -1,7 +1,7 @@
 using PerformanceTrayMonitor.ViewModels;
-using PerformanceTrayMonitor.Common;
 using System.ComponentModel;
 using System.Diagnostics;
+using System;
 using System.Windows;
 using System.Windows.Media.Animation;
 
@@ -49,11 +49,14 @@ namespace PerformanceTrayMonitor.Views
 
 		private void Window_Loaded(object sender, RoutedEventArgs e)
 		{
+			// Nothing
+			/*
 			if (DataContext is ConfigViewModel vm)
 			{
 				Debug.WriteLine($"UI DataContext hash = {vm.GetHashCode()}");
 				Debug.WriteLine($"UI Editor hash = {vm.Editor?.GetHashCode() ?? 0}");
 			}
+			*/
 		}
 
 		private void ButtonFlashHandler(object sender, RoutedEventArgs e)
@@ -79,7 +82,7 @@ namespace PerformanceTrayMonitor.Views
 				return;
 
 			// ------------------------------------------------------------
-			// 1. Ask the ViewModel whether closing is allowed
+			// Ask the ViewModel whether closing is allowed
 			// ------------------------------------------------------------
 			if (vm.EditorPendingEdits || vm.GlobalEditsPending)
 			{
@@ -93,32 +96,10 @@ namespace PerformanceTrayMonitor.Views
 			}
 
 			// ------------------------------------------------------------
-			// 2. Closing is allowed → clean up
+			// Closing is allowed → clean up
 			// ------------------------------------------------------------
 			vm.StopPreviewTimer();
 			vm.CancelAllWork();
 		}
-		/*
-		private void ConfigWindow_Closing(object sender, CancelEventArgs e)
-		{
-			var vm = DataContext as ConfigViewModel;
-			if (vm == null)
-				return;
-
-			// Ask the ViewModel whether closing is allowed
-			if (vm.HasPendingEdits || vm.HasAppliedChanges)
-			{
-				if (!(vm.ConfirmClose?.Invoke() ?? true))
-				{
-					e.Cancel = true;   // <-- STOP the window from closing
-					return;
-				}
-			}
-
-			// If we get here, closing is allowed
-			vm.StopPreviewTimer();
-			vm.CancelAllWork();
-		}
-		*/
 	}
 }

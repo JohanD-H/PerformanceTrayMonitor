@@ -17,7 +17,6 @@ namespace PerformanceTrayMonitor.Configuration
 				AppContext.BaseDirectory,
 				Paths.ExternalIconsRoot);
 	
-			Log.Debug($"ExternalIconDiscovery basePath = {basePath}");
 			if (!Directory.Exists(basePath))
 			{
 				return result;
@@ -25,7 +24,6 @@ namespace PerformanceTrayMonitor.Configuration
 
 			foreach (var dir in Directory.GetDirectories(basePath))
 			{
-				Log.Debug($"ExternalIconDiscovery dir = {dir}");
 				var setName = Path.GetFileName(dir);
 
 				var files = Directory
@@ -33,7 +31,6 @@ namespace PerformanceTrayMonitor.Configuration
 				.OrderBy(f => f)
 				.ToList();
 
-				Log.Debug($"ExternalIconDiscovery files.Length = {files.Count}");
 				if (files.Count == 0)
 					continue;
 
@@ -51,7 +48,6 @@ namespace PerformanceTrayMonitor.Configuration
 				var first = Path.GetFileNameWithoutExtension(files[0]);
 				var dashIndex = first.IndexOf('-');
 				var prefix = dashIndex > 0 ? first[..dashIndex] : first;
-				Log.Debug($"ExternalIconDiscovery prefix = {prefix}");
 
 				// Build definition
 				var definition = new IconSetDefinition
@@ -64,31 +60,8 @@ namespace PerformanceTrayMonitor.Configuration
 					IsEmbedded = false
 				};
 
-				Log.Debug($"ExternalIconDiscovery: Final FrameCount = {definition.FrameCount}");
-
 				result[setName] = definition;
 			}
-			/*
-				Log.Debug($"ExternalIconDiscovery files.Length = {files.Length}");
-				if (files.Length == 0)
-					continue;
-
-				var ordered = files.OrderBy(f => f).ToList();
-				var firstName = Path.GetFileNameWithoutExtension(ordered[0]);
-				var prefix = firstName.Split('-')[0].Trim();
-
-				result[setName] = new IconSetDefinition
-				{
-					Name = setName,
-					Prefix = prefix,
-					Frames = ordered
-						.Select(f => new Uri(f, UriKind.Absolute).AbsoluteUri)
-						.ToList(),
-					IsEmbedded = false
-				};
-
-			}
-			*/
 			return result;
 		}
 	}

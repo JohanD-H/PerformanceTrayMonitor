@@ -1,6 +1,8 @@
-﻿using PerformanceTrayMonitor.Common;  // if ColorExtensions lives here
-using PerformanceTrayMonitor.Settings;   // or whatever namespace contains CounterSettings / DTO
+﻿using PerformanceTrayMonitor.Common;
+using PerformanceTrayMonitor.Settings;
 using PerformanceTrayMonitor.Models;
+using System;
+using System.Windows;
 
 namespace PerformanceTrayMonitor.Extensions
 {

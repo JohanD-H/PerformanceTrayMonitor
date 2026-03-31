@@ -1,9 +1,7 @@
 ﻿using PerformanceTrayMonitor.Common;
 using PerformanceTrayMonitor.Configuration;
 using PerformanceTrayMonitor.Models;
-using PerformanceTrayMonitor.Properties;
 using PerformanceTrayMonitor.Settings;
-//using PerformanceTrayMonitor.ViewModels;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -38,7 +36,6 @@ namespace PerformanceTrayMonitor.ViewModels
 				_showInTray = value;
 				OnPropertyChanged();
 				OnPropertyChanged(nameof(ShowIconSetSelector));
-				//NotifyTrayLimitChanged();
 			}
 		}
 		public string IconSet { get => _iconSet; set { _iconSet = value; OnPropertyChanged(); } }
@@ -56,9 +53,7 @@ namespace PerformanceTrayMonitor.ViewModels
 		private System.Windows.Media.Color _trayAccentColor;
 		private bool _autoTrayBackground;
 		private System.Windows.Media.Color _trayBackgroundColor;
-		//internal bool _isProgrammaticInstanceSet;
 
-		//private static int[] _customColors = Enumerable.Repeat(0xFFFFFF, 16).ToArray();
 		public Brush TrayAccentBrush => new SolidColorBrush(TrayAccentColor);
 		public Brush TrayBackgroundBrush => new SolidColorBrush(TrayBackgroundColor);
 
@@ -184,79 +179,24 @@ namespace PerformanceTrayMonitor.ViewModels
 				nameof(SelectedInstance));
 		}
 
-		/*
-		private async Task LoadCountersAsync(string category)
-		{
-			_parent._instanceLoadCts?.Cancel();
-			_parent._instanceLoadCts = new CancellationTokenSource();
-			var token = _parent._instanceLoadCts.Token;
-
-			await _parent.LoadCountersForCategoryAsync(category, token);
-
-			if (_loadingFromModel)
-				return; // do NOT auto-select during LoadFrom
-
-			// Now use _parent.CountersInCategory directly
-			if (_parent.CountersInCategory.Any())
-				SelectedCounter = _parent.CountersInCategory.First();
-			else
-				SelectedCounter = "";
-		}
-
-		private async Task LoadInstancesAsync(string counter)
-		{
-			if (string.IsNullOrWhiteSpace(counter) || string.IsNullOrWhiteSpace(_category))
-			{
-				_parent.Instances.Clear();
-				SelectedInstance = "";
-				return;
-			}
-
-			_parent._instanceLoadCts?.Cancel();
-			_parent._instanceLoadCts = new CancellationTokenSource();
-			var token = _parent._instanceLoadCts.Token;
-
-			await _parent.LoadInstancesForCounterAsync(_category, counter, token);
-
-			if (_loadingFromModel)
-				return; // do NOT auto-select during LoadFrom
-
-			// Now use the populated list
-			if (_parent.Instances.Contains(_instance))
-			{
-				SelectedInstance = _instance;
-			}
-			else if (_parent.Instances.Any())
-			{
-				SelectedInstance = _parent.Instances.First();
-			}
-			else
-			{
-				SelectedInstance = "";
-			}
-		}
-		*/
-
 		public void LoadFrom(CounterViewModel vm)
 		{
-			Log.Debug($"LoadFrom: Category='{vm.Category}', Counter='{vm.Counter}', Instance='{vm.Instance}'");
-
 			_loadingFromModel = true;
 			try
 			{
 				// Do NOT forget to copy GUID!
 				Id = vm.Id;
 
-				// 1. Set the category — this triggers the full reload pipeline
+				// Set the category — this triggers the full reload pipeline
 				SelectedCategory = vm.Category;
 
-				// 2. After counters load, override the counter if needed
+				// After counters load, override the counter if needed
 				SelectedCounter = vm.Counter;
 
-				// 3. After instances load, override the instance if needed
+				// After instances load, override the instance if needed
 				SelectedInstance = vm.Instance ?? "";
 
-				// 4. Simple fields (no async, no dependencies)
+				// Simple fields (no async, no dependencies)
 				DisplayName = vm.DisplayName;
 				Min = vm.Min;
 				Max = vm.Max;
@@ -273,7 +213,6 @@ namespace PerformanceTrayMonitor.ViewModels
 			{
 				_loadingFromModel = false;
 			}
-			Log.Debug($"LoadFrom DONE: Category='{SelectedCategory}', Counter='{SelectedCounter}', Instance='{SelectedInstance}'");
 		}
 
 		public void LoadDefaults()
@@ -282,16 +221,16 @@ namespace PerformanceTrayMonitor.ViewModels
 
 			Id = Guid.NewGuid();
 
-			// 1. Set category — triggers full reload pipeline
+			// Set category — triggers full reload pipeline
 			SelectedCategory = defaults.Category;
 
-			// 2. Override counter after counters load
+			// Override counter after counters load
 			SelectedCounter = defaults.Counter;
 
-			// 3. Override instance after instances load
+			// Override instance after instances load
 			SelectedInstance = defaults.Instance ?? "";
 
-			// 4. Simple fields
+			// Simple fields
 			DisplayName = defaults.DisplayName;
 			Min = defaults.Min;
 			Max = defaults.Max;
@@ -310,13 +249,11 @@ namespace PerformanceTrayMonitor.ViewModels
 			get => _useTextTrayIcon;
 			set
 			{
-				Log.Debug($"_useTextTrayIcon = {_useTextTrayIcon}");
 				if (_useTextTrayIcon == value) return;
 				_useTextTrayIcon = value;
 				OnPropertyChanged();
 				OnPropertyChanged(nameof(ShowIconSetSelector));
 				OnPropertyChanged(nameof(ShowBackgroundColorPicker));
-				Log.Debug($"_useTextTrayIcon = {_useTextTrayIcon}");
 			}
 		}
 
@@ -399,9 +336,6 @@ namespace PerformanceTrayMonitor.ViewModels
 			{
 				// Save updated custom colors back into settings
 				_parent.GlobalSettings.Global.CustomColors = dlg.CustomColors.ToArray();
-
-				Log.Debug("Custom colors updated: " +
-					string.Join(", ", dlg.CustomColors.Select(c => c.ToString("X6"))));
 
 				SettingsSaveQueue.Enqueue(SettingsMapper.ToDto(_parent.GlobalSettings));
 

@@ -1,9 +1,5 @@
-﻿using PerformanceTrayMonitor.Configuration;
-using PerformanceTrayMonitor.Models;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Text.Json;
+﻿using System;
+using System.Windows;
 
 // ------------------------------------------
 // Specific application data

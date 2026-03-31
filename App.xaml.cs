@@ -2,7 +2,6 @@
 using PerformanceTrayMonitor.Common;
 using PerformanceTrayMonitor.Configuration;
 using PerformanceTrayMonitor.Models;
-using PerformanceTrayMonitor.Properties;
 using PerformanceTrayMonitor.Settings;
 using PerformanceTrayMonitor.ViewModels;
 using PerformanceTrayMonitor.Views;
@@ -48,23 +47,17 @@ namespace PerformanceTrayMonitor
 			HiddenWindow.Hide(); // stays focusable but invisible
 
 			// -----------------------------------------
-			// Load settings (with migration)
-			// -----------------------------------------
-			Log.Debug($"Settings loading...");
-			// -----------------------------------------
 			// Load settings (DTO → runtime)
 			// -----------------------------------------
 			var dto = SettingsRepository.Load();
 			var settings = SettingsMapper.ToOptions(dto);
-
-			Log.Debug($"Settings loaded: metrics={settings.Metrics.Count}, ShowAppIcon={settings.Global.ShowAppIcon}");
 
 			// -----------------------------------------
 			// If settings contain no metrics, use defaults
 			// -----------------------------------------
 			if (settings.Metrics.Count == 0)
 			{
-				Log.Warning("Settings file exists but contains no metrics. Using defaults.");
+				Log.Error("Settings file exists but contains no metrics. Using defaults.");
 
 				var defaults = new DefaultSettingsProvider().Create();
 
@@ -77,8 +70,6 @@ namespace PerformanceTrayMonitor
 				// Save defaults immediately
 				SettingsSaveQueue.Enqueue(SettingsMapper.ToDto(settings));
 			}
-
-			Log.Debug($"Loaded {settings.Metrics.Count} counters (ShowAppIcon={settings.Global.ShowAppIcon}, PopupWasOpen = {settings.Global.PopupWasOpen}");
 
 			try
 			{
@@ -105,19 +96,15 @@ namespace PerformanceTrayMonitor
 				_mainVm.Start();
 			}
 
-			Log.Debug($"Finished: {GetHashCode()}");
 		}
 
 		protected override void OnExit(ExitEventArgs e)
 		{
-			Log.Debug($"OnExit: PopupIsOpen = {_mainVm.PopupIsOpen}, PopupPinned = {_mainVm.PopupPinned}");
-
 			if (_mainVm != null)
 			{
 				// 1. Restore metrics BEFORE stopping anything
 				if (_mainVm.SharedConfigVm.EditorPendingEdits)
 				{
-					Log.Debug("OnExit: Pending edits detected — restoring last saved metrics snapshot.");
 					_mainVm.SharedConfigVm.RestoreMetrics(_mainVm.SharedConfigVm.LastSavedMetricsSnapshot);
 				}
 
@@ -135,8 +122,6 @@ namespace PerformanceTrayMonitor
 				// 5. Force final write
 				SettingsSaveQueue.Flush();
 			}
-
-			Log.Debug($"Exiting..{GetHashCode()}");
 
 			base.OnExit(e);
 		}

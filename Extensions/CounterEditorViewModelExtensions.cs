@@ -1,6 +1,7 @@
 ﻿using PerformanceTrayMonitor.Models;
-//using PerformanceTrayMonitor.Settings;
 using PerformanceTrayMonitor.ViewModels;
+using System;
+using System.Windows;
 
 namespace PerformanceTrayMonitor.Extensions
 {

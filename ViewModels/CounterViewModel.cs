@@ -27,17 +27,10 @@ namespace PerformanceTrayMonitor.ViewModels
 		{
 			Settings = settings ?? throw new ArgumentNullException(nameof(settings));
 
-			Log.Debug($"CounterViewModel created: {GetHashCode()}, Category={Category}, Counter={Counter}, Instance={Instance}");
-
 			_useTextTrayIcon = settings.UseTextTrayIcon;
 			_trayAccentColor = settings.TrayAccentColor;
 			_autoTrayBackground = settings.AutoTrayBackground;
 			_trayBackgroundColor = settings.TrayBackgroundColor;
-
-			// UI & SparkLine color
-			//var (brush, shadow) = UIColors.GetSoftColorFor(DisplayName);
-			//DisplayColor = brush;
-			//ShadowOpacity = shadow;
 
 			RecomputeAccentBrush();
 
@@ -75,9 +68,6 @@ namespace PerformanceTrayMonitor.ViewModels
 			get => _currentValue;
 			set
 			{
-				//Log.Debug($"Counter {DisplayName} updated: {value}");
-				//Log.Debug($"Updating {DisplayName} on VM {GetHashCode()}");
-
 				_currentValue = value;
 				OnPropertyChanged();
 
@@ -85,8 +75,6 @@ namespace PerformanceTrayMonitor.ViewModels
 				History.Add(value);
 				if (History.Count > MaxHistory)
 					History.RemoveAt(0);
-
-				//Log.Debug($"[CounterVM] History changed. VM={GetHashCode()}, HistoryCount={History?.Count}");
 
 				// Notify SparkLine
 				OnPropertyChanged(nameof(History));
@@ -114,8 +102,6 @@ namespace PerformanceTrayMonitor.ViewModels
 			_trayAccentColor = incoming.TrayAccentColor;
 			_autoTrayBackground = incoming.AutoTrayBackground;
 			_trayBackgroundColor = incoming.TrayBackgroundColor;
-
-			//Log.Debug($"useTextTrayIcon = {_useTextTrayIcon}");
 
 			// Re-hook the Windows counter because the Category/Instance changed
 			AttachCounter(CreateInternalCounter(Settings));
@@ -171,7 +157,6 @@ namespace PerformanceTrayMonitor.ViewModels
 			get => _useTextTrayIcon;
 			set
 			{
-				Log.Debug($"_useTextTrayIcon = {value}");
 				_useTextTrayIcon = value;
 				Settings.UseTextTrayIcon = value;
 				OnPropertyChanged();

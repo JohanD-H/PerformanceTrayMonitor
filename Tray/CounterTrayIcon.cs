@@ -26,10 +26,6 @@ namespace PerformanceTrayMonitor.Tray
 		private readonly Timer _updateTimer;
 		private readonly MainViewModel _mainVm;
 
-		//public bool UseTextTrayIcon { get; set; }
-		//public System.Windows.Media.Color TrayAccentColor { get; set; }
-		//public bool AutoBackground { get; set; }
-
 		public System.Windows.Media.Color TrayBackgroundColor { get; set; }
 		private Icon _lastClone;
 
@@ -41,8 +37,6 @@ namespace PerformanceTrayMonitor.Tray
 			_mainVm = mainVm;
 			_settings = settings;
 			_valueProvider = valueProvider;
-
-			Log.Debug($"CounterTrayIcon created for '{settings.DisplayName}' using set '{set.Name}'.");
 
 			_frames = LoadFrames(set);
 
@@ -67,13 +61,6 @@ namespace PerformanceTrayMonitor.Tray
 					{
 						_mainVm.TogglePopup();
 					}
-					/*
-					else if (e.Button == MouseButtons.Right)
-					{
-						if (!_mainVm.ShowAppIcon)
-							_mainVm.ToggleAppIcon();
-					}
-					*/
 				});
 			};
 
@@ -194,8 +181,6 @@ namespace PerformanceTrayMonitor.Tray
 
 		private void UpdateIcon()
 		{
-			//Log.Debug($"REAL Editor hash = {_settings.GetHashCode()}");
-
 			double value = _valueProvider();
 
 			// Always update tooltip
@@ -275,34 +260,6 @@ namespace PerformanceTrayMonitor.Tray
 			oldIcon?.Dispose();
 		}
 
-		/* Replace by same function in TrayIconGenerator!
-		private static int GetFrameIndex(double value, double min, double max, int frameCount)
-		{
-			// If there is only 1 frame (icon) don't bother to calculate!
-			if (frameCount <= 1)
-				return 0;
-
-			// Don't want an accidental devision by 0 when normalizing!
-			if (max <= min)
-				return 0; // always show first frame
-
-			double val = Math.Max(min, Math.Min(max, value));
-			//Log.Debug($"val = {val}");
-
-			double normalized = (val - min) / (max - min);
-			//Log.Debug($"normalized = {normalized}");
-
-			// Below both work, but pick what feels best.
-			//
-			// Normalize, standard
-			// int index = (int)(normalized * (frameCount - 1));
-			// Normalize, but gives a smoother transition
-			int index = (int)Math.Round(normalized * (frameCount - 1));
-
-			return Math.Max(0, Math.Min(frameCount - 1, index));
-		}
-		*/
-
 		public void UpdateContextMenu()
 		{
 			if (_mainVm.ShowAppIcon)
@@ -381,8 +338,6 @@ namespace PerformanceTrayMonitor.Tray
 
 			foreach (var icon in _frames)
 				icon.Dispose();
-
-			Log.Debug($"CounterTrayIcon disposed for '{_settings.DisplayName}'.");
 		}
 	}
 }

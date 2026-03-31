@@ -1,5 +1,4 @@
-﻿using PerformanceTrayMonitor.Models;
-using System;
+﻿using System;
 using System.Windows;
 using System.Collections.Generic;
 

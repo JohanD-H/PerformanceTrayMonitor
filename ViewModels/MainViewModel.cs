@@ -7,7 +7,6 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
-//using System.Linq;
 using System.Windows;
 using System.Windows.Forms;
 using System.Windows.Input;
@@ -40,8 +39,6 @@ namespace PerformanceTrayMonitor.ViewModels
 		// ------------------------------------------------------------
 		public MainViewModel(SettingsOptions settings)
 		{
-			Log.Debug($"MainViewModel created: {GetHashCode()}");
-
 			Settings = settings ?? throw new ArgumentNullException(nameof(settings));
 			_popupPinned = Settings.Global.PopupPinned;
 
@@ -60,8 +57,6 @@ namespace PerformanceTrayMonitor.ViewModels
 
 			foreach (var vm in Counters)
 				vm.AttachCounter(CreateCounter(vm.Settings));
-
-			Log.Debug($"MainViewModel initialized: {GetHashCode()}");
 		}
 
 		// ------------------------------------------------------------
@@ -108,7 +103,7 @@ namespace PerformanceTrayMonitor.ViewModels
 			// Prime counters
 			foreach (var c in Counters)
 			{
-				// No this is not typo, we purposely do two updates 
+				// No this is not a typo, we purposely do two updates 
 				c.Update(); // Create historical counters
 				c.Update(); // Set historical counters to 0
 							// Now the historical counters are fully initialized!
@@ -139,8 +134,6 @@ namespace PerformanceTrayMonitor.ViewModels
 				return;
 			}
 
-			Log.Debug($"ReplaceSettings called: {GetHashCode()}");
-
 			// Dispose tray icons first (they may still reference counters)
 			_trayIconManager?.Dispose();
 
@@ -162,7 +155,7 @@ namespace PerformanceTrayMonitor.ViewModels
 			{
 				vm.AttachCounter(CreateCounter(vm.Settings));
 
-				// PRIME COUNTERS (same fix as startup)
+				// PRIME COUNTERS (Do this twice!!)
 				vm.Update(); // prime
 				vm.Update(); // real value
 			}
@@ -186,19 +179,15 @@ namespace PerformanceTrayMonitor.ViewModels
 				return;
 			}
 
-			Log.Debug($"ShowPopup: MainWindow = {System.Windows.Application.Current.MainWindow?.GetType().Name}, PopupIsOpen = {PopupIsOpen}");
-
 			foreach (var c in Counters)
 				c.Update(); // Update historical counter value
 
-			Log.Debug($"Metric: DataContext instance: {this?.GetHashCode()}");
 			_popup = new PopupWindow(this)
 			{
 				WindowStartupLocation = Settings.Global.PopupPinned
 					? WindowStartupLocation.Manual
 					: WindowStartupLocation.CenterScreen,
 
-				//DataContext = this,
 				Owner = Settings.Global.PopupPinned ? null : System.Windows.Application.Current.MainWindow
 			};
 
@@ -252,15 +241,6 @@ namespace PerformanceTrayMonitor.ViewModels
 			_popup.Activate();
 			_popup.Focus();
 			Keyboard.Focus(_popup);
-			/*
-			var fade = new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(150))
-			{
-				EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
-			};
-
-			_popup.BeginAnimation(Window.OpacityProperty, fade);
-
-			*/
 
 			// Always delay — layout needs to settle
 			_popup.Loaded += (s, e) =>
@@ -273,7 +253,6 @@ namespace PerformanceTrayMonitor.ViewModels
 			};
 
 			Settings.Global.PopupWasOpen = true;
-			Log.Debug($"ShowPopup: PopupWasOpen = {Settings.Global.PopupWasOpen}, PopupIsOpen = {PopupIsOpen}");
 		}
 
 		public void ClosePopup()
@@ -283,7 +262,6 @@ namespace PerformanceTrayMonitor.ViewModels
 				_popup.Close();
 				_popup = null;
 				Settings.Global.PopupWasOpen = false;
-				Log.Debug($"PopupWasOpen = {Settings.Global.PopupWasOpen}, PopupIsOpen = {PopupIsOpen}");
 			}
 		}
 
@@ -291,7 +269,6 @@ namespace PerformanceTrayMonitor.ViewModels
 		{
 			if (PopupIsOpen)
 			{
-				Log.Debug($"TogglePopup: PopupPinned = {PopupPinned}, PopupIsOpen = {PopupIsOpen}");
 				if (!PopupPinned)
 					ClosePopup();
 				else
@@ -324,16 +301,12 @@ namespace PerformanceTrayMonitor.ViewModels
 				return;
 			}
 
-			Log.Debug("MainWindow = " + System.Windows.Application.Current.MainWindow?.GetType().Name);
-
 			var freshVm = new ConfigViewModel(GetSettingsSnapshot(), this);
 
 			_configWindow = new ConfigWindow(freshVm)
 			{
 				WindowStartupLocation = WindowStartupLocation.CenterScreen
 			};
-
-			Log.Debug($"ShowConfig: _configWindow hash = {_configWindow.GetHashCode()}");
 
 			_configWindow.Closed += (s, e) => _configWindow = null;
 			_configWindow.Show();
@@ -382,7 +355,6 @@ namespace PerformanceTrayMonitor.ViewModels
 				if (_popupPinned != value)
 				{
 					_popupPinned = value;
-					Log.Debug($"PopupPinned: _popupPinned = {_popupPinned}, PopupWasOpen = {Settings.Global.PopupWasOpen}");
 					Settings.Global.PopupPinned = value;
 					OnPropertyChanged();
 
@@ -431,7 +403,6 @@ namespace PerformanceTrayMonitor.ViewModels
 
 		private void RestorePopupPosition(Window popup)
 		{
-			Log.Debug($"RestorePopupPosition: PopupPinned = {Settings.Global.PopupPinned}");
 			if (!Settings.Global.PopupPinned)
 				return;
 
@@ -466,7 +437,6 @@ namespace PerformanceTrayMonitor.ViewModels
 			popup.WindowStartupLocation = WindowStartupLocation.Manual;
 			popup.Left = x;
 			popup.Top = y;
-			Log.Debug($"RestorePopupPosition: Left = {x}, Top = {y}");
 		}
 	}
 }

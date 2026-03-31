@@ -1,5 +1,4 @@
-﻿using PerformanceTrayMonitor.Common;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -12,17 +11,17 @@ namespace PerformanceTrayMonitor.Configuration
 		static IconSetConfig()
 		{
 			//
-			// 1. Load embedded sets (always present, includes fallback)
+			// Load embedded sets (always present, includes fallback)
 			//
 			var embedded = EmbeddedIconDiscovery.GetEmbeddedSets();
 
 			//
-			// 2. Load external sets (optional)
+			// Load external sets (optional)
 			//
 			var external = ExternalIconDiscovery.Discover();
 
 			//
-			// 3. Validate embedded sets
+			// Validate embedded sets
 			//
 			var validEmbedded = embedded
 				.Where(kvp => IconSetValidator.Validate(kvp.Value))
@@ -32,7 +31,7 @@ namespace PerformanceTrayMonitor.Configuration
 					StringComparer.OrdinalIgnoreCase);
 
 			//
-			// 4. Validate external sets
+			// Validate external sets
 			//
 			var validExternal = external
 				.Where(kvp => IconSetValidator.Validate(kvp.Value))
@@ -42,7 +41,7 @@ namespace PerformanceTrayMonitor.Configuration
 					StringComparer.OrdinalIgnoreCase);
 
 			//
-			// 5. Merge sets — external overrides embedded
+			// Merge sets — external overrides embedded
 			//
 			IconSets = validEmbedded
 				.Concat(validExternal)
@@ -53,7 +52,7 @@ namespace PerformanceTrayMonitor.Configuration
 					StringComparer.OrdinalIgnoreCase);
 
 			//
-			// 6. Guarantee fallback ("Activity") always exists
+			// Guarantee fallback ("Activity") always exists
 			//
 			if (!IconSets.ContainsKey("Activity"))
 			{

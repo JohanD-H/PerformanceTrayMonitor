@@ -186,6 +186,7 @@ Performance Tray Monitor
 				and use json, as json was always intended to be used for this (instead of using
 				xml), save some more settings and seperated metric from global settings, so
 				they can be saved independently.
-
+	v1.3.9585	Added a small Metric graph, accessible from the Metrics view, and clicking the metric name.
+				Fixed a lot of UI inconsitencies.
 
 More to come ...

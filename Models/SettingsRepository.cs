@@ -1,16 +1,11 @@
 ﻿using PerformanceTrayMonitor.Configuration;
 using PerformanceTrayMonitor.Settings;
 using PerformanceTrayMonitor.Common;
-using PerformanceTrayMonitor.Models;
-using PerformanceTrayMonitor.Properties;
-using PerformanceTrayMonitor.ViewModels;
-using PerformanceTrayMonitor.Views;
 using System;
 using System.IO;
 using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows;
-using Microsoft.Extensions.Logging;
 
 namespace PerformanceTrayMonitor.Models
 {

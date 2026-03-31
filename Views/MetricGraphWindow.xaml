@@ -6,11 +6,10 @@
         Width="430"
         Height="260"
         WindowStyle="None"
-        ResizeMode="CanResize"
+        ResizeMode="NoResize"
         Background="Transparent"
         AllowsTransparency="True"
         MouseLeftButtonDown="Window_MouseLeftButtonDown">
-    <!-- ResizeMode="NoResize" -->
 
     <Window.Resources>
         <DrawingBrush x:Key="SparklineGridBrush"
@@ -103,16 +102,18 @@
                     </Grid.RowDefinitions>
 
                     <TextBlock Grid.Row="0"
-                               Text="{Binding Max}"
+                               Text="Max"
                                Foreground="#FF120D0D"
                                FontSize="10"
                                HorizontalAlignment="Right"/>
+                    <!-- Text="{Binding Max} "-->
 
                     <TextBlock Grid.Row="2"
-                               Text="{Binding Min}"
+                               Text="Min"
                                Foreground="#FF120D0D"
                                FontSize="10"
                                HorizontalAlignment="Right"/>
+                    <!-- Text="{Binding Min}" -->
                 </Grid>
 
                 <!-- Plot area (grid + sparkline + axes) -->
@@ -145,28 +146,28 @@
 
                 <StackPanel Margin="12 0">
                     <TextBlock Text="Current"
-                                Foreground="#FF5C5252"
+                                Foreground="#CC5C5252"
                                 FontSize="12"/>
                     <TextBlock Text="{Binding CurrentValue, StringFormat=0.0}"
-                                Foreground="#FF120D0D"
+                                Foreground="#DD120D0D"
                                 FontWeight="Bold"/>
                 </StackPanel>
 
                 <StackPanel Margin="12 0">
                     <TextBlock Text="Min"
-                                Foreground="#FF5C5252"
+                                Foreground="#CC5C5252"
                                 FontSize="12"/>
                     <TextBlock Text="{Binding Min}"
-                                Foreground="#FF120D0D"
+                                Foreground="#DD120D0D"
                                 FontWeight="Bold"/>
                 </StackPanel>
 
                 <StackPanel Margin="12 0">
                     <TextBlock Text="Max"
-                                Foreground="#FF5C5252"
+                                Foreground="#CC5C5252"
                                 FontSize="12"/>
                     <TextBlock Text="{Binding Max}"
-                                Foreground="#FF120D0D"
+                                Foreground="#DD120D0D"
                                 FontWeight="Bold"/>
                 </StackPanel>
 

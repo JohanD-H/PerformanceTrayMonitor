@@ -1,4 +1,5 @@
 using System;
+using System.Windows;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Collections.Generic;
@@ -14,7 +15,7 @@ namespace PerformanceTrayMonitor.Models
 		public event PropertyChangedEventHandler? PropertyChanged;
 
 		private void OnPropertyChanged([CallerMemberName] string name = null)
-	=> PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+			=> PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 
 		private bool SetField<T>(ref T field, T value, [CallerMemberName] string name = null)
 		{

@@ -220,6 +220,5 @@ namespace PerformanceTrayMonitor.Models
 				(byte)(argb & 0xFF)
 			);
 		}
-
 	}
 }

@@ -24,17 +24,11 @@ namespace PerformanceTrayMonitor.Common
 
 		public static BusyScope Show(string message, Window owner)
 		{
-			foreach (var w in Application.Current.Windows.OfType<Window>())
-			{
-				Log.Debug($"Window: {w.GetType().FullName}, IsVisible={w.IsVisible}, IsLoaded={w.IsLoaded}");
-			}
-
 			// Pick the first visible window (ConfigWindow)
 			var ownerx = Application.Current.Windows
 				.OfType<ConfigWindow>()
 				.FirstOrDefault(w => w.IsLoaded);
 
-			Log.Debug($"Show: owner = '{owner}', ownerx = {ownerx}");
 			return new BusyScope(message, owner);
 		}
 
@@ -48,8 +42,6 @@ namespace PerformanceTrayMonitor.Common
 			// Ensure owner is fully rendered
 			if (owner != null)
 				await owner.Dispatcher.InvokeAsync(() => { }, DispatcherPriority.Render);
-
-			Log.Debug($"ShowAsync: owner = '{owner}'");
 
 			var scope = new BusyScope(message, owner);
 

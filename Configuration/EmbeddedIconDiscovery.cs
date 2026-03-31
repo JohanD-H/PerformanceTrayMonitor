@@ -1,8 +1,6 @@
 ﻿using PerformanceTrayMonitor.Common;
-using PerformanceTrayMonitor.Configuration;
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Windows;
 
@@ -16,7 +14,6 @@ namespace PerformanceTrayMonitor.Configuration
 
 			foreach (var info in EmbeddedIconManifest.Sets)
 			{
-				Log.Debug($"GetEmbeddedSets: Name = {info.Name}");
 				var definition = Build(info);
 				result[info.Name] = definition;
 			}

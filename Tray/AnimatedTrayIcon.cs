@@ -2,6 +2,7 @@
 using PerformanceTrayMonitor.Views;
 using PerformanceTrayMonitor.Common;
 using System;
+using System.Windows;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
@@ -45,7 +46,6 @@ namespace PerformanceTrayMonitor.Configuration
 			_notifyIcon.MouseUp += NotifyIcon_MouseUp;
 
 			LoadFrames();
-			Log.Debug($"Frames: {_frames.Count}, Icons: {_icons.Count}");
 
 			if (_frames.Count == 0)
 				throw new InvalidOperationException("AnimatedTrayIcon: No frames found.");
@@ -191,6 +191,7 @@ namespace PerformanceTrayMonitor.Configuration
 				})
 			});
 
+			/*
 			menu.Opened += (_, __) => Log.Debug("WPF Menu: OPENED");
 			menu.Closed += (_, __) => Log.Debug("WPF Menu: CLOSED");
 			menu.PreviewKeyDown += (_, e) => Log.Debug($"WPF Menu: KEY {e.Key}");
@@ -215,6 +216,7 @@ namespace PerformanceTrayMonitor.Configuration
 			{
 				Log.Debug($"WPF Menu: MOUSEUP = {e.ChangedButton}, Source={e.Source}");
 			};
+			*/
 
 			return menu;
 		}
@@ -276,7 +278,7 @@ namespace PerformanceTrayMonitor.Configuration
 				}
 				catch (Exception ex)
 				{
-					Log.Debug($"Failed to load embedded icon {file}: {ex.Message}");
+					Log.Error($"Failed to load embedded icon {file}: {ex.Message}");
 				}
 			}
 
