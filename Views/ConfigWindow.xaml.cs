@@ -1,6 +1,5 @@
 using PerformanceTrayMonitor.ViewModels;
 using System.ComponentModel;
-using System.Diagnostics;
 using System;
 using System.Windows;
 using System.Windows.Media.Animation;
@@ -13,13 +12,11 @@ namespace PerformanceTrayMonitor.Views
 		{
 			InitializeComponent();
 			this.DataContext = vm;
-			
 			((ConfigViewModel)DataContext).OwnerWindow = this;
 
 			this.Closing += ConfigWindow_Closing;
-
-			//vm.UpdatePreview();
-
+			
+			vm.UpdateDynamicPreview();
 			Loaded += (_, __) => vm.StartPreviewTimer();
 
 			vm.ConfirmCancel = () =>

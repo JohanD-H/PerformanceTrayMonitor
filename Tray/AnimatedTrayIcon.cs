@@ -191,33 +191,6 @@ namespace PerformanceTrayMonitor.Configuration
 				})
 			});
 
-			/*
-			menu.Opened += (_, __) => Log.Debug("WPF Menu: OPENED");
-			menu.Closed += (_, __) => Log.Debug("WPF Menu: CLOSED");
-			menu.PreviewKeyDown += (_, e) => Log.Debug($"WPF Menu: KEY {e.Key}");
-			menu.PreviewMouseDown += (_, e) => Log.Debug($"WPF Menu: MOUSEDOWN {e.ChangedButton}");
-			menu.PreviewMouseUp += (_, e) => Log.Debug($"WPF Menu: MOUSEUP {e.ChangedButton}");
-			menu.PreviewMouseLeftButtonDown += (_, __) => Log.Debug("WPF Menu: LEFT DOWN");
-			menu.PreviewMouseRightButtonDown += (_, __) => Log.Debug("WPF Menu: RIGHT DOWN");
-			menu.PreviewMouseLeftButtonUp += (_, __) => Log.Debug("WPF Menu: LEFT UP");
-			menu.PreviewMouseRightButtonUp += (_, __) => Log.Debug("WPF Menu: RIGHT UP");
-			
-			menu.PreviewKeyDown += (_, e) =>
-			{
-				Log.Debug($"WPF Menu: KEY = {e.Key}");
-			};
-
-			menu.PreviewMouseDown += (_, e) =>
-			{
-				Log.Debug($"WPF Menu: MOUSEDOWN = {e.ChangedButton}, Source={e.Source}");
-			};
-
-			menu.PreviewMouseUp += (_, e) =>
-			{
-				Log.Debug($"WPF Menu: MOUSEUP = {e.ChangedButton}, Source={e.Source}");
-			};
-			*/
-
 			return menu;
 		}
 
@@ -258,8 +231,8 @@ namespace PerformanceTrayMonitor.Configuration
 		{
 			_frames.Clear();
 
+			// The one and only hard coded icon set!
 			string basePath = "/Resources/Icons/App/Animated/";
-
 			string[] files =
 			{
 				"bubble-1.ico",

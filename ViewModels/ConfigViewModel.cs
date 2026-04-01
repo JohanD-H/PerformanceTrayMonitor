@@ -5,7 +5,6 @@ using PerformanceTrayMonitor.Models;
 using PerformanceTrayMonitor.Settings;
 using PerformanceTrayMonitor.Tray;
 using System;
-using System.Windows;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
@@ -13,9 +12,11 @@ using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement.TrayNotify;
 
 namespace PerformanceTrayMonitor.ViewModels
 {
@@ -120,19 +121,22 @@ namespace PerformanceTrayMonitor.ViewModels
 					_pendingPreviewUpdate = false;
 					UpdateDynamicPreview();
 				}
+				Log.Debug($"IsLoading: _isLoading = {_isLoading}");
 			}
 		}
 
 		private int _loadingCount;
-
-		private void BeginLoading()
+		public bool IsBusy => _loadingCount > 0;	// XAML binding Updating.. overlay
+		internal void BeginLoading()
 		{
 			_loadingCount++;
 			IsLoading = true;
+			OnPropertyChanged(nameof(IsBusy));
 			OnPropertyChanged(nameof(StatusText));
+			Log.Debug($"BeginLoading: IsBusy = {IsBusy}");
 		}
 
-		private void EndLoading()
+		internal void EndLoading()
 		{
 			_loadingCount--;
 			if (_loadingCount <= 0)
@@ -140,9 +144,10 @@ namespace PerformanceTrayMonitor.ViewModels
 				_loadingCount = 0;
 				IsLoading = false;
 			}
-
+			OnPropertyChanged(nameof(IsBusy));
 			OnPropertyChanged(nameof(StatusText));
 			RefreshCommandStates();
+			Log.Debug($"EndLoading: IsBusy = {IsBusy}");
 		}
 
 		// ============================================================
@@ -161,12 +166,10 @@ namespace PerformanceTrayMonitor.ViewModels
 		public ObservableCollection<string> CountersInCategory { get; private set; } = new();
 		public ObservableCollection<string> Instances { get; private set; } = new();
 
+		// XAML - ConfigWindow
 		public ObservableCollection<string> AvailableIconSets { get; } = new(IconSetConfig.IconSets.Keys.OrderBy(x => x));
 
 		public CounterEditorViewModel Editor { get; }
-
-		//private bool _isSelectionLoadInProgress = false;
-		//internal bool IsSelectionLoadInProgress => _isSelectionLoadInProgress;
 
 		private bool _isSelectionLoadInProgress;
 		internal bool IsSelectionLoadInProgress
@@ -246,7 +249,7 @@ namespace PerformanceTrayMonitor.ViewModels
 			=> _lastSavedMetricsSnapshot;
 
 		public BitmapSource[]? IconSetPreviewFrames { get; set; }
-		public int CurrentFrameIndex => 0;
+		//public int CurrentFrameIndex => 0;
 		public Window OwnerWindow { get; set; }
 
 		public ConfigViewModel(SettingsOptions settings, MainViewModel main)
@@ -303,7 +306,10 @@ namespace PerformanceTrayMonitor.ViewModels
 
 			if (_selected != null)
 			{
-				await ApplySelectedAsync(_selected);   // ⭐ MUST happen BEFORE PropertyChanged
+				// MUST happen BEFORE PropertyChanged
+				await ApplySelectedAsync(_selected);
+				// Offload ApplySelectedAsync to a background thread
+				//_ = Task.Run(async () => await ApplySelectedAsync(_selected));
 			}
 
 			// NOW notify UI
@@ -373,6 +379,53 @@ namespace PerformanceTrayMonitor.ViewModels
 			OnPropertyChanged(nameof(StatusText));
 		}
 
+		public async Task ApplySelectedAsync(CounterViewModel vm)
+		{
+			if (IsSelectionLoadInProgress)
+				return;
+
+			IsSelectionLoadInProgress = true;
+			_suppressAutoSelect = true;
+			BeginLoading();
+
+			try
+			{
+				// UI thread: load editor
+				Editor.LoadFrom(vm);
+
+				// BACKGROUND THREAD: heavy work
+				await Task.Run(async () =>
+				{
+					await LoadCountersForCategoryAsync(Editor.SelectedCategory, _cts.Token);
+					await LoadInstancesForCounterAsync(Editor.SelectedCategory, Editor.SelectedCounter, _cts.Token);
+				});
+
+				// UI thread: reapply selections
+				var savedCounter = vm.Counter;
+				var counterVm = Metrics.FirstOrDefault(c => c.Counter == savedCounter);
+				if (counterVm != null)
+					Editor.SelectedCounter = counterVm.Counter;
+
+				var savedInstance = vm.Instance;
+				if (Instances.Contains(savedInstance))
+					Editor.SelectedInstance = savedInstance;
+				else if (Instances.Any())
+					Editor.SelectedInstance = Instances.First();
+			}
+			finally
+			{
+				EndLoading();
+
+				IsSelectionLoadInProgress = false;
+
+				LoadIconSetPreviewFrames(Editor.IconSet);
+				UpdateDynamicPreview();
+
+				_suppressAutoSelect = false;
+			}
+		}
+
+		/*
 		private async Task ApplySelectedAsync(CounterViewModel vm)
 		{
 			if (IsSelectionLoadInProgress)
@@ -411,20 +464,21 @@ namespace PerformanceTrayMonitor.ViewModels
 				EndLoading();
 
 				IsSelectionLoadInProgress = false;
-				/* Flush deferred preview update here
+				/ Flush deferred preview update here
 				if (_pendingPreviewUpdate)
 				{
 					_pendingPreviewUpdate = false;
 					UpdateDynamicPreview();
 				}
-				*/
+				/
 				LoadIconSetPreviewFrames(Editor.IconSet);
-				//UpdateDynamicPreview();
+				UpdateDynamicPreview();
 
 				// NOW it is safe to allow auto-select again
 				_suppressAutoSelect = false;
 			}
 		}
+		*/
 
 		private T SafePerf<T>(Func<T> func, string context)
 		{
@@ -434,7 +488,7 @@ namespace PerformanceTrayMonitor.ViewModels
 			}
 			catch (Exception ex)
 			{
-				Log.Error(ex, $"PerfCounter error: {context}");
+				//Log.Error(ex, $"PerfCounter error: {context}");
 				return default!;
 			}
 		}
@@ -1018,44 +1072,7 @@ namespace PerformanceTrayMonitor.ViewModels
 			IconSetPreviewFrames = frames.ToArray();
 		}
 
-		/*
-		public void UpdatePreview()
-		{
-			if (IsLoading || IsSelectionLoadInProgress)
-			{
-				Log.Debug($"UpdatePreview: Early exit, no preview! IsLOading = {IsLoading}, IsSelectionLoadInProgress = {IsSelectionLoadInProgress}");
-				_pendingPreviewUpdate = true;
-				return;
-			}
-
-			Log.Debug($"UpdatePreview: Editor.UseTestTrayIcon = {Editor.UseTextTrayIcon}");
-			// Always read from the Editor, not from ConfigViewModel
-			if (!Editor.UseTextTrayIcon)
-			{
-				TrayPreviewImage = IconSetPreviewFrames?[CurrentFrameIndex];
-				return;
-			}
-
-			double mid = (Editor.Min + Editor.Max) / 2.0;
-			string text = FormatValueForTray(mid);
-
-			var accent = Editor.TrayAccentColor;
-
-			var bg = Editor.AutoTrayBackground
-				? UIColors.GetTrayBackground(accent.ToDrawingColor(), autoContrast: true)
-				: Editor.TrayBackgroundColor.ToDrawingColor();
-
-			double dpiScale = 1.0;
-
-			TrayPreviewImage = TrayIconGenerator.CreateTextBitmapSource(
-				text,
-				accent.ToDrawingColor(),
-				bg,
-				dpiScale);
-		}
-		*/
-
-		private void UpdateDynamicPreview()
+		internal void UpdateDynamicPreview()
 		{
 			// Generate a random metric value
 			int min = (int)Math.Floor(Editor.Min);

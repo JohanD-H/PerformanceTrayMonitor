@@ -419,7 +419,7 @@
 
                 <!-- Loading overlay -->
                 <Border Background="#80FFFFFF"
-                        Visibility="{Binding IsLoading,
+                        Visibility="{Binding IsBusy,
                                      Converter={StaticResource BoolToVis}}"
                         Margin="0,0,0,40">
                     <TextBlock Text="Updating&#x2026; please wait"

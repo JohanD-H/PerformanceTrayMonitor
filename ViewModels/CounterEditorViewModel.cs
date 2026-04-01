@@ -82,21 +82,69 @@ namespace PerformanceTrayMonitor.ViewModels
 			_parent._instanceLoadCts = new CancellationTokenSource();
 			var token = _parent._instanceLoadCts.Token;
 
-			await loadFunc(token);
+			//await loadFunc(token);
+			// Move the heavy load OFF the UI thread
+			await Task.Run(async () => await loadFunc(token), token);
 
 			if (_loadingFromModel)
 				return;
 
-			var list = getList();
-
+			//var list = getList();
+			// Also evaluate list + selection off the UI thread
+			var list = await Task.Run(() => getList(), token);
 			var current = getCurrentSelection();
-			if (list.Contains(current))
-				setSelection(current);
-			else if (list.Any())
-				setSelection(list.First());
-			else
-				setSelection("");
+			// Only update UI-bound properties on UI thread
+			Application.Current.Dispatcher.Invoke(() =>
+			{
+				if (list.Contains(current))
+					setSelection(current);
+				else if (list.Any())
+					setSelection(list.First());
+				else
+					setSelection("");
+			});
 		}
+
+		/*
+		private void LoadListAndSelectAsyncFireAndForget(
+			Func<CancellationToken, Task> loadFunc,
+			Func<bool> isLoadValid,
+			Func<IEnumerable<string>> getList,
+			Func<string> getCurrentSelection,
+			Action<string> setSelection)
+		{
+			_ = Task.Run(async () =>
+			{
+				if (!isLoadValid())
+				{
+					Application.Current.Dispatcher.Invoke(() => setSelection(""));
+					return;
+				}
+
+				_parent._instanceLoadCts?.Cancel();
+				_parent._instanceLoadCts = new CancellationTokenSource();
+				var token = _parent._instanceLoadCts.Token;
+
+				await loadFunc(token);
+
+				if (_loadingFromModel)
+					return;
+
+				var list = getList();
+				var current = getCurrentSelection();
+
+				Application.Current.Dispatcher.Invoke(() =>
+				{
+					if (list.Contains(current))
+						setSelection(current);
+					else if (list.Any())
+						setSelection(list.First());
+					else
+						setSelection("");
+				});
+			});
+		}
+		*/
 
 		private Task LoadCountersAsync(string category)
 		{
@@ -108,6 +156,7 @@ namespace PerformanceTrayMonitor.ViewModels
 				setSelection: v => SelectedCounter = v
 			);
 		}
+
 		private Task LoadInstancesAsync(string counter)
 		{
 			return LoadListAndSelectAsync(
@@ -119,6 +168,19 @@ namespace PerformanceTrayMonitor.ViewModels
 				getCurrentSelection: () => _instance,
 				setSelection: v => SelectedInstance = v
 			);
+		}
+
+		private async Task LoadWithBusyAsync(Func<string, Task> loadFunc, string arg)
+		{
+			_parent.BeginLoading();
+			try
+			{
+				await loadFunc(arg);
+			}
+			finally
+			{
+				_parent.EndLoading();
+			}
 		}
 
 		private void SetAndMaybeLoad(
@@ -145,7 +207,8 @@ namespace PerformanceTrayMonitor.ViewModels
 			if (suppressDuringSelection && _parent.IsSelectionLoadInProgress)
 				return;
 
-			_ = loadFunc(clean);
+			//_ = loadFunc(clean);
+			_ = LoadWithBusyAsync(loadFunc, clean);
 		}
 
 		public string SelectedCategory
@@ -177,6 +240,48 @@ namespace PerformanceTrayMonitor.ViewModels
 				ref _instance,
 				value,
 				nameof(SelectedInstance));
+		}
+
+		private void SetCategorySilent(string value) => _category = value;
+		private void SetCounterSilent(string value) => _counter = value;
+		private void SetInstanceSilent(string value) => _instance = value;
+
+		public void LoadFrom(CounterViewModel vm)
+		{
+			_loadingFromModel = true;
+			try
+			{
+				Id = vm.Id;
+
+				SetCategorySilent(vm.Category);
+				SetCounterSilent(vm.Counter);
+				SetInstanceSilent(vm.Instance ?? "");
+
+				DisplayName = vm.DisplayName;
+				Min = vm.Min;
+				Max = vm.Max;
+				ShowInTray = vm.ShowInTray;
+				IconSet = vm.IconSet;
+				UseTextTrayIcon = vm.UseTextTrayIcon;
+				TrayAccentColor = vm.TrayAccentColor;
+				AutoTrayBackground = vm.AutoTrayBackground;
+				TrayBackgroundColor = vm.TrayBackgroundColor;
+
+				_parent.ResetEditorDirtyState();
+			}
+			finally
+			{
+				_loadingFromModel = false;
+			}
+
+			_ = LoadCountersAsync(_category);
+			//_ = LoadEverythingAsync();
+		}
+
+		/*
+		private Task LoadEverythingAsync()
+		{
+			return LoadCountersAsync(_category);
 		}
 
 		public void LoadFrom(CounterViewModel vm)
@@ -214,6 +319,7 @@ namespace PerformanceTrayMonitor.ViewModels
 				_loadingFromModel = false;
 			}
 		}
+		*/
 
 		public void LoadDefaults()
 		{

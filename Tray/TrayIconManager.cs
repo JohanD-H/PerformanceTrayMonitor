@@ -55,7 +55,7 @@ namespace PerformanceTrayMonitor.Managers
 		{
 			bool hasCounters = _counterIcons.Count > 0;
 
-			// Rule:
+			// ---> Rule:  vvvvvvvvvvvvvvvvv
 			// - If no counters → always create app icon
 			// - If counters exist → create only if ShowAppIcon = true
 			if (!hasCounters || _mainVm.ShowAppIcon)

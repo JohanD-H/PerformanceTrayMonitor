@@ -37,8 +37,8 @@ namespace PerformanceTrayMonitor.Configuration
 		// Use for graphical display of the metric 
 		public const int MaximumNumberOfHistoryValues = 60;
 
-		//
-		//
+		// Animated Icon Set preview timer
+		// Number of seconds between Icon Set updated in the Metric Configuration
 		public const double IconSetPreviewTimer = 1.0;
 
 	}

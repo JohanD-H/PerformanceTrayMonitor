@@ -103,7 +103,7 @@ namespace PerformanceTrayMonitor.ViewModels
 			// Prime counters
 			foreach (var c in Counters)
 			{
-				// No this is not a typo, we purposely do two updates 
+				// No this is not a typo, we purposely do two updates (create + initialize)
 				c.Update(); // Create historical counters
 				c.Update(); // Set historical counters to 0
 							// Now the historical counters are fully initialized!
@@ -225,7 +225,6 @@ namespace PerformanceTrayMonitor.ViewModels
 				}
 				else
 				{
-					// Saved monitor missing
 					// Remove pinned setting
 					Settings.Global.PopupPinned = false;
 					// Center instead of restoring
@@ -237,7 +236,7 @@ namespace PerformanceTrayMonitor.ViewModels
 
 			_popup.Show();
 			_popup.Opacity = 1;
-			// ⭐ Give the popup keyboard focus so InputBindings work
+			// Give the popup keyboard focus so InputBindings work
 			_popup.Activate();
 			_popup.Focus();
 			Keyboard.Focus(_popup);

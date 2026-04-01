@@ -188,5 +188,10 @@ Performance Tray Monitor
 				they can be saved independently.
 	v1.3.9585	Added a small Metric graph, accessible from the Metrics view, and clicking the metric name.
 				Fixed a lot of UI inconsitencies.
+	v1.3.9586	Graphs using sparkline, could draw outside their window limits, fixed.
+				Icon set preview in the Metric configuration would not start updating due
+				to the icon frames not being setup. Added the loading into metric config startup.
+				Combined duplicate code, remove old code.
+
 
 More to come ...
