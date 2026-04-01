@@ -192,6 +192,9 @@ Performance Tray Monitor
 				Icon set preview in the Metric configuration would not start updating due
 				to the icon frames not being setup. Added the loading into metric config startup.
 				Combined duplicate code, remove old code.
+	v1.3.9587	More UI fixes, the UI should only update when wanted, not mid load.
+				On startup metrics should be loaded async. Reinstated the Updating.. overlay.
+				Reinstate tray icon counting. Remove more old code.
 
 
 More to come ...

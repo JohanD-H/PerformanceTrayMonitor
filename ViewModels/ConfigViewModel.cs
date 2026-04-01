@@ -64,7 +64,12 @@ namespace PerformanceTrayMonitor.ViewModels
 			}
 		}
 		private bool _editorPendingEdits;
-		
+		// Helper
+		public void MarkEditorDirty()
+		{
+			EditorPendingEdits = true;
+		}
+
 		/// <summary>
 		/// True when the editor UI has unsaved changes or edits for the currently selected metric.
 		/// This drives Details in the UI.
@@ -121,7 +126,6 @@ namespace PerformanceTrayMonitor.ViewModels
 					_pendingPreviewUpdate = false;
 					UpdateDynamicPreview();
 				}
-				Log.Debug($"IsLoading: _isLoading = {_isLoading}");
 			}
 		}
 
@@ -133,7 +137,6 @@ namespace PerformanceTrayMonitor.ViewModels
 			IsLoading = true;
 			OnPropertyChanged(nameof(IsBusy));
 			OnPropertyChanged(nameof(StatusText));
-			Log.Debug($"BeginLoading: IsBusy = {IsBusy}");
 		}
 
 		internal void EndLoading()
@@ -147,7 +150,6 @@ namespace PerformanceTrayMonitor.ViewModels
 			OnPropertyChanged(nameof(IsBusy));
 			OnPropertyChanged(nameof(StatusText));
 			RefreshCommandStates();
-			Log.Debug($"EndLoading: IsBusy = {IsBusy}");
 		}
 
 		// ============================================================
@@ -206,7 +208,7 @@ namespace PerformanceTrayMonitor.ViewModels
 			_cts.Cancel();
 		}
 
-		public int TrayIconCount => Counters.Count(c => c.ShowInTray);
+		public int TrayIconCount => Metrics.Count(c => c.ShowInTray);
 		public string TrayIconCountDisplay =>
 			$"Tray icons: {TrayIconCount}/{TrayIconConfig.MaxCounterTrayIcons}";
 
@@ -248,6 +250,8 @@ namespace PerformanceTrayMonitor.ViewModels
 		public IReadOnlyList<CounterSettingsDto> LastSavedMetricsSnapshot
 			=> _lastSavedMetricsSnapshot;
 
+		internal readonly ShadowMetricState _shadow = new ShadowMetricState();
+
 		public BitmapSource[]? IconSetPreviewFrames { get; set; }
 		//public int CurrentFrameIndex => 0;
 		public Window OwnerWindow { get; set; }
@@ -269,15 +273,21 @@ namespace PerformanceTrayMonitor.ViewModels
 			// Load existing metrics from GlobalSettings
 			foreach (var metricDto in GlobalSettings.Metrics)
 			{
-				Metrics.Add(new CounterViewModel(metricDto));
+				var vm = new CounterViewModel(metricDto);
+				vm.PropertyChanged += Counter_PropertyChanged;   // ⭐ add this
+				Metrics.Add(vm);
 			}
 
 			InitializeCommands();
 
-			if (Metrics.Any())
-				Selected = Metrics.First();
-			else
-				Editor.LoadDefaults();
+			// Defer selection until UI is ready
+			Application.Current.Dispatcher.BeginInvoke(new Action(() =>
+			{
+				if (Metrics.Any())
+					Selected = Metrics.First();
+				else
+					Editor.LoadDefaults();
+			}), DispatcherPriority.ContextIdle);
 
 			Editor.PropertyChanged += Editor_PropertyChanged;
 
@@ -294,6 +304,26 @@ namespace PerformanceTrayMonitor.ViewModels
 			set => _ = SetSelectedAsync(value);
 		}
 
+		public async Task SetSelectedAsync(CounterViewModel? value)
+		{
+			if (_selected == value)
+				return;
+
+			_selected = value;
+
+			if (_selected != null)
+			{
+				// Run the full shadow → load → commit pipeline
+				await ApplySelectedAsync(_selected);
+			}
+
+			// Notify UI that the *selected metric* changed
+			OnPropertyChanged(nameof(Selected));
+
+			RefreshCommandStates();
+		}
+
+		/*
 		public async Task SetSelectedAsync(CounterViewModel? value)
 		{
 			if (_selected == value)
@@ -318,6 +348,37 @@ namespace PerformanceTrayMonitor.ViewModels
 			// Update commands
 			RefreshCommandStates();
 		}
+		*/
+
+		public sealed class ShadowMetricState
+		{
+			public string Category = "";
+			public string Counter = "";
+			public string Instance = "";
+
+			public List<string> CountersInCategory { get; } = new();
+			public List<string> Instances { get; } = new();
+		}
+
+		internal bool _isCommittingShadow;
+
+		private void CommitShadowToEditor()
+		{
+			_isCommittingShadow = true;
+			Editor._suppressEditorSetters = true;
+
+			try
+			{
+				Editor.SelectedCategory = _shadow.Category;
+				Editor.SelectedCounter = _shadow.Counter;
+				Editor.SelectedInstance = _shadow.Instance;
+			}
+			finally
+			{
+				Editor._suppressEditorSetters = false;
+				_isCommittingShadow = false;
+			}
+		}
 
 		public void ResetEditorDirtyState()
 		{
@@ -327,6 +388,8 @@ namespace PerformanceTrayMonitor.ViewModels
 
 		private void Editor_PropertyChanged(object? sender, PropertyChangedEventArgs e)
 		{
+			//Log.Debug($"Editor_PropertyChanged: property = {e.PropertyName}, " +
+			//		  $"IsLoading = {IsLoading}, IsSelectionLoadInProgress = {IsSelectionLoadInProgress}");
 			// ------------------------------------------------------------
 			// Ignore ALL changes during programmatic loads
 			// ------------------------------------------------------------
@@ -379,49 +442,183 @@ namespace PerformanceTrayMonitor.ViewModels
 			OnPropertyChanged(nameof(StatusText));
 		}
 
+		public async Task ApplySelectedFromEditorAsync()
+		{
+			if (IsSelectionLoadInProgress)
+				return;
+
+			IsSelectionLoadInProgress = true;
+			BeginLoading();
+			Editor._suppressEditorSetters = true;
+
+			try
+			{
+				//
+				// 1. Load counters for the selected category
+				//
+				//Log.Debug($"ApplySelectedAsync: loading counters for Category = {_shadow.Category}");
+
+				await Task.Run(async () =>
+				{
+					var counters = await LoadCountersCoreAsync(_shadow.Category, _cts.Token);
+
+					_shadow.CountersInCategory.Clear();
+					_shadow.CountersInCategory.AddRange(counters);
+				});
+
+				//
+				// 2. Auto-select counter BEFORE loading instances
+				//
+				string beforeCounter = string.IsNullOrEmpty(_shadow.Counter) ? "Null" : _shadow.Counter;
+				//Log.Debug($"ApplySelectedAsync: auto-select Counter (before) = {beforeCounter}");
+
+				if (string.IsNullOrWhiteSpace(_shadow.Counter) ||
+					!_shadow.CountersInCategory.Contains(_shadow.Counter))
+				{
+					if (_shadow.CountersInCategory.Count > 0)
+						_shadow.Counter = _shadow.CountersInCategory[0];
+				}
+
+				//Log.Debug($"ApplySelectedAsync: auto-select Counter (after) = {_shadow.Counter}");
+
+				//
+				// 3. Load instances for the selected counter
+				//
+				//Log.Debug($"ApplySelectedAsync: loading instances for Category={_shadow.Category}, Counter={_shadow.Counter}");
+
+				await Task.Run(async () =>
+				{
+					var instances = await LoadInstancesCoreAsync(_shadow.Category, _shadow.Counter, _cts.Token);
+
+					_shadow.Instances.Clear();
+					_shadow.Instances.AddRange(instances);
+				});
+
+				//
+				// 4. Auto-select instance
+				//
+				string beforeInstance = string.IsNullOrEmpty(_shadow.Instance) ? "Null" : _shadow.Instance;
+				//Log.Debug($"ApplySelectedAsync: auto-select Instance (before) = {beforeInstance}");
+
+				if (string.IsNullOrWhiteSpace(_shadow.Instance) ||
+					!_shadow.Instances.Contains(_shadow.Instance))
+				{
+					if (_shadow.Instances.Count > 0)
+						_shadow.Instance = _shadow.Instances[0];
+				}
+
+				//Log.Debug($"ApplySelectedAsync: auto-select Instance (after) = {_shadow.Instance}");
+
+				//
+				// 5. Push lists to UI
+				//
+				await Application.Current.Dispatcher.InvokeAsync(() =>
+				{
+					CountersInCategory = new ObservableCollection<string>(_shadow.CountersInCategory);
+					OnPropertyChanged(nameof(CountersInCategory));
+
+					Instances.Clear();
+					foreach (var inst in _shadow.Instances)
+						Instances.Add(inst);
+					OnPropertyChanged(nameof(Instances));
+				});
+
+				//
+				// 6. Commit shadow → UI
+				//
+				//Log.Debug("ApplySelectedAsync: committing shadow to editor");
+				CommitShadowToEditor();
+			}
+			finally
+			{
+				Editor._suppressEditorSetters = false;
+				EndLoading();
+				IsSelectionLoadInProgress = false;
+
+				LoadIconSetPreviewFrames(Editor.IconSet);
+				UpdateDynamicPreview();
+			}
+		}
+
 		public async Task ApplySelectedAsync(CounterViewModel vm)
 		{
 			if (IsSelectionLoadInProgress)
 				return;
 
 			IsSelectionLoadInProgress = true;
-			_suppressAutoSelect = true;
 			BeginLoading();
 
 			try
 			{
-				// UI thread: load editor
+				// 1. Load basic data into shadow
 				Editor.LoadFrom(vm);
 
-				// BACKGROUND THREAD: heavy work
+				// 2. Load counters/instances into shadow (background)
 				await Task.Run(async () =>
 				{
-					await LoadCountersForCategoryAsync(Editor.SelectedCategory, _cts.Token);
-					await LoadInstancesForCounterAsync(Editor.SelectedCategory, Editor.SelectedCounter, _cts.Token);
+					var counters = await LoadCountersCoreAsync(_shadow.Category, _cts.Token);
+					var instances = await LoadInstancesCoreAsync(_shadow.Category, _shadow.Counter, _cts.Token);
+
+					_shadow.CountersInCategory.Clear();
+					_shadow.CountersInCategory.AddRange(counters);
+
+					_shadow.Instances.Clear();
+					_shadow.Instances.AddRange(instances);
 				});
 
-				// UI thread: reapply selections
-				var savedCounter = vm.Counter;
-				var counterVm = Metrics.FirstOrDefault(c => c.Counter == savedCounter);
-				if (counterVm != null)
-					Editor.SelectedCounter = counterVm.Counter;
+				// 3. Push lists to UI
+				await Application.Current.Dispatcher.InvokeAsync(() =>
+				{
+					CountersInCategory = new ObservableCollection<string>(_shadow.CountersInCategory);
+					OnPropertyChanged(nameof(CountersInCategory));
 
-				var savedInstance = vm.Instance;
-				if (Instances.Contains(savedInstance))
-					Editor.SelectedInstance = savedInstance;
-				else if (Instances.Any())
-					Editor.SelectedInstance = Instances.First();
+					Instances.Clear();
+					foreach (var inst in _shadow.Instances)
+						Instances.Add(inst);
+					OnPropertyChanged(nameof(Instances));
+				});
+
+				// ⭐⭐⭐ NEW: Auto-select logic ⭐⭐⭐
+				// Counter
+				//string _t1 = string.IsNullOrEmpty(vm.Counter) ? "Null" : vm.Counter;
+				//Log.Debug($"ApplySelectedAsync: Counter = {_t1}");
+				if (string.IsNullOrWhiteSpace(vm.Counter) ||
+					!_shadow.CountersInCategory.Contains(vm.Counter))
+				{
+					if (_shadow.CountersInCategory.Count > 0)
+						_shadow.Counter = _shadow.CountersInCategory[0];
+				}
+				else
+				{
+					_shadow.Counter = vm.Counter;
+				}
+				//Log.Debug($"ApplySelectedAsync: _shadow.Counter = {_shadow.Counter}");
+
+				// Instance
+				//string _t2 = string.IsNullOrEmpty(vm.Instance) ? "Null" : vm.Instance;
+				//Log.Debug($"ApplySelectedAsync: Instance = {_t2}");
+				if (string.IsNullOrWhiteSpace(vm.Instance) ||
+					!_shadow.Instances.Contains(vm.Instance))
+				{
+					if (_shadow.Instances.Count > 0)
+						_shadow.Instance = _shadow.Instances[0];
+				}
+				else
+				{
+					_shadow.Instance = vm.Instance;
+				}
+				//Log.Debug($"ApplySelectedAsync: _shadow.Instance = {_shadow.Instance}");
+
+				// 4. Commit shadow → UI
+				CommitShadowToEditor();
 			}
 			finally
 			{
 				EndLoading();
-
 				IsSelectionLoadInProgress = false;
 
 				LoadIconSetPreviewFrames(Editor.IconSet);
 				UpdateDynamicPreview();
-
-				_suppressAutoSelect = false;
 			}
 		}
 
@@ -544,6 +741,59 @@ namespace PerformanceTrayMonitor.ViewModels
 			}
 		}
 
+		internal async Task<List<string>> LoadCountersCoreAsync(string category, CancellationToken token)
+		{
+			if (string.IsNullOrEmpty(category))
+				return new List<string>();
+
+			var names = await RunOnBackgroundThread(() =>
+			{
+				var cat = SafePerf(() => new PerformanceCounterCategory(category), "new Category");
+				if (cat == null)
+					return Enumerable.Empty<string>();
+
+				var insts = SafeGetInstances(cat);
+				if (insts.Length == 0)
+					return SafeGetCounters(cat).Select(c => c.CounterName);
+
+				return insts
+					.SelectMany(inst => SafeGetCounters(cat, inst).Select(c => c.CounterName))
+					.Distinct();
+			}, token);
+
+			return names.OrderBy(x => x).ToList();
+		}
+
+		internal async Task<List<string>> LoadInstancesCoreAsync(string category, string counter, CancellationToken token)
+		{
+			if (string.IsNullOrEmpty(category) || string.IsNullOrEmpty(counter))
+				return new List<string>();
+
+			var validInstances = await Task.Run(() =>
+			{
+				token.ThrowIfCancellationRequested();
+
+				var cat = SafePerf(() => new PerformanceCounterCategory(category), "new Category");
+				if (cat == null)
+					return new List<string>();
+
+				var insts = SafeGetInstances(cat);
+				if (insts.Length == 0)
+					return new List<string> { "" };
+
+				return insts
+					.Where(inst =>
+					{
+						token.ThrowIfCancellationRequested();
+						return SafeGetCounters(cat, inst).Any(c => c.CounterName == counter);
+					})
+					.OrderBy(x => x)
+					.ToList();
+			}, token);
+
+			return validInstances;
+		}
+
 		public async Task LoadInstancesForCounterAsync(string category, string counter, CancellationToken token)
 		{
 			try
@@ -653,18 +903,22 @@ namespace PerformanceTrayMonitor.ViewModels
 			if (Selected == null)
 				return;
 
+			//Log.Debug($"ApplyCounter: Selected.GUID = {Selected.Id}, Editor.GUID = {Editor.Id}, name = {Selected.DisplayName}");
 			if (IsEditingExistingMetric())
 			{
 				// Update the existing metric
+				//Log.Debug($"ApplyCounter: Existing counter... updsating");
 				ApplyEditorToSelected();
 			}
 			else
 			{
 				// Create a new metric
+				//Log.Debug($"ApplyCounter: New counter... adding");
 				var settings = Editor.ToSettings();
 				settings.Id = Guid.NewGuid();
 
 				var vm = new CounterViewModel(settings);
+				vm.PropertyChanged += Counter_PropertyChanged;
 				Metrics.Add(vm);
 
 				Selected = vm;
@@ -683,6 +937,14 @@ namespace PerformanceTrayMonitor.ViewModels
 			OnPropertyChanged(nameof(TrayIconCountDisplay));
 
 			IsAtDefaultConfiguration = CheckIfDefault();
+		}
+
+		private void Counter_PropertyChanged(object? sender, PropertyChangedEventArgs e)
+		{
+			if (e.PropertyName == nameof(CounterViewModel.ShowInTray))
+			{
+				UpdateUiState();
+			}
 		}
 
 		private void ApplyEditorToSelected()
@@ -785,6 +1047,7 @@ namespace PerformanceTrayMonitor.ViewModels
 			{
 				// Select the next logical item
 				Selected = Metrics[Math.Min(idx, Metrics.Count - 1)];
+				EditorPendingEdits = true;
 			}
 			else
 			{

@@ -11,6 +11,8 @@ using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using static PerformanceTrayMonitor.ViewModels.ConfigViewModel;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement.TextBox;
 
 namespace PerformanceTrayMonitor.ViewModels
 {
@@ -57,6 +59,12 @@ namespace PerformanceTrayMonitor.ViewModels
 		public Brush TrayAccentBrush => new SolidColorBrush(TrayAccentColor);
 		public Brush TrayBackgroundBrush => new SolidColorBrush(TrayBackgroundColor);
 
+		private string _uiCategory;
+		private string _uiCounter;
+		private string _uiInstance;
+		
+		internal bool _suppressEditorSetters;
+
 		public CounterEditorViewModel(ConfigViewModel parent)
 		{
 			_parent = parent;
@@ -65,6 +73,7 @@ namespace PerformanceTrayMonitor.ViewModels
 			PickBackgroundColorCommand = new RelayCommand(_ => PickBackgroundColor());
 		}
 
+		/*
 		private async Task LoadListAndSelectAsync(
 			Func<CancellationToken, Task> loadFunc,
 			Func<bool> isLoadValid,
@@ -105,7 +114,6 @@ namespace PerformanceTrayMonitor.ViewModels
 			});
 		}
 
-		/*
 		private void LoadListAndSelectAsyncFireAndForget(
 			Func<CancellationToken, Task> loadFunc,
 			Func<bool> isLoadValid,
@@ -144,7 +152,23 @@ namespace PerformanceTrayMonitor.ViewModels
 				});
 			});
 		}
-		*/
+
+		private async Task LoadCountersAsync(string category)
+		{
+			// If no reloads then use:
+			//return Task.CompletedTask;
+
+			if (string.IsNullOrWhiteSpace(category))
+				return;
+
+			var counters = await _parent.LoadCountersCoreAsync(category, CancellationToken.None);
+
+			_parent.CountersInCategory.Clear();
+			foreach (var c in counters)
+				_parent.CountersInCategory.Add(c);
+
+			// Do NOT auto-select here
+		}
 
 		private Task LoadCountersAsync(string category)
 		{
@@ -156,7 +180,26 @@ namespace PerformanceTrayMonitor.ViewModels
 				setSelection: v => SelectedCounter = v
 			);
 		}
+		*/
 
+		private async Task LoadInstancesAsync(string counter)
+		{
+			// If no reloads then use
+			//return Task.CompletedTask;
+
+			if (string.IsNullOrWhiteSpace(counter) || string.IsNullOrWhiteSpace(_uiCategory))
+				return;
+
+			var instances = await _parent.LoadInstancesCoreAsync(_uiCategory, counter, CancellationToken.None);
+
+			_parent.Instances.Clear();
+			foreach (var inst in instances)
+				_parent.Instances.Add(inst);
+
+			// Do NOT auto-select here
+		}
+
+		/*
 		private Task LoadInstancesAsync(string counter)
 		{
 			return LoadListAndSelectAsync(
@@ -203,14 +246,112 @@ namespace PerformanceTrayMonitor.ViewModels
 
 			if (loadFunc == null)
 				return;
-
+		F
 			if (suppressDuringSelection && _parent.IsSelectionLoadInProgress)
 				return;
 
 			//_ = loadFunc(clean);
 			_ = LoadWithBusyAsync(loadFunc, clean);
 		}
+		*/
 
+		public string SelectedCategory
+		{
+			get => _uiCategory;
+			set
+			{
+				if (_suppressEditorSetters)
+				{
+					//Log.Debug($"SelectedCategory: suppressed setter, assigning backing field only");
+					_uiCategory = value;
+					OnPropertyChanged(nameof(SelectedCategory));
+					return;
+				}
+
+				_uiCategory = value;
+				OnPropertyChanged(nameof(SelectedCategory));
+
+				if (!_parent._isCommittingShadow)
+				{
+					//Log.Debug($"SelectedCategory: shadow Category = {value}");
+					_parent.MarkEditorDirty();
+
+					_parent._shadow.Category = value;
+					_parent._shadow.Counter = null;
+					_parent._shadow.Instance = null;
+					_ = _parent.ApplySelectedFromEditorAsync();
+				}
+			}
+		}
+
+		public string SelectedCounter
+		{
+			get => _uiCounter;
+			set
+			{
+				// 1. If suppressed → assign only
+				if (_suppressEditorSetters)
+				{
+					//Log.Debug($"SelectedCounter: suppressed setter, assigning backing field only");
+					_uiCounter = value;
+					OnPropertyChanged(nameof(SelectedCounter));
+					return;
+				}
+
+				// 2. If loading → assign only
+				if (_parent.IsLoading || _parent.IsSelectionLoadInProgress)
+				{
+					_uiCounter = value;
+					OnPropertyChanged(nameof(SelectedCounter));
+					return;
+				}
+
+				// 3. If unchanged → ignore
+				if (_uiCounter == value)
+					return;
+
+				// 4. Normal user edit
+				_uiCounter = value;
+				OnPropertyChanged(nameof(SelectedCounter));
+
+				//Log.Debug($"SelectedCounter: shadow Counter = {value}");
+				_parent.MarkEditorDirty();
+
+				_parent._shadow.Counter = value;
+				_parent._shadow.Instance = null;
+				_ = _parent.ApplySelectedFromEditorAsync();
+			}
+		}
+
+		public string SelectedInstance
+		{
+			get => _uiInstance;
+			set
+			{
+				if (_suppressEditorSetters)
+				{
+					//Log.Debug($"SelectedInstance: suppressed setter, assigning backing field only");
+					_uiInstance = value;
+					OnPropertyChanged(nameof(SelectedInstance));
+					return;
+				}
+
+				if (_parent.IsLoading || _parent.IsSelectionLoadInProgress)
+				{
+					//Log.Debug($"SelectedInstance: uiInstance = {value}");
+					_uiInstance = value;
+					OnPropertyChanged(nameof(SelectedInstance));
+					return;
+				}
+
+				if (!_parent._isCommittingShadow)
+				{
+					_parent.MarkEditorDirty();
+				}
+			}
+		}
+
+		/*
 		public string SelectedCategory
 		{
 			get => _category;
@@ -245,17 +386,24 @@ namespace PerformanceTrayMonitor.ViewModels
 		private void SetCategorySilent(string value) => _category = value;
 		private void SetCounterSilent(string value) => _counter = value;
 		private void SetInstanceSilent(string value) => _instance = value;
-
+		*/
 		public void LoadFrom(CounterViewModel vm)
 		{
+			//Log.Debug($"[LoadFrom] vm.Category={vm.Category}, vm.Counter={vm.Counter}, vm.Instance={vm.Instance}");
 			_loadingFromModel = true;
 			try
 			{
 				Id = vm.Id;
 
+				// Shadow only
+				_parent._shadow.Category = vm.Category ?? "";
+				_parent._shadow.Counter = vm.Counter ?? "";
+				_parent._shadow.Instance = vm.Instance ?? "";
+				/*
 				SetCategorySilent(vm.Category);
 				SetCounterSilent(vm.Counter);
 				SetInstanceSilent(vm.Instance ?? "");
+				*/
 
 				DisplayName = vm.DisplayName;
 				Min = vm.Min;
@@ -274,7 +422,7 @@ namespace PerformanceTrayMonitor.ViewModels
 				_loadingFromModel = false;
 			}
 
-			_ = LoadCountersAsync(_category);
+			//_ = LoadCountersAsync(_category);
 			//_ = LoadEverythingAsync();
 		}
 
