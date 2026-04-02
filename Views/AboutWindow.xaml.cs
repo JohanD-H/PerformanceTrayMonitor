@@ -14,7 +14,7 @@ namespace PerformanceTrayMonitor.Views
 	public partial class AboutWindow : Window
 	{
 		private readonly List<float> _ambientValues = new();
-		private System.Windows.Threading.DispatcherTimer _timer;
+		private System.Windows.Threading.DispatcherTimer? _timer;
 		public ICommand CloseAboutWindow { get; }
 
 		public AboutWindow()

@@ -114,7 +114,7 @@ namespace PerformanceTrayMonitor.Views
 						bmp.EndInit();
 					}
 				}
-				catch (Exception ex)
+				catch
 				{
 					// Nothing
 				}

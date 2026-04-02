@@ -14,7 +14,7 @@ namespace PerformanceTrayMonitor.ViewModels
 		public CounterSettings Settings { get; private set; }
 		private PerformanceCounter? _internalCounter;
 		private float _currentValue;
-		private SolidColorBrush _accentBrush;
+		private SolidColorBrush? _accentBrush;
 		public SolidColorBrush AccentBrush
 		{
 			get => _accentBrush;

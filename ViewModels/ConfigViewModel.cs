@@ -16,7 +16,6 @@ using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
-using static System.Windows.Forms.VisualStyles.VisualStyleElement.TrayNotify;
 
 namespace PerformanceTrayMonitor.ViewModels
 {
@@ -92,7 +91,6 @@ namespace PerformanceTrayMonitor.ViewModels
 			}
 		}
 		private bool _isAtDefaultConfiguration;
-		private bool _pendingPreviewUpdate;
 
 		// ============================================================
 		//  INTERNAL SHIELDS (minimal, intentional)
@@ -101,13 +99,13 @@ namespace PerformanceTrayMonitor.ViewModels
 		/// <summary>
 		/// Suppresses SelectedInstance changes during ItemsSource rebuilds.
 		/// </summary>
-		internal bool _suppressAutoSelect;
+		//internal bool _suppressAutoSelect;
 
 		/// <summary>
 		/// True only during a full configuration reset (ResetToDefaults).
 		/// NOT used for Discard or selection reloads.
 		/// </summary>
-		private bool _isResettingConfig;
+		//private bool _isResettingConfig;
 
 		/// <summary>
 		/// UI loading shield (unchanged).
@@ -121,9 +119,8 @@ namespace PerformanceTrayMonitor.ViewModels
 				_isLoading = value;
 				OnPropertyChanged();
 				// Flush pending preview updates when loading finishes
-				if (!_isLoading && _pendingPreviewUpdate)
+				if (!_isLoading)
 				{
-					_pendingPreviewUpdate = false;
 					UpdateDynamicPreview();
 				}
 			}
@@ -156,7 +153,7 @@ namespace PerformanceTrayMonitor.ViewModels
 		//  SETTINGS + COLLECTIONS
 		// ============================================================
 
-		private SettingsOptions _globalSettings;
+		private SettingsOptions? _globalSettings;
 		public SettingsOptions GlobalSettings
 		{
 			get => _globalSettings;
@@ -186,23 +183,22 @@ namespace PerformanceTrayMonitor.ViewModels
 				OnPropertyChanged();
 
 				// Flush pending preview updates when selection load finishes
-				if (!_isSelectionLoadInProgress && _pendingPreviewUpdate)
+				if (!_isSelectionLoadInProgress)
 				{
-					_pendingPreviewUpdate = false;
 					UpdateDynamicPreview();
 				}
 			}
 		}
 
 		public Action? RequestClose { get; set; }
-		private DispatcherTimer _previewTimer;
+		private DispatcherTimer? _previewTimer;
 		private readonly Random _random = new();
 		public Func<bool>? ConfirmReset { get; set; }
 		public Func<bool>? ConfirmCancel { get; set; }
 		public Func<bool>? ConfirmClose { get; set; }
 
 		public CancellationTokenSource _cts = new();
-		public CancellationTokenSource _instanceLoadCts;
+		public CancellationTokenSource? _instanceLoadCts;
 		public void CancelAllWork()
 		{
 			_cts.Cancel();
@@ -212,7 +208,7 @@ namespace PerformanceTrayMonitor.ViewModels
 		public string TrayIconCountDisplay =>
 			$"Tray icons: {TrayIconCount}/{TrayIconConfig.MaxCounterTrayIcons}";
 
-		private BitmapSource _trayPreviewImage;
+		private BitmapSource? _trayPreviewImage;
 		public BitmapSource TrayPreviewImage
 		{
 			get => _trayPreviewImage;
@@ -228,21 +224,21 @@ namespace PerformanceTrayMonitor.ViewModels
 		public string StatusText => IsLoading ? "Loading…" : "Ready";
 
 		// Commands
-		public ICommand ApplyCommand { get; private set; }
-		public ICommand CopyCommand { get; private set; }
-		public ICommand CancelCommand { get; private set; }
-		public ICommand DiscardCommand { get; private set; }
-		public ICommand OpenDebugIconWindowCommand { get; private set; }
-		public ICommand RemoveCommand { get; private set; }
-		public ICommand ResetCommand { get; private set; }
-		public ICommand SaveCommand { get; private set; }
-		public ICommand CloseCommand { get; private set; }
-		public ICommand ShowMinMaxInfoCommand { get; private set;  }
+		public ICommand? ApplyCommand { get; private set; }
+		public ICommand? CopyCommand { get; private set; }
+		public ICommand? CancelCommand { get; private set; }
+		public ICommand? DiscardCommand { get; private set; }
+		public ICommand? OpenDebugIconWindowCommand { get; private set; }
+		public ICommand? RemoveCommand { get; private set; }
+		public ICommand? ResetCommand { get; private set; }
+		public ICommand? SaveCommand { get; private set; }
+		public ICommand? CloseCommand { get; private set; }
+		public ICommand? ShowMinMaxInfoCommand { get; private set;  }
 
-		private bool _useTextTrayIcon;
-		private System.Windows.Media.Color _trayAccentColor;
-		private bool _autoTrayBackground;
-		private System.Windows.Media.Color _trayBackgroundColor;
+		//private readonly bool _useTextTrayIcon;
+		//private System.Windows.Media.Color _trayAccentColor;
+		//private bool _autoTrayBackground;
+		//private System.Windows.Media.Color _trayBackgroundColor;
 		public ObservableCollection<CounterViewModel> Metrics { get; }
 			= new ObservableCollection<CounterViewModel>();
 		public int MetricsCount => Metrics.Count;
@@ -254,7 +250,7 @@ namespace PerformanceTrayMonitor.ViewModels
 
 		public BitmapSource[]? IconSetPreviewFrames { get; set; }
 		//public int CurrentFrameIndex => 0;
-		public Window OwnerWindow { get; set; }
+		public Window? OwnerWindow { get; set; }
 
 		public ConfigViewModel(SettingsOptions settings, MainViewModel main)
 		{
@@ -322,33 +318,6 @@ namespace PerformanceTrayMonitor.ViewModels
 
 			RefreshCommandStates();
 		}
-
-		/*
-		public async Task SetSelectedAsync(CounterViewModel? value)
-		{
-			if (_selected == value)
-			{
-				return;
-			}
-
-			// Assign first, but DO NOT notify UI yet
-			_selected = value;
-
-			if (_selected != null)
-			{
-				// MUST happen BEFORE PropertyChanged
-				await ApplySelectedAsync(_selected);
-				// Offload ApplySelectedAsync to a background thread
-				//_ = Task.Run(async () => await ApplySelectedAsync(_selected));
-			}
-
-			// NOW notify UI
-			OnPropertyChanged(nameof(Selected));
-
-			// Update commands
-			RefreshCommandStates();
-		}
-		*/
 
 		public sealed class ShadowMetricState
 		{
@@ -454,7 +423,7 @@ namespace PerformanceTrayMonitor.ViewModels
 			try
 			{
 				//
-				// 1. Load counters for the selected category
+				// Load counters for the selected category
 				//
 				//Log.Debug($"ApplySelectedAsync: loading counters for Category = {_shadow.Category}");
 
@@ -467,7 +436,7 @@ namespace PerformanceTrayMonitor.ViewModels
 				});
 
 				//
-				// 2. Auto-select counter BEFORE loading instances
+				// Auto-select counter BEFORE loading instances
 				//
 				string beforeCounter = string.IsNullOrEmpty(_shadow.Counter) ? "Null" : _shadow.Counter;
 				//Log.Debug($"ApplySelectedAsync: auto-select Counter (before) = {beforeCounter}");
@@ -482,7 +451,7 @@ namespace PerformanceTrayMonitor.ViewModels
 				//Log.Debug($"ApplySelectedAsync: auto-select Counter (after) = {_shadow.Counter}");
 
 				//
-				// 3. Load instances for the selected counter
+				// Load instances for the selected counter
 				//
 				//Log.Debug($"ApplySelectedAsync: loading instances for Category={_shadow.Category}, Counter={_shadow.Counter}");
 
@@ -495,7 +464,7 @@ namespace PerformanceTrayMonitor.ViewModels
 				});
 
 				//
-				// 4. Auto-select instance
+				// Auto-select instance
 				//
 				string beforeInstance = string.IsNullOrEmpty(_shadow.Instance) ? "Null" : _shadow.Instance;
 				//Log.Debug($"ApplySelectedAsync: auto-select Instance (before) = {beforeInstance}");
@@ -510,7 +479,7 @@ namespace PerformanceTrayMonitor.ViewModels
 				//Log.Debug($"ApplySelectedAsync: auto-select Instance (after) = {_shadow.Instance}");
 
 				//
-				// 5. Push lists to UI
+				// Push lists to UI
 				//
 				await Application.Current.Dispatcher.InvokeAsync(() =>
 				{
@@ -524,7 +493,7 @@ namespace PerformanceTrayMonitor.ViewModels
 				});
 
 				//
-				// 6. Commit shadow → UI
+				// Commit shadow → UI
 				//
 				//Log.Debug("ApplySelectedAsync: committing shadow to editor");
 				CommitShadowToEditor();
@@ -550,10 +519,10 @@ namespace PerformanceTrayMonitor.ViewModels
 
 			try
 			{
-				// 1. Load basic data into shadow
+				// Load basic data into shadow
 				Editor.LoadFrom(vm);
 
-				// 2. Load counters/instances into shadow (background)
+				// Load counters/instances into shadow (background)
 				await Task.Run(async () =>
 				{
 					var counters = await LoadCountersCoreAsync(_shadow.Category, _cts.Token);
@@ -566,7 +535,7 @@ namespace PerformanceTrayMonitor.ViewModels
 					_shadow.Instances.AddRange(instances);
 				});
 
-				// 3. Push lists to UI
+				// Push lists to UI
 				await Application.Current.Dispatcher.InvokeAsync(() =>
 				{
 					CountersInCategory = new ObservableCollection<string>(_shadow.CountersInCategory);
@@ -578,7 +547,7 @@ namespace PerformanceTrayMonitor.ViewModels
 					OnPropertyChanged(nameof(Instances));
 				});
 
-				// ⭐⭐⭐ NEW: Auto-select logic ⭐⭐⭐
+				// Auto-select logic
 				// Counter
 				//string _t1 = string.IsNullOrEmpty(vm.Counter) ? "Null" : vm.Counter;
 				//Log.Debug($"ApplySelectedAsync: Counter = {_t1}");
@@ -594,6 +563,7 @@ namespace PerformanceTrayMonitor.ViewModels
 				}
 				//Log.Debug($"ApplySelectedAsync: _shadow.Counter = {_shadow.Counter}");
 
+				// Auto-select logic
 				// Instance
 				//string _t2 = string.IsNullOrEmpty(vm.Instance) ? "Null" : vm.Instance;
 				//Log.Debug($"ApplySelectedAsync: Instance = {_t2}");
@@ -609,7 +579,7 @@ namespace PerformanceTrayMonitor.ViewModels
 				}
 				//Log.Debug($"ApplySelectedAsync: _shadow.Instance = {_shadow.Instance}");
 
-				// 4. Commit shadow → UI
+				// Commit shadow → UI
 				CommitShadowToEditor();
 			}
 			finally
@@ -622,68 +592,13 @@ namespace PerformanceTrayMonitor.ViewModels
 			}
 		}
 
-		/*
-		private async Task ApplySelectedAsync(CounterViewModel vm)
-		{
-			if (IsSelectionLoadInProgress)
-			{
-				return;
-			}
-
-			IsSelectionLoadInProgress = true;
-			_suppressAutoSelect = true;
-			BeginLoading();
-
-			try
-			{
-				// Load editor FIRST
-				Editor.LoadFrom(vm);
-
-				// Load lists
-				await LoadCountersForCategoryAsync(Editor.SelectedCategory, _cts.Token);
-				await LoadInstancesForCounterAsync(Editor.SelectedCategory, Editor.SelectedCounter, _cts.Token);
-
-				// Re-apply counter + instance
-				// (safe because suppression is still ON)
-				var savedCounter = vm.Counter; // the original saved value
-				var counterVm = Metrics.FirstOrDefault(c => c.Counter == savedCounter);
-				if (counterVm != null)
-					Editor.SelectedCounter = counterVm.Counter;
-
-				var savedInstance = vm.Instance;
-				if (Instances.Contains(savedInstance))
-					Editor.SelectedInstance = savedInstance;
-				else if (Instances.Any())
-					Editor.SelectedInstance = Instances.First();
-			}
-			finally
-			{
-				EndLoading();
-
-				IsSelectionLoadInProgress = false;
-				/ Flush deferred preview update here
-				if (_pendingPreviewUpdate)
-				{
-					_pendingPreviewUpdate = false;
-					UpdateDynamicPreview();
-				}
-				/
-				LoadIconSetPreviewFrames(Editor.IconSet);
-				UpdateDynamicPreview();
-
-				// NOW it is safe to allow auto-select again
-				_suppressAutoSelect = false;
-			}
-		}
-		*/
-
 		private T SafePerf<T>(Func<T> func, string context)
 		{
 			try
 			{
 				return func();
 			}
-			catch (Exception ex)
+			catch
 			{
 				//Log.Error(ex, $"PerfCounter error: {context}");
 				return default!;
@@ -1107,11 +1022,6 @@ namespace PerformanceTrayMonitor.ViewModels
 			EditorPendingEdits = false;
 
 			// ------------------------------------------------------------
-			// Global state is untouched
-			// ------------------------------------------------------------
-			// GlobalEditsPending stays whatever it was.
-
-			// ------------------------------------------------------------
 			// Update UI
 			// ------------------------------------------------------------
 			IsAtDefaultConfiguration = CheckIfDefault();
@@ -1213,7 +1123,7 @@ namespace PerformanceTrayMonitor.ViewModels
 		private void ResetToDefaults()
 		{
 			BeginLoading();
-			_isResettingConfig = true;
+			//_isResettingConfig = true;
 
 			try
 			{
@@ -1241,11 +1151,12 @@ namespace PerformanceTrayMonitor.ViewModels
 			}
 			finally
 			{
-				_isResettingConfig = false;
+				//_isResettingConfig = false;
 				EndLoading();
 			}
 		}
 
+		/*
 		private static List<CounterSettingsDto> CloneMetrics(IEnumerable<CounterSettingsDto> source)
 		{
 			var clone = new List<CounterSettingsDto>();
@@ -1272,6 +1183,7 @@ namespace PerformanceTrayMonitor.ViewModels
 
 			return clone;
 		}
+		*/
 
 		public void RestoreMetrics(IEnumerable<CounterSettingsDto> snapshot)
 		{

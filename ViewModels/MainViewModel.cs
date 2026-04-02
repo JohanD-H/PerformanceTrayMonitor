@@ -1,5 +1,5 @@
 ﻿using PerformanceTrayMonitor.Common;
-using PerformanceTrayMonitor.Managers;
+using PerformanceTrayMonitor.Tray;
 using PerformanceTrayMonitor.Models;
 using PerformanceTrayMonitor.Settings;
 using PerformanceTrayMonitor.Views;
@@ -20,9 +20,9 @@ namespace PerformanceTrayMonitor.ViewModels
 		public ObservableCollection<CounterViewModel> Counters { get; } = new();
 
 		private readonly DispatcherTimer _timer;
-		private PopupWindow _popup;
+		private PopupWindow? _popup;
 		private TrayIconManager _trayIconManager;
-		private ConfigWindow _configWindow;
+		private ConfigWindow? _configWindow;
 
 		// The full settings object (global + metrics)
 		public SettingsOptions Settings { get; private set; }
@@ -331,7 +331,7 @@ namespace PerformanceTrayMonitor.ViewModels
 		// ------------------------------------------------------------
 		// PERFORMANCE COUNTER CREATION
 		// ------------------------------------------------------------
-		private PerformanceCounter? CreateCounter(CounterSettings settings)
+		private static PerformanceCounter? CreateCounter(CounterSettings settings)
 		{
 			try
 			{

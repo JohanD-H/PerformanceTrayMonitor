@@ -8,11 +8,11 @@ namespace PerformanceTrayMonitor.Configuration
 {
 	public sealed class IconSetDiagnostics
 	{
-		public string Name { get; set; }
+		public string? Name { get; set; }
 		public bool IsEmbedded { get; set; }
-		public string Prefix { get; set; }
+		public string? Prefix { get; set; }
 		public int FrameCount { get; set; }
-		public string Dimensions { get; set; }
+		public string? Dimensions { get; set; }
 		public bool IsValid { get; set; }
 		public List<string> Errors { get; set; } = new();
 	}

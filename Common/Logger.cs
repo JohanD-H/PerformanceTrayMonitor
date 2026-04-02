@@ -6,7 +6,7 @@ namespace PerformanceTrayMonitor.Common
 {
 	public static class Log
 	{
-		public static ILogger Logger { get; set; }
+		public static ILogger? Logger { get; set; }
 
 		public static void Debug(string message)
 		{

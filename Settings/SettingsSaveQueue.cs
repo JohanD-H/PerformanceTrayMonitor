@@ -9,8 +9,8 @@ namespace PerformanceTrayMonitor.Settings
 	public static class SettingsSaveQueue
 	{
 		private static readonly object _lock = new();
-		private static SettingsDto _pending;
-		private static CancellationTokenSource _cts;
+		private static SettingsDto? _pending;
+		private static CancellationTokenSource? _cts;
 
 		public static void Enqueue(SettingsDto dto)
 		{

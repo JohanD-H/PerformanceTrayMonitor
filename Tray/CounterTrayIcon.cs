@@ -27,7 +27,7 @@ namespace PerformanceTrayMonitor.Tray
 		private readonly MainViewModel _mainVm;
 
 		public System.Windows.Media.Color TrayBackgroundColor { get; set; }
-		private Icon _lastClone;
+		private Icon? _lastClone;
 
 		// ------------------------------------------------------------
 		// BUILD THE COUNTER TRAY ICON AND GIVE IT MOUSE HANDLING!
@@ -72,7 +72,7 @@ namespace PerformanceTrayMonitor.Tray
 		// ------------------------------------------------------------
 		// FRAME LOADING (EMBEDDED + EXTERNAL)
 		// ------------------------------------------------------------
-		private Icon[] LoadFrames(IconSetDefinition set)
+		private static Icon[] LoadFrames(IconSetDefinition set)
 		{
 			var icons = new List<Icon>();
 
@@ -140,7 +140,7 @@ namespace PerformanceTrayMonitor.Tray
 			return tooltip;
 		}
 
-		private string FormatAsBytesOrRaw(double value)
+		private static string FormatAsBytesOrRaw(double value)
 		{
 			if (value > 1_000_000_000)
 				return $"{value / 1_000_000_000:0.0} GB/s";
@@ -177,7 +177,7 @@ namespace PerformanceTrayMonitor.Tray
 		// UPDATE LOOP
 		// ------------------------------------------------------------
 		private int _lastFrameIndex = -1;
-		private double _old_value = 0.0;
+		//private double _old_value = 0.0;
 
 		private void UpdateIcon()
 		{

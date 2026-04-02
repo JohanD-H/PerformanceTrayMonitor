@@ -1,7 +1,6 @@
 ﻿using PerformanceTrayMonitor.Common;
 using PerformanceTrayMonitor.Configuration;
 using PerformanceTrayMonitor.Models;
-using PerformanceTrayMonitor.Tray;
 using PerformanceTrayMonitor.ViewModels;
 using System;
 using System.Windows;
@@ -13,7 +12,7 @@ using System.Linq;
 // ---------------------------------------------
 // Manage all tray icons, app and counters
 // ---------------------------------------------
-namespace PerformanceTrayMonitor.Managers
+namespace PerformanceTrayMonitor.Tray
 {
 	public sealed class TrayIconManager : IDisposable
 	{
@@ -21,7 +20,7 @@ namespace PerformanceTrayMonitor.Managers
 		private readonly ConfigViewModel _sharedConfigVm;
 
 		private readonly Dictionary<CounterViewModel, CounterTrayIcon> _counterIcons = new();
-		private AnimatedTrayIcon _animatedIcon;
+		private AnimatedTrayIcon? _animatedIcon;
 
 		public TrayIconManager(MainViewModel mainVm)
 		{
