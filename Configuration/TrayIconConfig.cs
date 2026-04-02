@@ -41,5 +41,15 @@ namespace PerformanceTrayMonitor.Configuration
 		// Number of seconds between Icon Set updated in the Metric Configuration
 		public const double IconSetPreviewTimer = 1.0;
 
+		// Min and Max information text and header
+		// Explains what the Min and Max values are used for.
+		public const string MinMaxInformationText = "How Min and Max are used:\n\n" +
+													"Line graph:\n" +
+													"The small graph uses Min and Max to scale the line. " +
+													"Values below Min appear at the bottom, values above Max at the top.\n\n" +
+													"Animated icon (iconset):\n" +
+													"If you use an animated icon, Min and Max determine which frame is shown. " +
+													"The current value is mapped between Min and Max to pick the correct animation frame.";
+		public const string MinMaxInformationHeader = "Min / Max Information";
 	}
 }

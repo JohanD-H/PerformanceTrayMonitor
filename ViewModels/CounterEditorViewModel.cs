@@ -41,7 +41,6 @@ namespace PerformanceTrayMonitor.ViewModels
 		public ICommand PickBackgroundColorCommand { get; }
 		public double CurrentValue { get; set; } = 0;
 
-		//private readonly string _category, _counter, _instance;
 		private string? _displayName;
 		private float _min, _max;
 		private bool _showInTray;
@@ -58,7 +57,7 @@ namespace PerformanceTrayMonitor.ViewModels
 		private string? _uiCounter;		// UI counter metric value save
 		private string? _uiInstance;		// UI instance metric value save
 		
-		internal bool _suppressEditorSetters;	// Editor setter gate
+		internal bool _suppressEditorSetters;   // Editor setter gate
 
 		public CounterEditorViewModel(ConfigViewModel parent)
 		{
@@ -102,7 +101,7 @@ namespace PerformanceTrayMonitor.ViewModels
 			get => _uiCounter;
 			set
 			{
-				// 1. If suppressed → assign only
+				// If suppressed → assign only
 				if (_suppressEditorSetters)
 				{
 					//Log.Debug($"SelectedCounter: suppressed setter, assigning backing field only");
@@ -111,7 +110,7 @@ namespace PerformanceTrayMonitor.ViewModels
 					return;
 				}
 
-				// 2. If loading → assign only
+				// If loading → assign only
 				if (_parent.IsLoading || _parent.IsSelectionLoadInProgress)
 				{
 					_uiCounter = value;
@@ -119,11 +118,11 @@ namespace PerformanceTrayMonitor.ViewModels
 					return;
 				}
 
-				// 3. If unchanged → ignore
+				// If unchanged → ignore
 				if (_uiCounter == value)
 					return;
 
-				// 4. Normal user edit
+				// Normal user edit
 				_uiCounter = value;
 				OnPropertyChanged(nameof(SelectedCounter));
 
@@ -166,6 +165,9 @@ namespace PerformanceTrayMonitor.ViewModels
 
 		public void LoadFrom(CounterViewModel vm)
 		{
+			var defaults = new DefaultSettingsProvider().CreateDefaultCounter();
+			bool isNewMetric = vm.Id == Guid.Empty || Id == Guid.Empty;
+
 			//Log.Debug($"[LoadFrom] vm.Category={vm.Category}, vm.Counter={vm.Counter}, vm.Instance={vm.Instance}");
 			try
 			{
@@ -179,17 +181,40 @@ namespace PerformanceTrayMonitor.ViewModels
 				DisplayName = vm.DisplayName;
 				Min = vm.Min;
 				Max = vm.Max;
+
+				if (!isNewMetric)
+				{
+					// Existing metric → copy tray settings
+					ShowInTray = vm.ShowInTray;
+					IconSet = vm.IconSet;
+					UseTextTrayIcon = vm.UseTextTrayIcon;
+					TrayAccentColor = vm.TrayAccentColor;
+					AutoTrayBackground = vm.AutoTrayBackground;
+					TrayBackgroundColor = vm.TrayBackgroundColor;
+				}
+				else
+				{
+					// NEW METRIC → reset tray settings
+					ShowInTray = defaults.ShowInTray;
+					UseTextTrayIcon = defaults.UseTextTrayIcon;
+					IconSet = defaults.IconSet;
+					TrayAccentColor = defaults.TrayAccentColor;
+					AutoTrayBackground = defaults.AutoTrayBackground;
+					TrayBackgroundColor = defaults.TrayBackgroundColor;
+				}
+				/*
 				ShowInTray = vm.ShowInTray;
 				IconSet = vm.IconSet;
 				UseTextTrayIcon = vm.UseTextTrayIcon;
 				TrayAccentColor = vm.TrayAccentColor;
 				AutoTrayBackground = vm.AutoTrayBackground;
 				TrayBackgroundColor = vm.TrayBackgroundColor;
+				*/
 
 				_parent.ResetEditorDirtyState();
 			}
-			finally
-			{
+			finally 
+			{ 
 				// Nothing to do
 			}
 		}

@@ -10,6 +10,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
@@ -23,15 +24,14 @@ namespace PerformanceTrayMonitor.ViewModels
 	{
 		private readonly MainViewModel _main;
 		private CounterViewModel? _selected;
+		internal CounterViewModel? _pendingRemoval;
 
 		// ============================================================
 		//  CLEAN STATE MODEL
 		// ============================================================
 
-		/// <summary>
 		/// True when the configuration as a whole has unsaved changes.
 		/// This drives Save/Cancel.
-		/// </summary>
 		public bool GlobalEditsPending
 		{
 			get => _globalEditsPending;
@@ -46,10 +46,8 @@ namespace PerformanceTrayMonitor.ViewModels
 		}
 		private bool _globalEditsPending;
 
-		/// <summary>
 		/// True when the editor UI has unsaved edits for the currently selected metric.
 		/// This drives Apply/Discard.
-		/// </summary>
 		public bool EditorPendingEdits
 		{
 			get => _editorPendingEdits;
@@ -69,16 +67,12 @@ namespace PerformanceTrayMonitor.ViewModels
 			EditorPendingEdits = true;
 		}
 
-		/// <summary>
 		/// True when the editor UI has unsaved changes or edits for the currently selected metric.
 		/// This drives Details in the UI.
-		/// </summary>
 		public bool AnyPendingEdits => EditorPendingEdits || GlobalEditsPending;
 
-		/// <summary>
 		/// True when the entire configuration matches the default template.
 		/// Drives the Reset button.
-		// </summary>
 		public bool IsAtDefaultConfiguration
 		{
 			get => _isAtDefaultConfiguration;
@@ -96,20 +90,7 @@ namespace PerformanceTrayMonitor.ViewModels
 		//  INTERNAL SHIELDS (minimal, intentional)
 		// ============================================================
 
-		/// <summary>
-		/// Suppresses SelectedInstance changes during ItemsSource rebuilds.
-		/// </summary>
-		//internal bool _suppressAutoSelect;
-
-		/// <summary>
-		/// True only during a full configuration reset (ResetToDefaults).
-		/// NOT used for Discard or selection reloads.
-		/// </summary>
-		//private bool _isResettingConfig;
-
-		/// <summary>
 		/// UI loading shield (unchanged).
-		/// </summary>
 		private bool _isLoading;
 		public bool IsLoading
 		{
@@ -235,10 +216,6 @@ namespace PerformanceTrayMonitor.ViewModels
 		public ICommand? CloseCommand { get; private set; }
 		public ICommand? ShowMinMaxInfoCommand { get; private set;  }
 
-		//private readonly bool _useTextTrayIcon;
-		//private System.Windows.Media.Color _trayAccentColor;
-		//private bool _autoTrayBackground;
-		//private System.Windows.Media.Color _trayBackgroundColor;
 		public ObservableCollection<CounterViewModel> Metrics { get; }
 			= new ObservableCollection<CounterViewModel>();
 		public int MetricsCount => Metrics.Count;
@@ -249,7 +226,6 @@ namespace PerformanceTrayMonitor.ViewModels
 		internal readonly ShadowMetricState _shadow = new ShadowMetricState();
 
 		public BitmapSource[]? IconSetPreviewFrames { get; set; }
-		//public int CurrentFrameIndex => 0;
 		public Window? OwnerWindow { get; set; }
 
 		public ConfigViewModel(SettingsOptions settings, MainViewModel main)
@@ -270,7 +246,7 @@ namespace PerformanceTrayMonitor.ViewModels
 			foreach (var metricDto in GlobalSettings.Metrics)
 			{
 				var vm = new CounterViewModel(metricDto);
-				vm.PropertyChanged += Counter_PropertyChanged;   // ⭐ add this
+				vm.PropertyChanged += Counter_PropertyChanged; 
 				Metrics.Add(vm);
 			}
 
@@ -357,8 +333,8 @@ namespace PerformanceTrayMonitor.ViewModels
 
 		private void Editor_PropertyChanged(object? sender, PropertyChangedEventArgs e)
 		{
-			//Log.Debug($"Editor_PropertyChanged: property = {e.PropertyName}, " +
-			//		  $"IsLoading = {IsLoading}, IsSelectionLoadInProgress = {IsSelectionLoadInProgress}");
+			Log.Debug($"Editor_PropertyChanged: property = {e.PropertyName}, " +
+					  $"IsLoading = {IsLoading}, IsSelectionLoadInProgress = {IsSelectionLoadInProgress}");
 			// ------------------------------------------------------------
 			// Ignore ALL changes during programmatic loads
 			// ------------------------------------------------------------
@@ -366,6 +342,28 @@ namespace PerformanceTrayMonitor.ViewModels
 			{
 				return;
 			}
+
+			/*
+			if (e.PropertyName == nameof(Editor.ShowInTray))
+			{
+				Log.Debug($"Editor_PropertyChanged: ShowInTray = {Editor.ShowInTray}");
+				// User is trying to enable ShowInTray
+				if (Editor.ShowInTray)
+				{
+					bool alreadySelected = Selected?.ShowInTray ?? false;
+
+					// If the user is enabling it AND the limit is reached AND this metric wasn't already in the tray
+					if (!alreadySelected && TrayIconCount >= TrayIconConfig.MaxCounterTrayIcons)
+					{
+						// Immediately revert the editor state
+						Editor.ShowInTray = false;
+						Log.Debug($"Editor_PropertyChanged: ShowInTray set to = {Editor.ShowInTray}");
+						// Optionally notify the user
+						return;
+					}
+				}
+			}
+			*/
 
 			// ------------------------------------------------------------
 			// Real user edits → mark editor dirty
@@ -376,11 +374,21 @@ namespace PerformanceTrayMonitor.ViewModels
 			// ------------------------------------------------------------
 			// Handle special cases
 			// ------------------------------------------------------------
+			//var defaults = new DefaultSettingsProvider().CreateDefaultCounter();
+
 			switch (e.PropertyName)
 			{
 				case nameof(Editor.SelectedCategory):
 					// Identity changed → force new metric
 					Editor.Id = Guid.Empty;
+					/*
+					Editor.ShowInTray = defaults.ShowInTray;
+					Editor.UseTextTrayIcon = defaults.UseTextTrayIcon;
+					Editor.IconSet = defaults.IconSet;
+					Editor.TrayAccentColor = defaults.TrayAccentColor;
+					Editor.AutoTrayBackground = defaults.AutoTrayBackground;
+					Editor.TrayBackgroundColor = defaults.TrayBackgroundColor;
+					*/
 					break;
 
 				case nameof(Editor.SelectedCounter):
@@ -818,7 +826,15 @@ namespace PerformanceTrayMonitor.ViewModels
 			if (Selected == null)
 				return;
 
-			//Log.Debug($"ApplyCounter: Selected.GUID = {Selected.Id}, Editor.GUID = {Editor.Id}, name = {Selected.DisplayName}");
+			if (_pendingRemoval != null)
+			{
+				Metrics.Remove(_pendingRemoval);
+				_pendingRemoval.IsPendingRemoval = false;
+				_pendingRemoval = null;
+				EditorPendingEdits = true;
+			}
+
+			Log.Debug($"ApplyCounter: Selected.GUID = {Selected.Id}, Editor.GUID = {Editor.Id}, name = {Selected.DisplayName}, IsPendingRemoval = {_pendingRemoval.IsPendingRemoval}");
 			if (IsEditingExistingMetric())
 			{
 				// Update the existing metric
@@ -837,8 +853,10 @@ namespace PerformanceTrayMonitor.ViewModels
 				Metrics.Add(vm);
 
 				Selected = vm;
-				EditorPendingEdits = false;
+				//EditorPendingEdits = false;
 			}
+
+			EnforceTrayLimit();
 
 			GlobalEditsPending = true;
 
@@ -852,6 +870,22 @@ namespace PerformanceTrayMonitor.ViewModels
 			OnPropertyChanged(nameof(TrayIconCountDisplay));
 
 			IsAtDefaultConfiguration = CheckIfDefault();
+		}
+
+		private void EnforceTrayLimit()
+		{
+			int allowed = TrayIconConfig.MaxCounterTrayIcons;
+			int count = 0;
+
+			foreach (var m in Metrics)
+			{
+				if (m.Settings.ShowInTray)
+				{
+					count++;
+					if (count > allowed)
+						m.Settings.ShowInTray = false;
+				}
+			}
 		}
 
 		private void Counter_PropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -956,7 +990,10 @@ namespace PerformanceTrayMonitor.ViewModels
 			var toRemove = Selected;
 			int idx = Metrics.IndexOf(toRemove);
 
-			Metrics.Remove(toRemove);
+			_pendingRemoval = Selected;
+			_pendingRemoval.IsPendingRemoval = true;
+			EditorPendingEdits = true;
+			//Metrics.Remove(toRemove);
 
 			if (Metrics.Any())
 			{
@@ -978,6 +1015,13 @@ namespace PerformanceTrayMonitor.ViewModels
 
 		private void Save()
 		{
+			if (_pendingRemoval != null)
+			{
+				Metrics.Remove(_pendingRemoval);
+				_pendingRemoval.IsPendingRemoval = false;
+				_pendingRemoval = null;
+			}
+
 			// Apply editor changes if needed
 			if (Selected != null && EditorPendingEdits)
 				Selected.UpdateFromSettings(Editor.ToSettings());
@@ -1008,6 +1052,12 @@ namespace PerformanceTrayMonitor.ViewModels
 			if (Selected == null)
 			{
 				return;
+			}
+
+			if (_pendingRemoval != null)
+			{
+				_pendingRemoval.IsPendingRemoval = false;
+				_pendingRemoval = null;
 			}
 
 			// ------------------------------------------------------------
@@ -1123,7 +1173,6 @@ namespace PerformanceTrayMonitor.ViewModels
 		private void ResetToDefaults()
 		{
 			BeginLoading();
-			//_isResettingConfig = true;
 
 			try
 			{
@@ -1151,39 +1200,9 @@ namespace PerformanceTrayMonitor.ViewModels
 			}
 			finally
 			{
-				//_isResettingConfig = false;
 				EndLoading();
 			}
 		}
-
-		/*
-		private static List<CounterSettingsDto> CloneMetrics(IEnumerable<CounterSettingsDto> source)
-		{
-			var clone = new List<CounterSettingsDto>();
-
-			foreach (var m in source)
-			{
-				clone.Add(new CounterSettingsDto
-				{
-					Id = m.Id,
-					Category = m.Category,
-					Counter = m.Counter,
-					Instance = m.Instance,
-					DisplayName = m.DisplayName,
-					Min = m.Min,
-					Max = m.Max,
-					ShowInTray = m.ShowInTray,
-					IconSet = m.IconSet,
-					UseTextTrayIcon = m.UseTextTrayIcon,
-					TrayAccentColorArgb = m.TrayAccentColorArgb,
-					AutoTrayBackground = m.AutoTrayBackground,
-					TrayBackgroundColorArgb = m.TrayBackgroundColorArgb
-				});
-			}
-
-			return clone;
-		}
-		*/
 
 		public void RestoreMetrics(IEnumerable<CounterSettingsDto> snapshot)
 		{
@@ -1288,10 +1307,12 @@ namespace PerformanceTrayMonitor.ViewModels
 			TrayPreviewImage = IconSetPreviewFrames[frameIndex];
 		}
 
+		/*
 		private static string FormatValueForTray(double value)
 		{
 			return $"{(int)value}%";
 		}
+		*/
 
 		private void OpenDebugIconWindow()
 		{
@@ -1338,19 +1359,13 @@ namespace PerformanceTrayMonitor.ViewModels
 
 		private void ShowMinMaxInfo()
 		{
-			MessageBox.Show(
-				"How Min and Max are used:\n\n" +
-				"Line graph:\n" +
-				"The small graph uses Min and Max to scale the line. " +
-				"Values below Min appear at the bottom, values above Max at the top.\n\n" +
-				"Animated icon (iconset):\n" +
-				"If you use an animated icon, Min and Max determine which frame is shown. " +
-				"The current value is mapped between Min and Max to pick the correct animation frame.",
-				"Min / Max Information",
+			MessageBox.Show(TrayIconConfig.MinMaxInformationText,
+				TrayIconConfig.MinMaxInformationHeader,
 				MessageBoxButton.OK,
 				MessageBoxImage.Information);
 		}
 
+		/*
 		public static void DoEvents()
 		{
 			// Forces a Layout, Measure, Arrange, Render. Input, Anything queued (up to Render priority) to flush!
@@ -1368,5 +1383,6 @@ namespace PerformanceTrayMonitor.ViewModels
 			await Task.Yield();   // let dispatcher run queued work
 			await Task.Delay(100);  // allow a render frame
 		}
+		*/
 	}
 }

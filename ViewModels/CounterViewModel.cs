@@ -50,9 +50,22 @@ namespace PerformanceTrayMonitor.ViewModels
 		private bool _autoTrayBackground;
 		private Color _trayBackgroundColor;
 
+
 		private ObservableCollection<float> _history { get; } = new();
 		public ObservableCollection<float> History => _history;
-
+		private bool _isPendingRemoval;
+		public bool IsPendingRemoval
+		{
+			get => _isPendingRemoval;
+			set
+			{
+				if (_isPendingRemoval != value)
+				{
+					_isPendingRemoval = value;
+					OnPropertyChanged(nameof(IsPendingRemoval));
+				}
+			}
+		}
 		public double ShadowOpacity { get; private set; }
 		private void RecomputeAccentBrush()
 		{

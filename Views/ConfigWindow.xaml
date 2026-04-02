@@ -107,15 +107,32 @@
                         BorderThickness="1"
                         CornerRadius="2"
                         Margin="0,0,0,12">
+
                     <ListBox ItemsSource="{Binding Metrics}"
                              SelectedItem="{Binding Selected, Mode=TwoWay}"
                              IsSynchronizedWithCurrentItem="True"
                              MinHeight="200">
+
+                        <!-- Item template -->
                         <ListBox.ItemTemplate>
                             <DataTemplate>
                                 <TextBlock Text="{Binding DisplayName}"/>
                             </DataTemplate>
                         </ListBox.ItemTemplate>
+
+                        <!-- Style in ItemContainerStyle -->
+                        <ListBox.ItemContainerStyle>
+                            <Style TargetType="ListBoxItem">
+                                <Setter Property="Opacity" Value="1"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsPendingRemoval}" Value="True">
+                                        <Setter Property="Opacity" Value="0.4"/>
+                                        <Setter Property="IsEnabled" Value="False"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </ListBox.ItemContainerStyle>
+
                     </ListBox>
                 </Border>
 
