@@ -26,7 +26,7 @@ namespace PerformanceTrayMonitor.Views
 			/*
 			Loaded += (_, __) =>
 			{
-				Log.Debug($"AboutWindow IsEnabled = {IsEnabled}");
+				//Log.Debug($"AboutWindow IsEnabled = {IsEnabled}");
 			};
 			*/
 		}

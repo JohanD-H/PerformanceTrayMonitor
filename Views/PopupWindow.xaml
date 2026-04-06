@@ -28,10 +28,10 @@
 
         <!-- Subtle grid background for sparkline panels -->
         <DrawingBrush x:Key="SparklineGridBrush"
-              TileMode="Tile"
-              Viewport="0,0,16,12"
-              ViewportUnits="Absolute"
-              Stretch="None">
+                      TileMode="Tile"
+                      Viewport="0,0,16,12"
+                      ViewportUnits="Absolute"
+                      Stretch="None">
             <DrawingBrush.Drawing>
                 <GeometryDrawing Brush="Transparent">
                     <GeometryDrawing.Pen>
@@ -54,13 +54,13 @@
 
     <Window.InputBindings>
         <KeyBinding Key="P"
-                Modifiers="Control"
-                Command="{Binding TogglePopupPinnedCommand,
-                                  RelativeSource={RelativeSource AncestorType=Window}}" />
+                    Modifiers="Control"
+                    Command="{Binding TogglePopupPinnedCommand,
+                                      RelativeSource={RelativeSource AncestorType=Window}}" />
 
         <KeyBinding Key="Escape"
-                Command="{Binding ClosePopupCommand,
-                                  RelativeSource={RelativeSource AncestorType=Window}}" />
+                    Command="{Binding ClosePopupCommand,
+                                      RelativeSource={RelativeSource AncestorType=Window}}" />
     </Window.InputBindings>
 
     <!-- Main Layout -->
@@ -187,10 +187,10 @@
                                                 Margin="0,0,6,0"
                                                 Fill="{Binding CurrentValue, Converter={StaticResource ActivityToBrush}}"/>
                                         <TextBlock x:Name="DisplayNameBlock"
-                                               Text="{Binding DisplayName}"
-                                               Foreground="{Binding AccentBrush}"
-                                               FontWeight="Bold"
-                                               VerticalAlignment="Center">
+                                                   Text="{Binding DisplayName}"
+                                                   Foreground="{Binding AccentBrush}"
+                                                   FontWeight="Bold"
+                                                   VerticalAlignment="Center">
                                                <!-- MouseLeftButtonDown="DisplayNameBlock_MouseLeftButtonDown" -->
                                             <TextBlock.Effect>
                                                 <DropShadowEffect Color="Black"

@@ -1,7 +1,8 @@
 ﻿using PerformanceTrayMonitor.Common;
-using PerformanceTrayMonitor.Tray;
+using PerformanceTrayMonitor.Configuration;
 using PerformanceTrayMonitor.Models;
 using PerformanceTrayMonitor.Settings;
+using PerformanceTrayMonitor.Tray;
 using PerformanceTrayMonitor.Views;
 using System;
 using System.Collections.Generic;
@@ -20,8 +21,11 @@ namespace PerformanceTrayMonitor.ViewModels
 		public ObservableCollection<CounterViewModel> Counters { get; } = new();
 
 		private readonly DispatcherTimer _timer;
+
 		private PopupWindow? _popup;
+
 		private TrayIconManager _trayIconManager;
+
 		private ConfigWindow? _configWindow;
 
 		// The full settings object (global + metrics)
@@ -29,6 +33,11 @@ namespace PerformanceTrayMonitor.ViewModels
 
 		// Shared ConfigViewModel
 		public ConfigViewModel SharedConfigVm { get; }
+
+		// Used to suppress undesired App Icon changes
+		internal bool _suppressReevaluation;
+
+		internal bool _suppressAppIconReeval;
 
 		// Popup pinning
 		private bool _popupPinned;
@@ -54,6 +63,47 @@ namespace PerformanceTrayMonitor.ViewModels
 			SharedConfigVm = new ConfigViewModel(GetSettingsSnapshot(), this);
 
 			_trayIconManager = new TrayIconManager(this);
+
+			SharedConfigVm.OnMetricPendingRemoval = metric =>
+			{
+				if (metric.ShowInTray)
+				{
+					// Update tray icon count (derived property will reflect it)
+					OnPropertyChanged(nameof(SharedConfigVm.TrayIconCount));
+					OnPropertyChanged(nameof(SharedConfigVm.TrayIconCountDisplay));
+
+					// Rebuild tray icons to reflect the intended state
+					_trayIconManager.RebuildAllIcons();
+				}
+			};
+
+			SharedConfigVm.OnMetricAdded = metric =>
+			{
+				if (metric.ShowInTray)
+					_trayIconManager.RebuildAllIcons();
+
+				OnPropertyChanged(nameof(SharedConfigVm.TrayIconCount));
+				OnPropertyChanged(nameof(SharedConfigVm.TrayIconCountDisplay));
+			};
+
+			SharedConfigVm.OnMetricCopied = metric =>
+			{
+				if (metric.ShowInTray)
+					_trayIconManager.RebuildAllIcons();
+
+				OnPropertyChanged(nameof(SharedConfigVm.TrayIconCount));
+				OnPropertyChanged(nameof(SharedConfigVm.TrayIconCountDisplay));
+			};
+
+			SharedConfigVm.OnMetricUpdated = metric =>
+			{
+				if (metric.ShowInTray)
+					_trayIconManager.RebuildAllIcons();
+
+				OnPropertyChanged(nameof(SharedConfigVm.TrayIconCount));
+				OnPropertyChanged(nameof(SharedConfigVm.TrayIconCountDisplay));
+			};
+
 
 			foreach (var vm in Counters)
 				vm.AttachCounter(CreateCounter(vm.Settings));
@@ -81,10 +131,12 @@ namespace PerformanceTrayMonitor.ViewModels
 			get => Settings.Global.ShowAppIcon;
 			set
 			{
+				Log.Debug($"ShowAppIcon: Settings.Global.ShowAppIcon = {Settings.Global.ShowAppIcon}, value = {value}");
 				if (Settings.Global.ShowAppIcon != value)
 				{
 					Settings.Global.ShowAppIcon = value;
-					OnPropertyChanged();
+					if (!_suppressReevaluation)
+						OnPropertyChanged();
 				}
 			}
 		}
@@ -281,9 +333,12 @@ namespace PerformanceTrayMonitor.ViewModels
 
 		public void ShowAppIconExplicit()
 		{
+			Log.Debug($"ShowAppIconExplicit: ShowAppIcon = {ShowAppIcon}");
 			if (!ShowAppIcon)
 			{
+				_suppressAppIconReeval = true;
 				ShowAppIcon = true;
+				_suppressAppIconReeval = false;
 				_trayIconManager.RebuildAllIcons();
 				SettingsSaveQueue.Enqueue(SettingsMapper.ToDto(Settings));
 			}
@@ -313,12 +368,18 @@ namespace PerformanceTrayMonitor.ViewModels
 
 		public void ToggleAppIcon()
 		{
+			Log.Debug($"ToggleAppIcon: Before ShowAppIcon = {ShowAppIcon}");
+
+			// Temporarily suppress reevaluation
+			_suppressReevaluation = true;
+
 			ShowAppIcon = !ShowAppIcon;
 
-			// Rebuild tray icons
+			_suppressReevaluation = false;
+
+			// Now rebuild deterministically
 			_trayIconManager.RebuildAllIcons();
 
-			// Persist the change
 			SettingsSaveQueue.Enqueue(SettingsMapper.ToDto(Settings));
 		}
 

@@ -213,7 +213,7 @@ namespace PerformanceTrayMonitor.Tray
 				value != _old_value)
 			{
 				_old_value = value;
-				Log.Debug($"[Network] Raw value = {value}, index = {index}");
+				//Log.Debug($"[Network] Raw value = {value}, index = {index}");
 			}
 #endif
 			if (index != _lastFrameIndex)
@@ -262,6 +262,7 @@ namespace PerformanceTrayMonitor.Tray
 
 		public void UpdateContextMenu()
 		{
+			Log.Debug($"UpdateContextMenu: ShowAppIcon = {_mainVm.ShowAppIcon}");
 			if (_mainVm.ShowAppIcon)
 			{
 				// App icon is visible → counters get NO menu

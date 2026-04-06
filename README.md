@@ -194,7 +194,10 @@ Performance Tray Monitor
 				Combined duplicate code, remove old code.
 	v1.3.9587	More UI fixes, the UI should only update when wanted, not mid load.
 				On startup metrics should be loaded async. Reinstated the Updating.. overlay.
-				Reinstate tray icon counting. Remove more old code.
+				Reinstate tray icon counting. Remove more old code
+	v1.4.9592	Rewrote metric configuration UI, using different button, in an attempt to make the UI cleaner.
+				Fix a bunch of UI and code errors.
+				Fix the app tray icon.
 
 
 More to come ...

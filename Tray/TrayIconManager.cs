@@ -52,6 +52,8 @@ namespace PerformanceTrayMonitor.Tray
 
 		private void InitializeAppIcon()
 		{
+			Log.Debug("TrayIconManager: creating AnimatedTrayIcon");
+
 			bool hasCounters = _counterIcons.Count > 0;
 
 			// ---> Rule:  vvvvvvvvvvvvvvvvv
@@ -84,9 +86,12 @@ namespace PerformanceTrayMonitor.Tray
 
 		private void MainVm_PropertyChanged(object? sender, PropertyChangedEventArgs e)
 		{
+			if (_mainVm._suppressReevaluation)
+				return;
+
 			if (e.PropertyName == nameof(MainViewModel.ShowAppIcon))
 			{
-				ReevaluateAppIcon();
+				//ReevaluateAppIcon();
 
 				// Also update counter menus
 				foreach (var icon in _counterIcons.Values)
@@ -123,13 +128,46 @@ namespace PerformanceTrayMonitor.Tray
 			}
 
 			// After counters change, re-evaluate the rule
-			ReevaluateAppIcon();
+			//ReevaluateAppIcon();
 		}
 
 		private void ReevaluateAppIcon()
 		{
+			Log.Debug("TrayIconManager: Reevaluating AnimatedTrayIcon");
+
+			bool hasCounters = _counterIcons.Count > 0;
+			bool shouldHaveAppIcon = !hasCounters || _mainVm.ShowAppIcon;
+
+			if (shouldHaveAppIcon)
+			{
+				// Create only if missing
+				if (_animatedIcon == null)
+				{
+					Log.Debug("TrayIconManager: creating AnimatedTrayIcon");
+					_animatedIcon = new AnimatedTrayIcon(_sharedConfigVm, _mainVm);
+				}
+			}
+			else
+			{
+				// Dispose only if present
+				if (_animatedIcon != null)
+				{
+					Log.Debug("TrayIconManager: disposing AnimatedTrayIcon");
+					_animatedIcon.Dispose();
+					_animatedIcon = null;
+				}
+			}
+
+			foreach (var icon in _counterIcons.Values)
+				icon.UpdateContextMenu();
+		}
+
+		/*
+		private void ReevaluateAppIcon()
+		{
 			bool hasCounters = _counterIcons.Count > 0;
 
+			Log.Debug("TrayIconManager: Reevaluating AnimatedTrayIcon");
 			// If no counters → ensure app icon exists
 			if (!hasCounters)
 			{
@@ -158,12 +196,15 @@ namespace PerformanceTrayMonitor.Tray
 			foreach (var icon in _counterIcons.Values)
 				icon.UpdateContextMenu();
 		}
+		*/
 
 		// ------------------------------------------------------------
 		// FULL REBUILD
 		// ------------------------------------------------------------
 		public void RebuildAllIcons()
 		{
+			Log.Debug("RebuildAllIcons: disposing app + counters");
+
 			_animatedIcon?.Dispose();
 			_animatedIcon = null;
 

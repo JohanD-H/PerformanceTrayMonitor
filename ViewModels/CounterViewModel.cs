@@ -12,8 +12,11 @@ namespace PerformanceTrayMonitor.ViewModels
 	public class CounterViewModel : BaseViewModel, IDisposable
 	{
 		public CounterSettings Settings { get; private set; }
+
 		private PerformanceCounter? _internalCounter;
+
 		private float _currentValue;
+
 		private SolidColorBrush? _accentBrush;
 		public SolidColorBrush AccentBrush
 		{
@@ -24,6 +27,7 @@ namespace PerformanceTrayMonitor.ViewModels
 				OnPropertyChanged();
 			}
 		}
+
 		public CounterViewModel(CounterSettings settings)
 		{
 			Settings = settings ?? throw new ArgumentNullException(nameof(settings));
@@ -37,6 +41,7 @@ namespace PerformanceTrayMonitor.ViewModels
 
 			AttachCounter(CreateInternalCounter(settings));
 		}
+
 		public Guid Id => Settings.Id;
 		public string Category => Settings.Category;
 		public string Counter => Settings.Counter;
@@ -50,9 +55,9 @@ namespace PerformanceTrayMonitor.ViewModels
 		private bool _autoTrayBackground;
 		private Color _trayBackgroundColor;
 
-
 		private ObservableCollection<float> _history { get; } = new();
 		public ObservableCollection<float> History => _history;
+
 		private bool _isPendingRemoval;
 		public bool IsPendingRemoval
 		{
@@ -66,13 +71,16 @@ namespace PerformanceTrayMonitor.ViewModels
 				}
 			}
 		}
+
 		public double ShadowOpacity { get; private set; }
+
 		private void RecomputeAccentBrush()
 		{
 			var (brush, shadow) = UIColors.GetSoftColorFor(DisplayName);
 			AccentBrush = brush;
 			ShadowOpacity = shadow;
 		}
+
 		public string DisplayName =>
 			string.IsNullOrWhiteSpace(Settings.DisplayName) ? Settings.Counter : Settings.DisplayName;
 

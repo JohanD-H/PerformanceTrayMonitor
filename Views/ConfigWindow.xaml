@@ -6,12 +6,12 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
         Title="Configure Metrics"
-        MinWidth="600" MinHeight="420"
-        Width="600" Height="420"
+        MinWidth="700" MinHeight="420"
+        Width="700" Height="420"
         ResizeMode="CanResizeWithGrip"
         Icon="/PerformanceTrayMonitor.ico"
         SizeToContent="Height"
-        d:DesignWidth="600"
+        d:DesignWidth="700"
         d:DesignHeight="670"
         Loaded="Window_Loaded">
 
@@ -47,23 +47,77 @@
             <EventSetter Event="Click" Handler="ButtonFlashHandler"/>
         </Style>
 
+        <Style x:Key="RoundIconButton" TargetType="Button">
+            <Setter Property="Width" Value="20"/>
+            <Setter Property="Height" Value="20"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="ToolTipService.ShowOnDisabled" Value="True"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Grid Background="Transparent">
+                            <Ellipse x:Name="Circle"
+                                     Fill="{TemplateBinding Background}"
+                                     Stroke="#666"
+                                     StrokeThickness="0.8"/>
+
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"/>
+                        </Grid>
+
+                        <ControlTemplate.Triggers>
+
+                            <!-- Disabled -->
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Circle" Property="Stroke" Value="#AAA"/>
+                                <Setter TargetName="Circle" Property="Fill" Value="#EEE"/>
+                                <Setter Property="Opacity" Value="0.5"/>
+                            </Trigger>
+
+                            <!-- Hover -->
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Circle" Property="Stroke" Value="#444"/>
+                            </Trigger>
+
+                            <!-- Pressed -->
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Circle" Property="Stroke" Value="#222"/>
+                                <Setter TargetName="Circle" Property="Fill" Value="#DDD"/>
+                            </Trigger>
+
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
     </Window.Resources>
 
     <Window.InputBindings>
-        <KeyBinding Key="Escape" Command="{Binding DiscardCommand}" />
-        <KeyBinding Key="Enter" Modifiers="Control" Command="{Binding ApplyCommand}" />
-        <KeyBinding Key="D" Modifiers="Control" Command="{Binding CopyCommand}" />
-        <KeyBinding Key="Delete" Command="{Binding RemoveCommand}" />
-        <KeyBinding Key="R" Modifiers="Control" Command="{Binding ResetCommand}" />
-        <KeyBinding Key="S" Modifiers="Control" Command="{Binding SaveCommand}" />
-        <KeyBinding Key="W" Modifiers="Control" Command="{Binding CloseCommand}" />
-        <KeyBinding Key="W" Modifiers="Control+Shift" Command="{Binding CancelCommand}" />
+        <!-- Editing -->
+        <KeyBinding Key="E"     Modifiers="Control"        Command="{Binding EditCommand}" />
+        <KeyBinding Key="Enter" Modifiers="Control"        Command="{Binding UpdateCommand}" />
+        <KeyBinding Key="N"     Modifiers="Control"        Command="{Binding AddCommand}" />
+        <KeyBinding Key="D"     Modifiers="Control"        Command="{Binding CopyCommand}" />
+        <KeyBinding Key="Delete"                           Command="{Binding RemoveCommand}" />
+
+        <!-- State / Reset -->
+        <KeyBinding Key="R"     Modifiers="Control"        Command="{Binding ResetCommand}" />
+
+        <!-- Save / Close -->
+        <KeyBinding Key="S"     Modifiers="Control"        Command="{Binding SaveCommand}" />
+        <KeyBinding Key="W"     Modifiers="Control"        Command="{Binding CloseCommand}" />
+        <KeyBinding Key="W"     Modifiers="Control+Shift"  Command="{Binding CancelCommand}" />
     </Window.InputBindings>
 
     <Grid Margin="12" Background="{StaticResource AppWindowGradient}">
         <Grid.RowDefinitions>
             <RowDefinition Height="*"/>
             <!-- Main content -->
+            <RowDefinition Height="50"/>
+            <!-- Buttons -->
             <RowDefinition Height="Auto"/>
             <!-- Status bar -->
         </Grid.RowDefinitions>
@@ -72,385 +126,538 @@
         <Grid Grid.Row="0">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="2*"/>
+                <!-- Left side -->
                 <ColumnDefinition Width="3*"/>
+                <!-- Right side -->
             </Grid.ColumnDefinitions>
 
             <!-- LEFT SIDE (Grid-based layout) -->
-            <Grid Grid.Column="0">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <!-- Title -->
-                    <RowDefinition Height="Auto"/>
-                    <!-- Subtitle -->
-                    <RowDefinition Height="*"/>
-                    <!-- List -->
-                    <RowDefinition Height="Auto"/>
-                    <!-- Buttons -->
-                </Grid.RowDefinitions>
+            <Border Grid.Column="0"
+                    Margin="0,0,0,0"
+                    BorderBrush="#CCC"
+                    BorderThickness="1"
+                    CornerRadius="4"
+                    Padding="5">
 
-                <TextBlock Grid.Row="0"
-                           Text="Tracked Metrics"
-                           FontWeight="Bold"
-                           FontSize="14"
-                           Margin="0,0,0,2"/>
-
-                <TextBlock Grid.Row="1"
-                           Text="(Click an item to edit its details)"
-                           FontStyle="Italic"
-                           FontSize="11"
-                           Foreground="#777"
-                           Margin="0,0,0,8"/>
-
-                <!-- Scrollable list with subtle border -->
-                <Border Grid.Row="2"
-                        BorderBrush="#CCC"
-                        BorderThickness="1"
-                        CornerRadius="2"
-                        Margin="0,0,0,12">
-
-                    <ListBox ItemsSource="{Binding Metrics}"
-                             SelectedItem="{Binding Selected, Mode=TwoWay}"
-                             IsSynchronizedWithCurrentItem="True"
-                             MinHeight="200">
-
-                        <!-- Item template -->
-                        <ListBox.ItemTemplate>
-                            <DataTemplate>
-                                <TextBlock Text="{Binding DisplayName}"/>
-                            </DataTemplate>
-                        </ListBox.ItemTemplate>
-
-                        <!-- Style in ItemContainerStyle -->
-                        <ListBox.ItemContainerStyle>
-                            <Style TargetType="ListBoxItem">
-                                <Setter Property="Opacity" Value="1"/>
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding IsPendingRemoval}" Value="True">
-                                        <Setter Property="Opacity" Value="0.4"/>
-                                        <Setter Property="IsEnabled" Value="False"/>
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </ListBox.ItemContainerStyle>
-
-                    </ListBox>
-                </Border>
-
-                <!-- Buttons -->
-                <Grid Grid.Row="3">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <!-- Apply / Copy -->
-                        <RowDefinition Height="4"/>
-                        <!-- Spacer -->
-                        <RowDefinition Height="Auto"/>
-                        <!-- Remove -->
-                        <RowDefinition Height="4"/>
-                        <!-- Spacer -->
-                        <RowDefinition Height="Auto"/>
-                        <!-- Reset to Default -->
-                    </Grid.RowDefinitions>
-
+                <Grid Grid.Column="0">
                     <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="30"/>
+                        <!-- buttons -->
                         <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="*"/>
+                        <!-- title + scrollable list + buttons -->
                     </Grid.ColumnDefinitions>
 
-                    <!-- Row 1: Apply (left) -->
-                    <Button Grid.Row="0" Grid.Column="0"
-                            Content="Apply"
-                            Margin="0,0,4,0"
-                            Command="{Binding ApplyCommand}"/>
-
-                    <!-- Row 1: Discard (right) -->
-                    <Button Grid.Row="0" Grid.Column="1"
-                            Content="Discard"
-                            Margin="0,0,4,0"
-                            Command="{Binding DiscardCommand}"/>
-
-                    <Button Grid.Row="2" Grid.Column="0"
-                            Content="Copy"
-                            Margin="4,0,0,0"
-                            Command="{Binding CopyCommand}"/>
-
-                    <!-- Row 3: Remove (left) -->
-                    <Button Grid.Row="2" Grid.Column="1"
-                            Content="Remove"
-                            Margin="0,0,4,0"
-                            Command="{Binding RemoveCommand}"/>
-
-                    <!-- Row 5: spacer (left), Reset to Default (right) -->
-                    <Rectangle Grid.Row="4" Grid.Column="0"
-                               Fill="Transparent"/>
-
-                    <Button Grid.Row="4" Grid.Column="0"
-                            Content="Reset to Default"
-                            Margin="4,0,0,0"
-                            Command="{Binding ResetCommand}"/>
-                </Grid>
-
-            </Grid>
-
-            <!-- RIGHT SIDE -->
-            <Grid Grid.Column="1" Margin="20,0,0,0">
-                <Grid x:Name="DetailsPanel" Margin="8,0,0,0">
                     <Grid.RowDefinitions>
-                        <RowDefinition Height="*"/>
                         <RowDefinition Height="Auto"/>
+                        <!-- Title -->
+                        <RowDefinition Height="Auto"/>
+                        <!-- Subtitle -->
+                        <RowDefinition Height="*"/>
+                        <!-- List -->
+                        <RowDefinition Height="Auto"/>
+                        <!-- Buttons -->
                     </Grid.RowDefinitions>
 
-                    <StackPanel Grid.Row="0">
-                        
-                        <TextBlock Text="Details"
-                                   FontSize="14"
-                                   Margin="0,0,0,8"
-                                   FontWeight="{Binding AnyPendingEdits,
-                                                Converter={StaticResource BoolToFontWeight}}"/>
+                    <!-- Left side button stack -->
+                    <StackPanel Grid.Row="2" 
+                                Grid.Column="0" 
+                                Orientation="Vertical" 
+                                VerticalAlignment="Top"
+                                HorizontalAlignment="Center">
 
-                        <!-- Display Name -->
-                        <TextBlock Text="Display Name"/>
-                        <TextBox Text="{Binding Editor.DisplayName, Mode=TwoWay,
-                                        UpdateSourceTrigger=PropertyChanged}"
-                                 Margin="0,0,0,8"/>
+                        <!-- Column 0 Row 2: + (Add metric) -->
+                        <Button Style="{StaticResource RoundIconButton}"
+                                Margin="0,60,0,0"
+                                ToolTip="Duplicate selected metric"
+                                Cursor="Hand"
+                                Background="LightGray"
+                                Command="{Binding CopyCommand}">
+                            <Canvas Width="12" Height="12">
+                                <Path Stroke="#666" StrokeThickness="1.5"
+                                            Data="M 6,2 V 10 M 2,6 H 10"/>
+                            </Canvas>
+                        </Button>
 
-                        <!-- Category -->
-                        <TextBlock Text="Category"/>
-                        <ComboBox ItemsSource="{Binding Categories}"
-                                  SelectedValuePath="."
-                                  SelectedValue="{Binding Editor.SelectedCategory, Mode=TwoWay}"
-                                  Margin="0,0,0,8"/>
+                        <!-- Column 0 Row 2: - (Remove metric) -->
+                        <Button Style="{StaticResource RoundIconButton}"
+                                Margin="0,25,0,0"
+                                ToolTip="Remove selected metric"
+                                Cursor="Hand"
+                                Background="LightGray"
+                                Command="{Binding RemoveCommand}">
+                            <Canvas Width="12" Height="12">
+                                <Path Stroke="#666" StrokeThickness="1.5"
+                                            Data="M 2,6 H 10"/>
+                            </Canvas>
+                        </Button>
 
-                        <!-- Counter -->
-                        <TextBlock Text="Counter"/>
-                        <!-- TextBlock Text="{Binding Editor.SelectedCounter}" / -->
-                        <ComboBox x:Name="CounterComboBox"
-                                  ItemsSource="{Binding CountersInCategory}"
-                                  SelectedValuePath="."
-                                  SelectedValue="{Binding Editor.SelectedCounter, Mode=TwoWay}"
-                                  Margin="0,0,0,8"/>
-
-                        <!-- Instance -->
-                        <TextBlock Text="Instance"/>
-                        <!-- TextBlock Text="{Binding Editor.SelectedInstance}" / -->
-                        <ComboBox x:Name="InstanceComboBox"
-                                  ItemsSource="{Binding Instances}"
-                                  SelectedValuePath="."
-                                  SelectedValue="{Binding Editor.SelectedInstance, Mode=TwoWay}"
-                                  Margin="0,0,0,8"/>
-
-                        <!-- Min / Max -->
-                        <StackPanel Orientation="Horizontal" Margin="0,4,0,8">
-                            <StackPanel Margin="0,0,12,0">
-                                <TextBlock Text="Min"/>
-                                <TextBox Text="{Binding Editor.Min, Mode=TwoWay}" Width="80"/>
-                            </StackPanel>
-
-                            <StackPanel Margin="0,0,12,0">
-                                <TextBlock Text="Max"/>
-                                <TextBox Text="{Binding Editor.Max, Mode=TwoWay}" Width="80"/>
-                            </StackPanel>
-
-                            <!-- Info button -->
-                            <Button Command="{Binding ShowMinMaxInfoCommand}"
-                                    Width="24" Height="24"
-                                    Margin="10,12,0,0"
-                                    ToolTip="How Min and Max are used"
-                                    Background="Transparent"
-                                    BorderThickness="0"
-                                    Cursor="Hand">
-
-                                <Grid>
-                                    <Ellipse Width="20" Height="20"
-                                             Stroke="#666"
-                                             StrokeThickness="0.8"/>
-                                    <TextBlock Text="i"
-                                               FontWeight="Bold"
-                                               Foreground="#666"
-                                               FontSize="14"
-                                               VerticalAlignment="Center"
-                                               HorizontalAlignment="Center"/>
-                                </Grid>
-                            </Button>
-                        </StackPanel>
-
-                        <!-- Tray Icon -->
-                        <GroupBox Header="Tray Icon" Margin="0,8,0,0">
-                            <StackPanel Margin="4">
-
-                                <!-- Show in tray + text mode toggle -->
-                                <Grid Margin="0,0,0,6">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="Auto"/>
-                                        <ColumnDefinition Width="20"/>
-                                        <ColumnDefinition Width="*"/>
-                                    </Grid.ColumnDefinitions>
-
-                                    <!-- Show in tray -->
-                                    <CheckBox Content="Show in tray"
-                                              IsChecked="{Binding Editor.ShowInTray, Mode=TwoWay}"
-                                              IsEnabled="{Binding Editor.CanShowInTray}"/>
-
-                                    <!-- Use text tray icon -->
-                                    <CheckBox Grid.Column="2"
-                                              Content="Use text tray icon"
-                                              IsChecked="{Binding Editor.UseTextTrayIcon, Mode=TwoWay}"
-                                              Visibility="{Binding Editor.ShowInTray, Converter={StaticResource BoolToVis}}"/>
-                                </Grid>
-
-                                <!-- Icon Set selector -->
-                                <StackPanel Orientation="Horizontal"
-                                            Visibility="{Binding Editor.ShowIconSetSelector,
-                                                         Converter={StaticResource BoolToVis}}">
-                                    <TextBlock Text="Icon Set"
-                                               VerticalAlignment="Center"
-                                               Margin="0,0,8,0"/>
-                                    <ComboBox ItemsSource="{Binding AvailableIconSets}"
-                                              SelectedItem="{Binding Editor.IconSet, Mode=TwoWay}"
-                                              Width="150"/>
-                                </StackPanel>
-
-                                <!-- Tray Icon Appearance -->
-                                <GroupBox Header="Tray Icon Appearance"
-                                          Margin="0,12,0,0"
-                                          Visibility="{Binding Editor.ShowInTray, Converter={StaticResource BoolToVis}}">
-
-                                    <Grid Margin="8">
-
-                                        <!-- TEXT MODE UI -->
-                                        <Grid Visibility="{Binding Editor.UseTextTrayIcon, Converter={StaticResource BoolToVis}}">
-                                            <Grid.RowDefinitions>
-                                                <RowDefinition Height="Auto"/>
-                                                <RowDefinition Height="8"/>
-                                                <RowDefinition Height="Auto"/>
-                                                <RowDefinition Height="Auto"/>
-                                                <RowDefinition Height="12"/>
-                                                <RowDefinition Height="Auto"/>
-                                            </Grid.RowDefinitions>
-
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="Auto"/>
-                                            </Grid.ColumnDefinitions>
-
-                                            <!-- Accent Color -->
-                                            <StackPanel Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Center">
-                                                <TextBlock Text="Accent color"
-                                                           VerticalAlignment="Center"
-                                                           Margin="0,0,8,0"/>
-
-                                                <Button Background="{Binding Editor.TrayAccentBrush}"
-                                                        Command="{Binding Editor.PickAccentColorCommand}"
-                                                        Width="40" Height="20" />
-                                            </StackPanel>
-
-                                            <!-- Background Mode -->
-                                            <StackPanel Grid.Row="2">
-                                                <TextBlock Text="Background" Margin="0,0,0,4"/>
-
-                                                <RadioButton Content="Auto (derived from accent)"
-                                                             IsChecked="{Binding Editor.AutoTrayBackground}"/>
-
-                                                <RadioButton Content="Manual"
-                                                             Margin="0,4,0,0"
-                                                             IsChecked="{Binding Editor.AutoTrayBackground,
-                                                                         Converter={StaticResource InverseBoolConverter}}"/>
-                                            </StackPanel>
-
-                                            <!-- Manual Background Picker -->
-                                            <StackPanel Grid.Row="3"
-                                                        Orientation="Horizontal"
-                                                        Margin="16,4,0,0"
-                                                        Visibility="{Binding Editor.ShowBackgroundColorPicker,
-                                                                     Converter={StaticResource BoolToVis}}">
-                                                <TextBlock Text="Background color"
-                                                           VerticalAlignment="Center"
-                                                           Margin="0,0,8,0"/>
-
-                                                <Button Background="{Binding Editor.TrayBackgroundBrush}"
-                                                        Command="{Binding Editor.PickBackgroundColorCommand}"
-                                                        Width="40" Height="20" />
-                                            </StackPanel>
-
-                                            <!-- Text Preview -->
-                                            <StackPanel Grid.Row="5" Grid.ColumnSpan="2"
-                                                        Orientation="Horizontal"
-                                                        VerticalAlignment="Center"
-                                                        Margin="0,4,0,0">
-
-                                                <TextBlock Text="Icon Preview:" VerticalAlignment="Center" Margin="0,0,8,0"/>
-
-                                                <Border BorderBrush="#CCC" BorderThickness="1" Padding="4"
-                                                        Width="48" Height="48">
-                                                    <Image Source="{Binding TrayPreviewImage}"
-                                                           Stretch="Uniform"/>
-                                                </Border>
-                                            </StackPanel>
-                                        </Grid>
-
-                                        <!-- ICON SET MODE UI -->
-                                        <StackPanel Visibility="{Binding Editor.UseTextTrayIcon,
-                                                                 Converter={StaticResource InverseBoolToVis}}">
-
-                                            <!-- Label + Icon on one line -->
-                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,0,4">
-                                                <TextBlock Text="Icon Set Preview" VerticalAlignment="Center" Margin="0,0,8,0"/>
-
-                                                <Border BorderBrush="#CCC" BorderThickness="1" Padding="4"
-                                                        Width="48" Height="48">
-                                                    <Image Source="{Binding TrayPreviewImage}"
-                                                           Stretch="Uniform"
-                                                           HorizontalAlignment="Center"
-                                                           VerticalAlignment="Center"/>
-                                                </Border>
-                                            </StackPanel>
-
-                                            <!-- Button below -->
-                                            <Button Content="Icon Set Preview"
-                                                    Width="120"
-                                                    Margin="0,6,0,0"
-                                                    Command="{Binding OpenDebugIconWindowCommand}"/>
-                                        </StackPanel>
-
-                                    </Grid>
-                                </GroupBox>
-
-                            </StackPanel>
-                        </GroupBox>
                     </StackPanel>
 
-                    <!-- Bottom Buttons -->
-                    <Grid Grid.Row="1" HorizontalAlignment="Center" Margin="0,16,0,8">
+                    <TextBlock Grid.Column="1" Grid.Row="0"
+                               Text="Tracked Metrics"
+                               FontSize="14"
+                               Margin="2,0,0,2"
+                               FontWeight="{Binding GlobalEditsPending,
+                                            Converter={StaticResource BoolToFontWeight}}"/>
+
+
+                    <TextBlock Grid.Column="1" Grid.Row="1"
+                               Text="(Select metric for processing)" 
+                               FontStyle="Italic"
+                               FontSize="11"
+                               Foreground="#777"
+                               Margin="2,0,0,8"/> 
+
+                        <!-- Scrollable list with subtle border -->
+                    <Border Grid.Column="1" Grid.Row="2"
+                            BorderBrush="#CCC"
+                            BorderThickness="1"
+                            CornerRadius="2"
+                            Padding="0"
+                            Margin="0,0,0,12">
+
+                        <ListBox ItemsSource="{Binding Metrics}"
+                                 SelectedItem="{Binding Selected, Mode=TwoWay}"
+                                 IsSynchronizedWithCurrentItem="True"
+                                 MinHeight="200">
+
+                            <!-- Item template -->
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding DisplayName}"/>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+
+                            <!-- Style in ItemContainerStyle -->
+                            <ListBox.ItemContainerStyle>
+                                <Style TargetType="ListBoxItem">
+                                    <Setter Property="Opacity" Value="1"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsPendingRemoval}" Value="True">
+                                            <Setter Property="Opacity" Value="0.4"/>
+                                            <Setter Property="IsEnabled" Value="False"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </ListBox.ItemContainerStyle>
+
+                        </ListBox>
+                    </Border>
+
+                    <!-- Buttons -->
+                    <Grid Grid.Row="3" Grid.Column="1">
+                        <!--
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <- Apply / Copy ->
+                            <RowDefinition Height="4"/>
+                            <- Spacer ->
+                            <RowDefinition Height="Auto"/>
+                            <- Remove ->
+                            <RowDefinition Height=""/>
+                            <- Spacer ->
+                            <RowDefinition Height="Auto"/>
+                            <- Reset to Default ->
+                        </Grid.RowDefinitions>
+                        -->
+
+                        <!--
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="8"/>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="8"/>
-                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <- Left buttons ->
+                            <ColumnDefinition Width="*"/>
+                            <- Right buttons ->
+                        </Grid.ColumnDefinitions>
+                        -->
+
+                        <!-- Row 1: Apply (left)
+                        <Button Grid.Row="0" Grid.Column="0"
+                                Content="Apply"
+                                Margin="4,0,0,0"
+                                Command="{Binding ApplyCommand}"/>
+
+                        <- Row 1: Discard (right) ->
+                        <Button Grid.Row="0" Grid.Column="1"
+                                Content="Discard"
+                                Margin="0,0,4,0"
+                                Command="{Binding DiscardCommand}"/>
+
+                        <Button Grid.Row="2" Grid.Column="0"
+                                Content="Copy"
+                                Margin="4,0,0,0"
+                                Command="{Binding CopyCommand}"/>
+
+                        <- Row 3: Remove (left) ->
+                        <Button Grid.Row="2" Grid.Column="1"
+                                Content="Remove"
+                                Margin="0,0,4,0"
+                                Command="{Binding RemoveCommand}"/> -->
+
+                        <!-- Row 5: spacer (left), Reset to Default (right) Grid.Row="2" Grid.Column="0"-->
+                        <Rectangle Fill="Transparent"/>
+
+                        <Button Content="Reset to Default"
+                                ToolTip="Reset all metric to default"
+                                Margin="40,0,40,0"
+                                Command="{Binding ResetCommand}"/>
+                    </Grid>
+
+                </Grid>
+            </Border>   <!-- End Left side -->
+            
+            <!-- RIGHT SIDE -->
+            <Border Grid.Column="1"
+                    Margin="0,0,0,0"
+                    BorderBrush="#CCC"
+                    BorderThickness="1"
+                    CornerRadius="4"
+                    Padding="5">
+
+                <Grid>
+                    <Grid x:Name="DetailsPanel">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="30"/>
+                            <!-- Buttons -->
+                            <ColumnDefinition Width="*"/>
+                            <!-- Details -->
                         </Grid.ColumnDefinitions>
 
-                        <Button Grid.Column="0" Content="Save" MinWidth="94" Command="{Binding SaveCommand}"/>
-                        <Button Grid.Column="2" Content="Cancel" MinWidth="94" Command="{Binding CancelCommand}"/>
-                        <Button Grid.Column="4" Content="Close" MinWidth="94" Command="{Binding CloseCommand}"/>
-                    </Grid>
-                </Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*"/>
+                            <!-- Buttons + Details -->
+                            <RowDefinition Height="Auto"/>
+                            <!-- ??? -->
+                        </Grid.RowDefinitions>
 
-                <!-- Loading overlay -->
-                <Border Background="#80FFFFFF"
-                        Visibility="{Binding IsBusy,
-                                     Converter={StaticResource BoolToVis}}"
-                        Margin="0,0,0,40">
-                    <TextBlock Text="Updating&#x2026; please wait"
-                               HorizontalAlignment="Center"
-                               VerticalAlignment="Center"
-                               FontSize="16"
-                               FontWeight="Bold"
-                               Foreground="#444"/>
-                </Border>
+                        <!-- Right side button stack -->
+                        <StackPanel Grid.Row="0" 
+                                Grid.Column="0" 
+                                Orientation="Vertical" 
+                                VerticalAlignment="Top"
+                                HorizontalAlignment="Left">
+
+                            <!-- Column 0 Row 0: > (Edit metric) -->
+                            <Button Style="{StaticResource RoundIconButton}"
+                                    Margin="0,85,0,0"
+                                    Background="LightGray"
+                                    ToolTip="Edit selected metric"
+                                    Cursor="Hand"
+                                    Command="{Binding EditCommand}">
+                                <Canvas Width="12" Height="12">
+                                    <Path Stroke="#666" StrokeThickness="1.5"
+                                            Data="M 4,2 L 8,6 L 4,10"/>
+                                </Canvas>
+                            </Button>
+
+                            <!-- Column 0 Row 0: < (Update metric) -->
+                            <Button Style="{StaticResource RoundIconButton}"
+                                    Margin="0,25,0,0"
+                                    Background="LightGray"
+                                    ToolTip="Update metric"
+                                    Cursor="Hand"
+                                    Command="{Binding UpdateCommand}">
+                                <Canvas Width="12" Height="12">
+                                    <Path Stroke="#666" StrokeThickness="1.5"
+                                              Data="M 8,2 L 4,6 L 8,10"/>
+                                </Canvas>
+                            </Button>
+
+                            <!-- Column 0 Row 0: <+ (Add+Update metric) -->
+                            <Button Style="{StaticResource RoundIconButton}"
+                                    Margin="0,25,0,0"
+                                    Background="LightGray"
+                                    ToolTip="Add new metric"
+                                    Cursor="Hand"
+                                    Command="{Binding AddCommand}">
+                                <!-- Combined <+ Path -->
+                                <!-- M: Move to, L: Line to, H: Horizontal line, V: Vertical line -->
+                                <Canvas Width="12" Height="12">
+                                    <!-- Left arrow -->
+                                    <Path Stroke="#666" StrokeThickness="1.5"
+                                            Data="M 4,2 L 1,6 L 4,10"/>
+
+                                    <!-- Plus sign -->
+                                    <Path Stroke="#666" StrokeThickness="1.5"
+                                            Data="M 7,3 V 9 M 4,6 H 10"/>
+                                </Canvas>
+                            </Button>
+                            
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="1" Grid.Row="0">
+                        
+                            <TextBlock Text="Details"
+                                       FontSize="14"
+                                       Margin="0,0,0,8"
+                                       FontWeight="{Binding EditorPendingEdits,
+                                                    Converter={StaticResource BoolToFontWeight}}"/>
+
+                            <!-- Display Name -->
+                            <TextBlock Text="Display Name"/>
+                            <TextBox Text="{Binding Editor.DisplayName, Mode=TwoWay,
+                                            UpdateSourceTrigger=PropertyChanged}"
+                                     Margin="0,0,0,8"/>
+
+                            <!-- Category -->
+                            <TextBlock Text="Category"/>
+                            <ComboBox ItemsSource="{Binding Categories}"
+                                      SelectedItem="{Binding Editor.SelectedCategory, Mode=TwoWay}"
+                                      Margin="0,0,0,8"/>
+                            <!-- SelectedValuePath="."
+                                 SelectedValue="{Binding Editor.SelectedCategory, Mode=TwoWay}"
+                                 SelectedItem="{Binding Editor.SelectedCategory, Mode=TwoWay}"
+                                 <TextBlock Text="DBG Category:"/>
+                                 <TextBlock Text="{Binding Editor.SelectedCategory}"/> -->
+
+                            <!-- Counter -->
+                            <TextBlock Text="Counter"/>
+                            <ComboBox x:Name="CounterComboBox"
+                                      ItemsSource="{Binding Editor.CountersInCategory}"
+                                      SelectedItem="{Binding Editor.SelectedCounter, Mode=TwoWay}"
+                                      Margin="0,0,0,8"/>
+                            <!-- SelectedValuePath="."
+                                 SelectedValue="{Binding Editor.SelectedCounter, Mode=TwoWay}" 
+                                 SelectedItem="{Binding Editor.SelectedCounter, Mode=TwoWay}"
+                                 <TextBlock Text="DBG Counter:"/>
+                                 <TextBlock Text="{Binding Editor.SelectedCounter}"/> -->
+
+                            <!-- Instance -->
+                            <TextBlock Text="Instance"/>
+                            <ComboBox x:Name="InstanceComboBox"
+                                      ItemsSource="{Binding Editor.Instances}"
+                                      SelectedItem="{Binding Editor.SelectedInstance, Mode=TwoWay}"
+                                      Margin="0,0,0,8"/>
+                            <!-- SelectedValuePath="."
+                                 SelectedValue="{Binding Editor.SelectedInstance, Mode=TwoWay}" 
+                                 SelectedItem="{Binding Editor.SelectedInstance, Mode=TwoWay}"
+                                 <TextBlock Text="DBG Instance:"/>
+                                 <TextBlock Text="{Binding Editor.SelectedInstance}"/> -->
+
+                            <!-- Min / Max -->
+                            <StackPanel Orientation="Horizontal" Margin="0,4,0,8">
+                                <StackPanel Margin="0,0,12,0">
+                                    <TextBlock Text="Min"/>
+                                    <TextBox Text="{Binding Editor.Min, Mode=TwoWay}" Width="80"/>
+                                </StackPanel>
+
+                                <StackPanel Margin="0,0,12,0">
+                                    <TextBlock Text="Max"/>
+                                    <TextBox Text="{Binding Editor.Max, Mode=TwoWay}" Width="80"/>
+                                </StackPanel>
+
+                                <!-- Info button -->
+                                <Button Command="{Binding ShowMinMaxInfoCommand}"
+                                        Width="24" Height="24"
+                                        Margin="10,12,0,0"
+                                        ToolTip="How Min and Max are used"
+                                        Background="Transparent"
+                                        BorderThickness="0"
+                                        Cursor="Hand">
+
+                                    <Grid>
+                                        <Ellipse Width="20" Height="20"
+                                                 Stroke="#666"
+                                                 StrokeThickness="0.8"/>
+                                        <TextBlock Text="i"
+                                                   FontWeight="Bold"
+                                                   Foreground="#666"
+                                                   FontSize="14"
+                                                   VerticalAlignment="Center"
+                                                   HorizontalAlignment="Center"/>
+                                    </Grid>
+                                </Button>
+                            </StackPanel>
+
+                            <!-- Tray Icon -->
+                            <GroupBox Header="Tray Icon" Margin="0,8,0,0">
+                                <StackPanel Margin="4">
+
+                                    <!-- Show in tray + text mode toggle -->
+                                    <Grid Margin="0,0,0,6">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="20"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <!-- Show in tray -->
+                                        <CheckBox Content="Show in tray"
+                                                  IsChecked="{Binding Editor.ShowInTray, Mode=TwoWay}"
+                                                  IsEnabled="{Binding DataContext.CanShowInTray, 
+                                                              RelativeSource={RelativeSource AncestorType=Window}}"/>
+
+                                        <!-- Use text tray icon -->
+                                        <CheckBox Grid.Column="2"
+                                                  Content="Use text tray icon"
+                                                  IsChecked="{Binding Editor.UseTextTrayIcon, Mode=TwoWay}"
+                                                  Visibility="{Binding Editor.ShowInTray, Converter={StaticResource BoolToVis}}"/>
+                                    </Grid>
+
+                                    <!-- Icon Set selector -->
+                                    <StackPanel Orientation="Horizontal"
+                                                Visibility="{Binding Editor.ShowIconSetSelector,
+                                                             Converter={StaticResource BoolToVis}}">
+                                        <TextBlock Text="Icon Set"
+                                                   VerticalAlignment="Center"
+                                                   Margin="0,0,8,0"/>
+                                        <ComboBox ItemsSource="{Binding AvailableIconSets}"
+                                                  SelectedItem="{Binding Editor.IconSet, Mode=TwoWay}"
+                                                  Width="150"/>
+                                    </StackPanel>
+
+                                    <!-- Tray Icon Appearance -->
+                                    <GroupBox Header="Tray Icon Appearance"
+                                              Margin="0,12,0,0"
+                                              Visibility="{Binding Editor.ShowInTray, Converter={StaticResource BoolToVis}}">
+
+                                        <Grid Margin="8">
+
+                                            <!-- TEXT MODE UI -->
+                                            <Grid Visibility="{Binding Editor.UseTextTrayIcon, Converter={StaticResource BoolToVis}}">
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="8"/>
+                                                    <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="12"/>
+                                                    <RowDefinition Height="Auto"/>
+                                                </Grid.RowDefinitions>
+
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+
+                                                <!-- Accent Color -->
+                                                <StackPanel Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Center">
+                                                    <TextBlock Text="Accent color"
+                                                               VerticalAlignment="Center"
+                                                               Margin="0,0,8,0"/>
+
+                                                    <Button Background="{Binding Editor.TrayAccentBrush}"
+                                                            Command="{Binding Editor.PickAccentColorCommand}"
+                                                            Width="40" Height="20" />
+                                                </StackPanel>
+
+                                                <!-- Background Mode -->
+                                                <StackPanel Grid.Row="2">
+                                                    <TextBlock Text="Background" Margin="0,0,0,4"/>
+
+                                                    <RadioButton Content="Auto (derived from accent)"
+                                                                 IsChecked="{Binding Editor.AutoTrayBackground}"/>
+
+                                                    <RadioButton Content="Manual"
+                                                                 Margin="0,4,0,0"
+                                                                 IsChecked="{Binding Editor.AutoTrayBackground,
+                                                                             Converter={StaticResource InverseBoolConverter}}"/>
+                                                </StackPanel>
+
+                                                <!-- Manual Background Picker -->
+                                                <StackPanel Grid.Row="3"
+                                                            Orientation="Horizontal"
+                                                            Margin="16,4,0,0"
+                                                            Visibility="{Binding Editor.ShowBackgroundColorPicker,
+                                                                         Converter={StaticResource BoolToVis}}">
+                                                    <TextBlock Text="Background color"
+                                                               VerticalAlignment="Center"
+                                                               Margin="0,0,8,0"/>
+
+                                                    <Button Background="{Binding Editor.TrayBackgroundBrush}"
+                                                            Command="{Binding Editor.PickBackgroundColorCommand}"
+                                                            Width="40" Height="20" />
+                                                </StackPanel>
+
+                                                <!-- Text Preview -->
+                                                <StackPanel Grid.Row="5" Grid.ColumnSpan="2"
+                                                            Orientation="Horizontal"
+                                                            VerticalAlignment="Center"
+                                                            Margin="0,4,0,0">
+
+                                                    <TextBlock Text="Icon Preview:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+
+                                                    <Border BorderBrush="#CCC" BorderThickness="1" Padding="4"
+                                                            Width="48" Height="48">
+                                                        <Image Source="{Binding TrayPreviewImage}"
+                                                               Stretch="Uniform"/>
+                                                    </Border>
+                                                </StackPanel>
+                                            </Grid>
+
+                                            <!-- ICON SET MODE UI -->
+                                            <StackPanel Visibility="{Binding Editor.UseTextTrayIcon,
+                                                                     Converter={StaticResource InverseBoolToVis}}">
+
+                                                <!-- Label + Icon on one line -->
+                                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,0,4">
+                                                    <TextBlock Text="Icon Set Preview" VerticalAlignment="Center" Margin="0,0,8,0"/>
+
+                                                    <Border BorderBrush="#CCC" BorderThickness="1" Padding="4"
+                                                            Width="48" Height="48">
+                                                        <Image Source="{Binding TrayPreviewImage}"
+                                                               Stretch="Uniform"
+                                                               HorizontalAlignment="Center"
+                                                               VerticalAlignment="Center"/>
+                                                    </Border>
+                                                </StackPanel>
+
+                                                <!-- Button below -->
+                                                <Button Content="Icon Set Preview"
+                                                        Width="120"
+                                                        Margin="0,6,0,0"
+                                                        Command="{Binding OpenDebugIconWindowCommand}"/>
+                                            </StackPanel>
+
+                                        </Grid>
+                                    </GroupBox>
+
+                                </StackPanel>
+                            </GroupBox>
+                        </StackPanel>
+
+                    </Grid>
+
+                    <!-- Loading overlay  -->
+                    <Border Background="#80FFFFFF"
+                            Visibility="{Binding IsBusy,
+                                         Converter={StaticResource BoolToVis}}"
+                            Margin="0,0,0,40">
+                        <TextBlock Text="Updating&#x2026; please wait"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center"
+                                   FontSize="16"
+                                   FontWeight="Bold"
+                                   Foreground="#444"/>
+                    </Border>
+                
+                </Grid>
+            </Border>   <!-- End Right side-->
+
+        </Grid> <!-- End MAIN CONTENT GRID -->
+
+        <!-- Bottom Buttons -->
+        <Border Grid.Row="1"
+                BorderBrush="#DDD"
+                BorderThickness="0,1,0,0"
+                Margin="0,16,20,8">
+
+            <Grid HorizontalAlignment="Right">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="60"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="60"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <Button Grid.Column="0" Content="Save" ToolTip="Save changes" MinWidth="94" Command="{Binding SaveCommand}"/>
+                <Button Grid.Column="2" Content="Cancel" ToolTip="Cancel unsaved changes" MinWidth="94" Command="{Binding CancelCommand}"/>
+                <Button Grid.Column="4" Content="Close" ToolTip="Close and cancel unsaved changes" MinWidth="94" Command="{Binding CloseCommand}"/>
             </Grid>
-        </Grid>
+
+        </Border>
 
         <!-- STATUS BAR -->
-        <Border Grid.Row="1"
+        <Border Grid.Row="2"
         Grid.ColumnSpan="2"
         Height="26"
         Margin="0,8,0,0"

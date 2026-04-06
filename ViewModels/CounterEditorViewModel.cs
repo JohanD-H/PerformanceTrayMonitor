@@ -3,36 +3,47 @@ using PerformanceTrayMonitor.Configuration;
 using PerformanceTrayMonitor.Models;
 using PerformanceTrayMonitor.Settings;
 using System;
+using System.Collections.ObjectModel;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using System.Windows.Threading;
 
 namespace PerformanceTrayMonitor.ViewModels
 {
 	public class CounterEditorViewModel : BaseViewModel
 	{
 		private readonly ConfigViewModel _parent;
+
 		private Guid _id;
 		public Guid Id
 		{
 			get => _id;
-			set { _id = value; OnPropertyChanged(); }
+			set
+			{
+				_id = value; 
+				OnPropertyChanged();
+				_parent.NotifyTraySettingsChanged();
+			}
 		}
 		// Standard properties
 		public string DisplayName { get => _displayName; set { _displayName = value; OnPropertyChanged(); } }
 		public float Min { get => _min; set { _min = value; OnPropertyChanged(); } }
 		public float Max { get => _max; set { _max = value; OnPropertyChanged(); } }
-		public bool CanShowInTray => _parent.TrayIconCount < TrayIconConfig.MaxCounterTrayIcons || ShowInTray;
 		public bool ShowInTray
 		{
 			get => _showInTray;
 			set
 			{
+				// Make sure Show in tray is only ON when allowed!
 				_showInTray = value;
 				OnPropertyChanged();
 				OnPropertyChanged(nameof(ShowIconSetSelector));
+				_parent.NotifyTraySettingsChanged();  // Notify parent to notify UI!
 			}
 		}
 		public string IconSet { get => _iconSet; set { _iconSet = value; OnPropertyChanged(); } }
@@ -54,14 +65,22 @@ namespace PerformanceTrayMonitor.ViewModels
 		public Brush TrayBackgroundBrush => new SolidColorBrush(TrayBackgroundColor);
 
 		private string? _uiCategory;		// UI category metric value save
-		private string? _uiCounter;		// UI counter metric value save
+		private string? _uiCounter;			// UI counter metric value save
 		private string? _uiInstance;		// UI instance metric value save
 		
 		internal bool _suppressEditorSetters;   // Editor setter gate
 
+		public ObservableCollection<string> CountersInCategory { get; }
+			= new ObservableCollection<string>();
+
+		public ObservableCollection<string> Instances { get; }
+			= new ObservableCollection<string>();
+
 		public CounterEditorViewModel(ConfigViewModel parent)
 		{
 			_parent = parent;
+
+			//Log.Debug($"EditorViewModel CREATED: instance = {GetHashCode()}");
 
 			PickAccentColorCommand = new RelayCommand(_ => PickAccentColor());
 			PickBackgroundColorCommand = new RelayCommand(_ => PickBackgroundColor());
@@ -72,25 +91,35 @@ namespace PerformanceTrayMonitor.ViewModels
 			get => _uiCategory;
 			set
 			{
-				if (_suppressEditorSetters)
+				if (_uiCategory == value)
 				{
-					//Log.Debug($"SelectedCategory: suppressed setter, assigning backing field only");
-					_uiCategory = value;
-					OnPropertyChanged(nameof(SelectedCategory));
+					Log.Debug($"SelectedCategory: _uiCategory == value -> {_uiCategory == value}");
 					return;
 				}
+
+				Log.Debug($"[Setter] SelectedCategory SET to '{value}' (UI sees this)");
 
 				_uiCategory = value;
 				OnPropertyChanged(nameof(SelectedCategory));
 
+				// During LoadFrom → DO NOT run shadow or parent pipeline
+				if (_parent.SuppressEditorChanges || _parent._isSelectionLoadInProgress)
+				{
+					Log.Debug("SelectedCategory: EARLY EXIT");
+					return;
+				}
+
+				// Normal user edit → run full pipeline
 				if (!_parent._isCommittingShadow)
 				{
-					//Log.Debug($"SelectedCategory: shadow Category = {value}");
 					_parent.MarkEditorDirty();
+					
+					Log.Debug($"[Pipeline] ApplySelectedFromEditorAsync triggered due to SelectedCategory change");
 
 					_parent._shadow.Category = value;
 					_parent._shadow.Counter = null;
 					_parent._shadow.Instance = null;
+
 					_ = _parent.ApplySelectedFromEditorAsync();
 				}
 			}
@@ -101,37 +130,37 @@ namespace PerformanceTrayMonitor.ViewModels
 			get => _uiCounter;
 			set
 			{
-				// If suppressed → assign only
-				if (_suppressEditorSetters)
-				{
-					//Log.Debug($"SelectedCounter: suppressed setter, assigning backing field only");
-					_uiCounter = value;
-					OnPropertyChanged(nameof(SelectedCounter));
-					return;
-				}
-
-				// If loading → assign only
-				if (_parent.IsLoading || _parent.IsSelectionLoadInProgress)
-				{
-					_uiCounter = value;
-					OnPropertyChanged(nameof(SelectedCounter));
-					return;
-				}
-
-				// If unchanged → ignore
 				if (_uiCounter == value)
+				{
+					Log.Debug($"SelectedCounter: _uiCounter == value -> {_uiCounter == value}");
 					return;
+				}
 
-				// Normal user edit
+				Log.Debug($"[Setter] SelectedCounter SET to '{value}' (UI sees this)");
+
 				_uiCounter = value;
 				OnPropertyChanged(nameof(SelectedCounter));
 
-				//Log.Debug($"SelectedCounter: shadow Counter = {value}");
-				_parent.MarkEditorDirty();
+				// During LoadFrom → DO NOT run shadow or parent pipeline
+				if (_parent.SuppressEditorChanges || _parent._isSelectionLoadInProgress)
+				{
+					Log.Debug("SelectedCounter: EARLY EXIT");
+					return;
+				}
 
-				_parent._shadow.Counter = value;
-				_parent._shadow.Instance = null;
-				_ = _parent.ApplySelectedFromEditorAsync();
+				// Normal user edit → run full pipeline
+				if (!_parent._isCommittingShadow)
+				{
+					_parent.MarkEditorDirty();
+
+					Log.Debug($"[Pipeline] ApplySelectedFromEditorAsync triggered due to SelectedCounterchange");
+
+					_parent._shadow.Counter = value;
+					_parent._shadow.Instance = null;
+
+					_ = _parent.ApplySelectedFromEditorAsync();
+				}
+				//OnPropertyChanged(nameof(SelectedCounter));
 			}
 		}
 
@@ -140,83 +169,107 @@ namespace PerformanceTrayMonitor.ViewModels
 			get => _uiInstance;
 			set
 			{
-				if (_suppressEditorSetters)
+				if (_uiInstance == value)
 				{
-					//Log.Debug($"SelectedInstance: suppressed setter, assigning backing field only");
-					_uiInstance = value;
-					OnPropertyChanged(nameof(SelectedInstance));
+					Log.Debug("SelectedInstance: _uiInstance == value -> {_uiInstance == value}");
 					return;
 				}
 
-				if (_parent.IsLoading || _parent.IsSelectionLoadInProgress)
+				Log.Debug($"[Setter] SelectedInstance SET to '{value}' (UI sees this)");
+
+				_uiInstance = value;
+				OnPropertyChanged(nameof(SelectedInstance));
+
+				// During LoadFrom → DO NOT run shadow or parent pipeline
+				if (_parent.SuppressEditorChanges || _parent._isSelectionLoadInProgress)
 				{
-					//Log.Debug($"SelectedInstance: uiInstance = {value}");
-					_uiInstance = value;
-					OnPropertyChanged(nameof(SelectedInstance));
+					Log.Debug("SelectedInstance: EARLY EXIT");
 					return;
 				}
 
+				// Normal user edit → run full pipeline
 				if (!_parent._isCommittingShadow)
 				{
+					Log.Debug($"[Pipeline] ApplySelectedFromEditorAsync triggered due to SelectedInstance change");
+
 					_parent.MarkEditorDirty();
+					_parent._shadow.Instance = value;
+
+					// Instance change does NOT trigger ApplySelectedFromEditorAsync
+					// because instance does not change the metric identity
 				}
 			}
 		}
 
-		public void LoadFrom(CounterViewModel vm)
+		public async Task LoadFrom(CounterViewModel vm)
 		{
-			var defaults = new DefaultSettingsProvider().CreateDefaultCounter();
-			bool isNewMetric = vm.Id == Guid.Empty || Id == Guid.Empty;
+			Log.Debug($"LoadFrom: vm.Id = {vm.Id}, Editor BEFORE load Id = {Id}");
 
-			//Log.Debug($"[LoadFrom] vm.Category={vm.Category}, vm.Counter={vm.Counter}, vm.Instance={vm.Instance}");
+			_parent.SuppressEditorChanges = true;
+			_parent._isSelectionLoadInProgress = true;
+
 			try
 			{
+				// Load primitive values
+				Log.Debug($"LoadFrom: INSTANCE = {GetHashCode()}, vm.Id = {vm.Id}, Editor BEFORE load Id = {Id}");
 				Id = vm.Id;
-
-				// Shadow only
-				_parent._shadow.Category = vm.Category ?? "";
-				_parent._shadow.Counter = vm.Counter ?? "";
-				_parent._shadow.Instance = vm.Instance ?? "";
-
+				Log.Debug($"LoadFrom: INSTANCE = {GetHashCode()}, AFTER assign, Editor.Id = {Id}");
 				DisplayName = vm.DisplayName;
 				Min = vm.Min;
 				Max = vm.Max;
 
-				if (!isNewMetric)
-				{
-					// Existing metric → copy tray settings
-					ShowInTray = vm.ShowInTray;
-					IconSet = vm.IconSet;
-					UseTextTrayIcon = vm.UseTextTrayIcon;
-					TrayAccentColor = vm.TrayAccentColor;
-					AutoTrayBackground = vm.AutoTrayBackground;
-					TrayBackgroundColor = vm.TrayBackgroundColor;
-				}
-				else
-				{
-					// NEW METRIC → reset tray settings
-					ShowInTray = defaults.ShowInTray;
-					UseTextTrayIcon = defaults.UseTextTrayIcon;
-					IconSet = defaults.IconSet;
-					TrayAccentColor = defaults.TrayAccentColor;
-					AutoTrayBackground = defaults.AutoTrayBackground;
-					TrayBackgroundColor = defaults.TrayBackgroundColor;
-				}
-				/*
+				// Load tray settings
+				Log.Debug($"LoadFrom: Loading tray settings, Editor.Id = {Id}");
 				ShowInTray = vm.ShowInTray;
 				IconSet = vm.IconSet;
 				UseTextTrayIcon = vm.UseTextTrayIcon;
 				TrayAccentColor = vm.TrayAccentColor;
 				AutoTrayBackground = vm.AutoTrayBackground;
 				TrayBackgroundColor = vm.TrayBackgroundColor;
-				*/
 
-				_parent.ResetEditorDirtyState();
+				// Clear Counter and Instances list
+				Log.Debug($"LoadFrom: Before Counters clear Id = {Id}");
+				CountersInCategory.Clear();
+				//Log.Debug($"LoadFrom: After Counters clear Id = {Id}");
+				//Log.Debug($"LoadFrom: Before Instances 1 clear Id = {Id}");
+				Instances.Clear();
+				//Log.Debug($"LoadFrom: After Instances 1 clear Id = {Id}");
+
+				// Load Counters
+				//Log.Debug($"LoadFrom: Before LoadCountersCoreAsync Id = {Id}");
+				var counters = await _parent.LoadCountersCoreAsync(vm.Category, CancellationToken.None);
+				Log.Debug($"SelectedCounter = '{vm.Counter}' (len={vm.Counter?.Length})");
+				foreach (var c in counters)
+				{
+					Log.Debug($"LoadFrom: Counter Item = '{c}' (len={c.Length})");
+					CountersInCategory.Add(c);
+				}
+
+				// Load Instances
+				//Log.Debug($"LoadFrom: Before Instances 2 clear Id = {Id}");
+				Instances.Clear();
+				//Log.Debug($"LoadFrom: After Instances 2 clear Id = {Id}");
+				var instances = await _parent.LoadInstancesCoreAsync(vm.Category, vm.Counter, CancellationToken.None);
+				//Log.Debug($"LoadFrom: After LoadInstancesCoreAsync Id = {Id}");
+				Log.Debug($"SelectedInstance = '{vm.Instance}' (len={vm.Instance?.Length})");
+				foreach (var inst in instances)
+				{
+					Log.Debug($"LoadFrom: Instance Item = '{inst}' (len={inst.Length})");
+					Instances.Add(inst);
+				}
 			}
-			finally 
-			{ 
-				// Nothing to do
+			finally
+			{
+				_parent.SuppressEditorChanges = false;
+				//_parent.ResetEditorDirtyState();
 			}
+			//Log.Debug($"LoadFrom: Id = {Id}");
+
+			SelectedCategory = vm.Category;
+			SelectedCounter = vm.Counter;
+			SelectedInstance = vm.Instance;
+			
+			_parent._isSelectionLoadInProgress = false;
 		}
 
 		public void LoadDefaults()
@@ -353,6 +406,7 @@ namespace PerformanceTrayMonitor.ViewModels
 			return initial; // unchanged
 		}
 
+		/*
 		private BitmapSource? _trayPreviewImage;
 		public BitmapSource TrayPreviewImage
 		{
@@ -366,5 +420,6 @@ namespace PerformanceTrayMonitor.ViewModels
 				}
 			}
 		}
+		*/
 	}
 }

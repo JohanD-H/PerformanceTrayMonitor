@@ -45,11 +45,11 @@
         <!-- Diagnostics Card -->
         <!-- ========================================================= -->
         <Border x:Name="DiagCard"
-        Grid.Row="1"
-        Padding="12"
-        Margin="0,0,0,8"
-        CornerRadius="6"
-        BorderThickness="2">
+                Grid.Row="1"
+                Padding="12"
+                Margin="0,0,0,8"
+                CornerRadius="6"
+                BorderThickness="2">
 
             <Grid>
                 <Grid.RowDefinitions>
@@ -59,31 +59,31 @@
                 </Grid.RowDefinitions>
 
                 <TextBlock x:Name="DiagHeader"
-                   Grid.Row="0"
-                   FontWeight="Bold"
-                   FontSize="16"
-                   Margin="0,0,0,4"/>
+                           Grid.Row="0"
+                           FontWeight="Bold"
+                           FontSize="16"
+                           Margin="0,0,0,4"/>
 
                 <TextBlock x:Name="DiagMeta"
-                   Grid.Row="1"
-                   TextWrapping="Wrap"
-                   Margin="0,0,0,4"/>
+                           Grid.Row="1"
+                           TextWrapping="Wrap"
+                           Margin="0,0,0,4"/>
 
                 <Expander x:Name="DiagErrors"
-                  Grid.Row="2"
-                  Header="Errors"
-                  Visibility="Collapsed">
+                          Grid.Row="2"
+                          Header="Errors"
+                          Visibility="Collapsed">
 
                     <ScrollViewer HorizontalScrollBarVisibility="Auto"
-                          VerticalScrollBarVisibility="Auto"
-                          Padding="2">
+                                  VerticalScrollBarVisibility="Auto"
+                                  Padding="2">
 
                         <ItemsControl x:Name="DiagErrorList">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
                                     <TextBlock Text="{Binding}"
-                                       TextWrapping="NoWrap"
-                                       Margin="0,0,0,2"/>
+                                               TextWrapping="NoWrap"
+                                               Margin="0,0,0,2"/>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>

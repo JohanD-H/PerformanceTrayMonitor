@@ -32,8 +32,15 @@ namespace PerformanceTrayMonitor.Configuration
 		private ContextMenu? _wpfMenu;
 		private int _frameIndex;
 
+		// Debugging
+		private static int _nextId;
+		private readonly int _id;
+
 		public AnimatedTrayIcon(ConfigViewModel sharedConfigVm, MainViewModel mainVm)
 		{
+			_id = ++_nextId;
+			Log.Debug($"AnimatedTrayIcon[{_id}]: ctor");
+
 			_sharedConfigVm = sharedConfigVm;
 			_mainVm = mainVm;
 
@@ -141,9 +148,10 @@ namespace PerformanceTrayMonitor.Configuration
 			menu.Items.Add(new Separator());
 
 			// App Icon toggle
+			Log.Debug($"BuildWpfMenu: ShowAppIcon = {_mainVm.ShowAppIcon}");
 			menu.Items.Add(new MenuItem
 			{
-				Header = _mainVm.ShowAppIcon ? "Hide App Icon" : "Show App Icon",
+				Header = _mainVm.ShowAppIcon ? "Hide App Icon" : "",
 				IsEnabled = anyCounterVisible,   // <--- Grey out when no counters exist
 				Command = new RelayCommand(_ =>
 				{
@@ -325,6 +333,8 @@ namespace PerformanceTrayMonitor.Configuration
 				return;
 
 			_disposed = true;
+
+			Log.Debug($"AnimatedTrayIcon[{_id}]: Dispose");
 
 			_timer.Stop();
 			_timer.Tick -= OnTimerTick;
