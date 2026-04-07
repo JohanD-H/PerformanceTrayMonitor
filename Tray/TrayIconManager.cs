@@ -35,8 +35,8 @@ namespace PerformanceTrayMonitor.Tray
 			// Create the app icon according to the golden rule
 			InitializeAppIcon();
 
-			// Subscribe to changes
-			SubscribeToCounterEvents();
+			// Subscribe to changes, NO LONGER USEFULL!
+			//SubscribeToCounterEvents();
 			_mainVm.PropertyChanged += MainVm_PropertyChanged;
 
 			foreach (var icon in _counterIcons.Values)
@@ -78,6 +78,7 @@ namespace PerformanceTrayMonitor.Tray
 		{
 			if (sender is not CounterSettings settings)
 				return;
+			Log.Debug($"CounterSettings_PropertyChanged: Id = {settings.Id}");
 
 			var counter = _mainVm.Counters.FirstOrDefault(c => c.Settings.Id == settings.Id);
 			if (counter == null)
@@ -101,6 +102,7 @@ namespace PerformanceTrayMonitor.Tray
 			}
 		}
 
+		/*
 		private void SubscribeToCounterEvents()
 		{
 			_mainVm.Counters.CollectionChanged += Counters_CollectionChanged;
@@ -108,9 +110,11 @@ namespace PerformanceTrayMonitor.Tray
 			foreach (var counter in _mainVm.Counters)
 				counter.Settings.PropertyChanged += CounterSettings_PropertyChanged;
 		}
+		*/
 
 		private void Counters_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
 		{
+			Log.Debug($"Counters_CollectionChanged: NewItems = {e.NewItems}, OldItems = {e.OldItems}");
 			if (e.NewItems != null)
 			{
 				foreach (CounterViewModel vm in e.NewItems)
@@ -247,6 +251,7 @@ namespace PerformanceTrayMonitor.Tray
 
 			if (_counterIcons.Count >= TrayIconConfig.MaxCounterTrayIcons)
 			{
+				Log.Debug($"TryCreateCounterIcon: _counterIcon.Count = {_counterIcons.Count}, setting ShowInTray false!");
 				settings.ShowInTray = false;
 				return;
 			}

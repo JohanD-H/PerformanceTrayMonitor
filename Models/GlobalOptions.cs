@@ -10,7 +10,7 @@ namespace PerformanceTrayMonitor.Models
 	public sealed class GlobalOptions : INotifyPropertyChanged
 	{
 		public event PropertyChangedEventHandler? PropertyChanged;
-		private void OnPropertyChanged([CallerMemberName] string name = null)
+		private void OnPropertyChanged([CallerMemberName] string? name = null)
 			=> PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 		public bool ShowAppIcon { get; set; }
 		public bool PopupPinned { get; set; }
@@ -25,7 +25,7 @@ namespace PerformanceTrayMonitor.Models
 			get => _customColors;
 			set => SetField(ref _customColors, value);
 		}
-		private bool SetField<T>(ref T field, T value, [CallerMemberName] string name = null)
+		private bool SetField<T>(ref T field, T value, [CallerMemberName] string? name = null)
 		{
 			if (EqualityComparer<T>.Default.Equals(field, value))
 				return false;

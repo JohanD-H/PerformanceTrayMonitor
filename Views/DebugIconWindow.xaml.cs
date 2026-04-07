@@ -97,7 +97,7 @@ namespace PerformanceTrayMonitor.Views
 
 			foreach (var uri in set.Frames)
 			{
-				BitmapImage bmp = null;
+				BitmapImage? bmp = null;
 
 				try
 				{

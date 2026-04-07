@@ -234,7 +234,7 @@ namespace PerformanceTrayMonitor.ViewModels
 				Min = defaults.Min;
 				Max = defaults.Max;
 			}
-
+			ShowInTray = defaults.ShowInTray;
 			EnsureTrayDefaults();
 			_newMetricDefaultsApplied = true;
 
@@ -258,13 +258,6 @@ namespace PerformanceTrayMonitor.ViewModels
 				DisplayName = vm.DisplayName;
 				Min = vm.Min;
 				Max = vm.Max;
-				/* Not sure I like the below right here!
-				if (Min == 0 && Max == 0)
-				{
-					Min = defaults.Min;
-					Max = defaults.Max;
-				}
-				*/
 
 				// Load tray settings
 				//Log.Debug($"LoadFrom: Loading tray settings, Editor.Id = {Id}");
@@ -333,12 +326,13 @@ namespace PerformanceTrayMonitor.ViewModels
 			DisplayName = defaults.DisplayName;
 			Min = defaults.Min;
 			Max = defaults.Max;
-			IconSet = defaults.IconSet;
 			ShowInTray = defaults.ShowInTray;
-			UseTextTrayIcon = defaults.UseTextTrayIcon;
-			TrayAccentColor = defaults.TrayAccentColor;
-			AutoTrayBackground = defaults.AutoTrayBackground;
-			TrayBackgroundColor = defaults.TrayBackgroundColor;
+			EnsureTrayDefaults();
+			//IconSet = defaults.IconSet;
+			//UseTextTrayIcon = defaults.UseTextTrayIcon;
+			//TrayAccentColor = defaults.TrayAccentColor;
+			//AutoTrayBackground = defaults.AutoTrayBackground;
+			//TrayBackgroundColor = defaults.TrayBackgroundColor;
 
 			_parent.ResetEditorDirtyState();
 		}
@@ -447,6 +441,7 @@ namespace PerformanceTrayMonitor.ViewModels
 
 			return initial; // unchanged
 		}
+
 		internal void EnsureTrayDefaults()
 		{
 			var defaults = new DefaultSettingsProvider().CreateDefaultCounter();

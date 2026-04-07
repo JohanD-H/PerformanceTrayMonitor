@@ -64,7 +64,7 @@ namespace PerformanceTrayMonitor.Models
 			}
 		}
 
-		public static SettingsDto Load()
+		public static SettingsDto? Load()
 		{
 			try
 			{

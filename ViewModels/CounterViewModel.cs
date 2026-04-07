@@ -104,14 +104,20 @@ namespace PerformanceTrayMonitor.ViewModels
 
 		public void UpdateFromSettings(CounterSettings incoming)
 		{
-			// Update the data
+			//Log.Debug($"[UFS] this.Id = {Id}, incoming.ShowInTray = {incoming.ShowInTray}, BEFORE this.Settings.ShowInTray = {Settings.ShowInTray}");
+			//Log.Debug($"[UFS] Settings object hash BEFORE = {Settings.GetHashCode()}");
+
 			Settings.Category = incoming.Category;
 			Settings.Counter = incoming.Counter;
 			Settings.Instance = incoming.Instance;
+
+
 			Settings.DisplayName = incoming.DisplayName;
 			Settings.Min = incoming.Min;
 			Settings.Max = incoming.Max;
+			//Log.Debug($"[UFS] this.Id = {Id}, Before setting showintray incoming.ShowInTray = {incoming.ShowInTray}");
 			Settings.ShowInTray = incoming.ShowInTray;
+			//Log.Debug($"[UFS] this.Id = {Id}, After setting showintray Settings.ShowInTray = {Settings.ShowInTray}");
 			Settings.IconSet = incoming.IconSet;
 
 			Settings.UseTextTrayIcon = incoming.UseTextTrayIcon;
@@ -124,12 +130,14 @@ namespace PerformanceTrayMonitor.ViewModels
 			_autoTrayBackground = incoming.AutoTrayBackground;
 			_trayBackgroundColor = incoming.TrayBackgroundColor;
 
-			// Re-hook the Windows counter because the Category/Instance changed
+			//Log.Debug($"[UFS] Settings object hash AFTER = {Settings.GetHashCode()}");
+			//Log.Debug($"[UFS] this.Id = {Id}, BEFORE attachCounter this.Settings.ShowInTray = {Settings.ShowInTray}");
+
 			AttachCounter(CreateInternalCounter(Settings));
+			RecomputeAccentBrush();
 
-			RecomputeAccentBrush();          // <- keep color in sync with name
+			//Log.Debug($"[UFS] AFTER this.Settings.ShowInTray = {Settings.ShowInTray}");
 
-			// Tell WPF to refresh everything
 			OnPropertyChanged(string.Empty);
 		}
 
@@ -152,6 +160,8 @@ namespace PerformanceTrayMonitor.ViewModels
 
 		public void AttachCounter(PerformanceCounter? pc)
 		{
+			//Log.Debug($"AttachCounter: Settings hash = {Settings.GetHashCode()}");
+
 			_internalCounter?.Dispose();
 			_internalCounter = pc;
 			// Prime it
