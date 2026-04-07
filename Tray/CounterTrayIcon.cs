@@ -19,14 +19,19 @@ namespace PerformanceTrayMonitor.Tray
 	public sealed class CounterTrayIcon : IDisposable
 	{
 		private readonly CounterSettings _settings;
+
 		private readonly Func<double> _valueProvider;
+
 		private readonly Icon[] _frames;
 
 		private readonly NotifyIcon _notifyIcon;
+
 		private readonly Timer _updateTimer;
+
 		private readonly MainViewModel _mainVm;
 
 		public System.Windows.Media.Color TrayBackgroundColor { get; set; }
+
 		private Icon? _lastClone;
 
 		// ------------------------------------------------------------
@@ -262,7 +267,7 @@ namespace PerformanceTrayMonitor.Tray
 
 		public void UpdateContextMenu()
 		{
-			Log.Debug($"UpdateContextMenu: ShowAppIcon = {_mainVm.ShowAppIcon}");
+			//Log.Debug($"UpdateContextMenu: ShowAppIcon = {_mainVm.ShowAppIcon}");
 			if (_mainVm.ShowAppIcon)
 			{
 				// App icon is visible → counters get NO menu

@@ -39,7 +39,7 @@ namespace PerformanceTrayMonitor.Configuration
 		public AnimatedTrayIcon(ConfigViewModel sharedConfigVm, MainViewModel mainVm)
 		{
 			_id = ++_nextId;
-			Log.Debug($"AnimatedTrayIcon[{_id}]: ctor");
+			//Log.Debug($"AnimatedTrayIcon[{_id}]: ctor");
 
 			_sharedConfigVm = sharedConfigVm;
 			_mainVm = mainVm;
@@ -148,7 +148,7 @@ namespace PerformanceTrayMonitor.Configuration
 			menu.Items.Add(new Separator());
 
 			// App Icon toggle
-			Log.Debug($"BuildWpfMenu: ShowAppIcon = {_mainVm.ShowAppIcon}");
+			//Log.Debug($"BuildWpfMenu: ShowAppIcon = {_mainVm.ShowAppIcon}");
 			menu.Items.Add(new MenuItem
 			{
 				Header = _mainVm.ShowAppIcon ? "Hide App Icon" : "",
@@ -334,7 +334,7 @@ namespace PerformanceTrayMonitor.Configuration
 
 			_disposed = true;
 
-			Log.Debug($"AnimatedTrayIcon[{_id}]: Dispose");
+			//Log.Debug($"AnimatedTrayIcon[{_id}]: Dispose");
 
 			_timer.Stop();
 			_timer.Tick -= OnTimerTick;

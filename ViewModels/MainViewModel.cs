@@ -1,5 +1,4 @@
 ﻿using PerformanceTrayMonitor.Common;
-using PerformanceTrayMonitor.Configuration;
 using PerformanceTrayMonitor.Models;
 using PerformanceTrayMonitor.Settings;
 using PerformanceTrayMonitor.Tray;
@@ -11,7 +10,6 @@ using System.Diagnostics;
 using System.Windows;
 using System.Windows.Forms;
 using System.Windows.Input;
-using System.Windows.Media.Animation;
 using System.Windows.Threading;
 
 namespace PerformanceTrayMonitor.ViewModels
@@ -131,7 +129,7 @@ namespace PerformanceTrayMonitor.ViewModels
 			get => Settings.Global.ShowAppIcon;
 			set
 			{
-				Log.Debug($"ShowAppIcon: Settings.Global.ShowAppIcon = {Settings.Global.ShowAppIcon}, value = {value}");
+				//Log.Debug($"ShowAppIcon: Settings.Global.ShowAppIcon = {Settings.Global.ShowAppIcon}, value = {value}");
 				if (Settings.Global.ShowAppIcon != value)
 				{
 					Settings.Global.ShowAppIcon = value;
@@ -333,7 +331,7 @@ namespace PerformanceTrayMonitor.ViewModels
 
 		public void ShowAppIconExplicit()
 		{
-			Log.Debug($"ShowAppIconExplicit: ShowAppIcon = {ShowAppIcon}");
+			//Log.Debug($"ShowAppIconExplicit: ShowAppIcon = {ShowAppIcon}");
 			if (!ShowAppIcon)
 			{
 				_suppressAppIconReeval = true;
@@ -368,7 +366,7 @@ namespace PerformanceTrayMonitor.ViewModels
 
 		public void ToggleAppIcon()
 		{
-			Log.Debug($"ToggleAppIcon: Before ShowAppIcon = {ShowAppIcon}");
+			//Log.Debug($"ToggleAppIcon: Before ShowAppIcon = {ShowAppIcon}");
 
 			// Temporarily suppress reevaluation
 			_suppressReevaluation = true;

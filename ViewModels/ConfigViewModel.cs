@@ -377,7 +377,7 @@ namespace PerformanceTrayMonitor.ViewModels
 
 			try
 			{
-				Log.Debug($"CommitShadowToEditor: Category = {_shadow.Category}, Counter = {_shadow.Counter}, Instance = {_shadow.Instance}");
+				//Log.Debug($"CommitShadowToEditor: Category = {_shadow.Category}, Counter = {_shadow.Counter}, Instance = {_shadow.Instance}");
 				Editor.SelectedCategory = _shadow.Category;
 				Editor.SelectedCounter = _shadow.Counter;
 				Editor.SelectedInstance = _shadow.Instance;
@@ -397,14 +397,14 @@ namespace PerformanceTrayMonitor.ViewModels
 
 		private void Editor_PropertyChanged(object? sender, PropertyChangedEventArgs e)
 		{
-			Log.Debug($"Editor_PropertyChanged: property = {e.PropertyName}, " +
-					  $"IsLoading = {IsLoading}, IsSelectionLoadInProgress = {IsSelectionLoadInProgress}");
+			//Log.Debug($"Editor_PropertyChanged: property = {e.PropertyName}, " +
+			//		  $"IsLoading = {IsLoading}, IsSelectionLoadInProgress = {IsSelectionLoadInProgress}");
 			// ------------------------------------------------------------
 			// Ignore ALL changes during programmatic loads
 			// ------------------------------------------------------------
 			if (IsLoading || IsSelectionLoadInProgress || SuppressEditorChanges)
 			{
-				Log.Debug($"Editor_PropertyChanged: EARLY EXIT");
+				//Log.Debug($"Editor_PropertyChanged: EARLY EXIT");
 				return;
 			}
 
@@ -423,7 +423,7 @@ namespace PerformanceTrayMonitor.ViewModels
 			{
 				case nameof(Editor.SelectedCategory):
 					// Identity changed → force new metric
-					Log.Debug($"Editor_PropertyChanged, Editor Category changed {Editor.SelectedCategory}");
+					//Log.Debug($"Editor_PropertyChanged, Editor Category changed {Editor.SelectedCategory}");
 					//Editor.Id = Guid.Empty;  <-- No longer used, new UI setup does not need it and it may harm!
 					break;
 
@@ -450,7 +450,7 @@ namespace PerformanceTrayMonitor.ViewModels
 			// ------------------------------------------------------------
 			// Update preview + status bar
 			// ------------------------------------------------------------
-			Log.Debug($"Editor_PropertyChanged, Update preview + Statusbar!");
+			//Log.Debug($"Editor_PropertyChanged, Update preview + Statusbar!");
 			UpdateDynamicPreview();
 			OnPropertyChanged(nameof(MetricsCount));
 			OnPropertyChanged(nameof(StatusText));
@@ -475,7 +475,7 @@ namespace PerformanceTrayMonitor.ViewModels
 				//
 				// Load counters for the selected category
 				//
-				//Log.Debug($"ApplySelectedAsync: loading counters for Category = {_shadow.Category}");
+				Log.Debug($"ApplySelectedAsync: loading counters for Category = {_shadow.Category}");
 
 				await Task.Run(async () =>
 				{
@@ -489,7 +489,7 @@ namespace PerformanceTrayMonitor.ViewModels
 				// Auto-select counter BEFORE loading instances
 				//
 				string beforeCounter = string.IsNullOrEmpty(_shadow.Counter) ? "Null" : _shadow.Counter;
-				//Log.Debug($"ApplySelectedAsync: auto-select Counter (before) = {beforeCounter}");
+				Log.Debug($"ApplySelectedAsync: auto-select Counter (before) = {beforeCounter}");
 
 				if (string.IsNullOrWhiteSpace(_shadow.Counter) ||
 					!_shadow.CountersInCategory.Contains(_shadow.Counter))
@@ -498,7 +498,7 @@ namespace PerformanceTrayMonitor.ViewModels
 						_shadow.Counter = _shadow.CountersInCategory[0];
 				}
 
-				//Log.Debug($"ApplySelectedAsync: auto-select Counter (after) = {_shadow.Counter}");
+				Log.Debug($"ApplySelectedAsync: auto-select Counter (after) = {_shadow.Counter}");
 
 				//
 				// Load instances for the selected counter
@@ -517,7 +517,7 @@ namespace PerformanceTrayMonitor.ViewModels
 				// Auto-select instance
 				//
 				string beforeInstance = string.IsNullOrEmpty(_shadow.Instance) ? "Null" : _shadow.Instance;
-				//Log.Debug($"ApplySelectedAsync: auto-select Instance (before) = {beforeInstance}");
+				Log.Debug($"ApplySelectedAsync: auto-select Instance (before) = {beforeInstance}");
 
 				if (string.IsNullOrWhiteSpace(_shadow.Instance) ||
 					!_shadow.Instances.Contains(_shadow.Instance))
@@ -526,7 +526,7 @@ namespace PerformanceTrayMonitor.ViewModels
 						_shadow.Instance = _shadow.Instances[0];
 				}
 
-				//Log.Debug($"ApplySelectedAsync: auto-select Instance (after) = {_shadow.Instance}");
+				Log.Debug($"ApplySelectedAsync: auto-select Instance (after) = {_shadow.Instance}");
 
 				//
 				// Push lists to UI
@@ -535,19 +535,22 @@ namespace PerformanceTrayMonitor.ViewModels
 				{
 					Log.Debug("[Pipeline] ApplySelectedFromEditorAsync Replacing CountersInCategory collection");
 
-					CountersInCategory = new ObservableCollection<string>(_shadow.CountersInCategory);
-					OnPropertyChanged(nameof(CountersInCategory));
+					// Update Editor.CountersInCategory
+					Editor.CountersInCategory.Clear();
+					foreach (var c in _shadow.CountersInCategory)
+						Editor.CountersInCategory.Add(c);
+					OnPropertyChanged(nameof(Editor.CountersInCategory));
 
-					Instances.Clear();
+					Editor.Instances.Clear();
 					foreach (var inst in _shadow.Instances)
-						Instances.Add(inst);
-					OnPropertyChanged(nameof(Instances));
+						Editor.Instances.Add(inst);
+					OnPropertyChanged(nameof(Editor.Instances));
 				});
 
 				//
 				// Commit shadow → UI
 				//
-				//Log.Debug("ApplySelectedAsync: committing shadow to editor");
+				Log.Debug("ApplySelectedAsync: committing shadow to editor");
 				CommitShadowToEditor();
 			}
 			finally
@@ -556,6 +559,7 @@ namespace PerformanceTrayMonitor.ViewModels
 				EndLoading();
 				IsSelectionLoadInProgress = false;
 
+				Log.Debug($"ApplySelectedFromEditorAsync: Editor Iconset = {Editor.IconSet}");
 				LoadIconSetPreviewFrames(Editor.IconSet);
 				UpdateDynamicPreview();
 			}
@@ -717,7 +721,7 @@ namespace PerformanceTrayMonitor.ViewModels
 			if (string.IsNullOrEmpty(category))
 				return new List<string>();
 
-			Log.Debug("[Pipeline] LoadCountersCoreAsync Reloading counters/instances — selection will reset to first item");
+			//Log.Debug("[Pipeline] LoadCountersCoreAsync Reloading counters/instances — selection will reset to first item");
 
 			var names = await RunOnBackgroundThread(() =>
 			{
@@ -742,7 +746,7 @@ namespace PerformanceTrayMonitor.ViewModels
 			if (string.IsNullOrEmpty(category) || string.IsNullOrEmpty(counter))
 				return new List<string>();
 
-			Log.Debug("[Pipeline] LoadInstancesCoreAsync Reloading counters/instances — selection will reset to first item");
+			//Log.Debug("[Pipeline] LoadInstancesCoreAsync Reloading counters/instances — selection will reset to first item");
 
 			var validInstances = await Task.Run(() =>
 			{
@@ -896,8 +900,8 @@ namespace PerformanceTrayMonitor.ViewModels
 			if (Selected == null)
 				return;
 
-			Log.Debug($"AddMetric: Selected.GUID = {Selected.Id}, Editor.GUID = {Editor.Id}, name = {Selected.DisplayName}");
-			// This should always be true, or we would not be here, but does not hurt any!
+			//Log.Debug($"AddMetric: Selected.GUID = {Selected.Id}, Editor.GUID = {Editor.Id}, name = {Selected.DisplayName}");
+			// This hurts so do not add it!
 			//if (!IsEditingExistingMetric())
 			//{
 			// At this point, UpdateCommand's predicate guarantees:
@@ -907,7 +911,7 @@ namespace PerformanceTrayMonitor.ViewModels
 			// Create a new metric
 			var settings = Editor.ToSettings();
 			settings.Id = Guid.NewGuid();
-			Log.Debug($"AddMetric: New counter... GUID ={settings.Id}");
+			//Log.Debug($"AddMetric: New counter... GUID ={settings.Id}");
 
 			// Enforce tray icon limit immediately
 			int futureCount = Metrics.Count(c => c.ShowInTray)
@@ -955,6 +959,7 @@ namespace PerformanceTrayMonitor.ViewModels
 					- (wasInTray ? 1 : 0) 
 					+ (willBeInTray ? 1 : 0);
 
+				Log.Debug($"UpdateMetric: futureCount = {futureCount}, currentCount = {currentCount}");
 				if (futureCount > TrayIconConfig.MaxCounterTrayIcons)
 				{
 					settings.ShowInTray = false;
@@ -963,6 +968,9 @@ namespace PerformanceTrayMonitor.ViewModels
 				// Update the existing metric
 				//Log.Debug($"AddMetric: Existing counter... updating");
 				ApplyEditorToSelected();
+
+				OnPropertyChanged(nameof(TrayIconCount));
+				OnPropertyChanged(nameof(TrayIconCountDisplay));
 			}
 
 			EditorPendingEdits = false;
@@ -1052,29 +1060,73 @@ namespace PerformanceTrayMonitor.ViewModels
 		{
 			if (Selected == null)
 				return;
+
 			Log.Debug($"LoadSelectedIntoEditor: Selected.Id = {Selected.Id}");
 			// Load the selected metric into the editor
 			await Editor.LoadFrom(Selected);
+
 			// Show the metric is loaded
 			Log.Debug($"LoadSelectedIntoEditor: After LoadFrom, Id = {Selected.Id}, Category = {Selected.Category}, "+
-					  $"Counter = {Selected.Counter}, Instance = {Selected.Instance}, "+
+				      $"Counter = {Selected.Counter}, Instance = {Selected.Instance}, "+
 					  $"Editor counter = {Editor.SelectedCounter}, Editor.Instance = {Editor.SelectedInstance}");
 			RefreshCommandStates();
+
 			OnPropertyChanged(nameof(Editor.SelectedCounter));
 			OnPropertyChanged(nameof(Editor.SelectedInstance));
+
+			if (Editor.ShowInTray)
+			{
+				LoadIconSetPreviewFrames(Editor.IconSet);
+				UpdateDynamicPreview();
+			}
+
+			Editor.ResetDefaultInitializationGate();
 		}
 
 		private void ApplyEditorToSelected()
 		{
-			Log.Debug($"ApplyEditorToSelected: Fired!");
+			//Log.Debug($"ApplyEditorToSelected: Fired!");
 			if (Selected == null)
 				return;
 
-			Log.Debug($"ApplyEditorToSelected: Selected.Id = {Selected.Id}");
+			//Log.Debug($"ApplyEditorToSelected: Selected.Id = {Selected.Id}");
 			var settings = Editor.ToSettings();
+
+			if (settings.Min == 0 && settings.Max == 0)
+			{
+				var defaults = new DefaultSettingsProvider().CreateDefaultCounter();
+
+				settings.Min = defaults.Min;
+				settings.Max = defaults.Max;
+			}
+
+			bool wasInTray = Selected.Settings.ShowInTray;
+			bool willBeInTray = settings.ShowInTray;
+
+			int currentCount = Metrics.Count(c => c.ShowInTray);
+			int futureCount = currentCount
+				- (wasInTray ? 1 : 0)
+				+ (willBeInTray ? 1 : 0);
+
+			if (futureCount > TrayIconConfig.MaxCounterTrayIcons)
+			{
+				settings.ShowInTray = false;
+			}
 
 			Selected.UpdateFromSettings(settings);
 
+			OnPropertyChanged(nameof(TrayIconCount));
+			OnPropertyChanged(nameof(TrayIconCountDisplay));
+
+			// Update Icon preview if selected
+			Log.Debug($"ApplyEditorToSelected: ShowInTray = {settings.ShowInTray}");
+			if (settings.ShowInTray)
+			{
+				LoadIconSetPreviewFrames(settings.IconSet);
+				UpdateDynamicPreview();
+			}
+
+			Editor.ResetDefaultInitializationGate();
 			// Editor is now clean
 			EditorPendingEdits = false;
 		}
@@ -1093,9 +1145,13 @@ namespace PerformanceTrayMonitor.ViewModels
 			// Generate a new display name
 			settings.DisplayName = GenerateCopyName(Selected.DisplayName);
 
-			// Enforce tray icon limit
-			int futureCount = Metrics.Count(c => c.ShowInTray)
-							  + (settings.ShowInTray ? 1 : 0);
+			bool wasInTray = Selected.Settings.ShowInTray;
+			bool willBeInTray = settings.ShowInTray;
+
+			int currentCount = Metrics.Count(c => c.ShowInTray);
+			int futureCount = currentCount
+				- (wasInTray ? 1 : 0)
+				+ (willBeInTray ? 1 : 0);
 
 			if (futureCount > TrayIconConfig.MaxCounterTrayIcons)
 			{
@@ -1114,8 +1170,25 @@ namespace PerformanceTrayMonitor.ViewModels
 			// Select it (this loads it into the editor automatically)
 			Selected = vm;
 
+			OnPropertyChanged(nameof(TrayIconCount));
+			OnPropertyChanged(nameof(TrayIconCountDisplay));
+
 			// Mark global edits pending
 			GlobalEditsPending = true;
+		}
+
+		private void EnsureTrayDefaults(CounterSettings settings)
+		{
+			var defaults = new DefaultSettingsProvider().CreateDefaultCounter();
+
+			if (string.IsNullOrEmpty(settings.IconSet))
+			{
+				settings.IconSet = defaults.IconSet;
+				settings.UseTextTrayIcon = defaults.UseTextTrayIcon;
+				settings.TrayAccentColor = defaults.TrayAccentColor;
+				settings.AutoTrayBackground = defaults.AutoTrayBackground;
+				settings.TrayBackgroundColor = defaults.TrayBackgroundColor;
+			}
 		}
 
 		private void RemoveSelected()

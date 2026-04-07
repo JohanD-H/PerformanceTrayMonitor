@@ -17,9 +17,11 @@ namespace PerformanceTrayMonitor.Tray
 	public sealed class TrayIconManager : IDisposable
 	{
 		private readonly MainViewModel _mainVm;
+
 		private readonly ConfigViewModel _sharedConfigVm;
 
 		private readonly Dictionary<CounterViewModel, CounterTrayIcon> _counterIcons = new();
+
 		private AnimatedTrayIcon? _animatedIcon;
 
 		public TrayIconManager(MainViewModel mainVm)
@@ -52,7 +54,7 @@ namespace PerformanceTrayMonitor.Tray
 
 		private void InitializeAppIcon()
 		{
-			Log.Debug("TrayIconManager: creating AnimatedTrayIcon");
+			//Log.Debug("TrayIconManager: creating AnimatedTrayIcon");
 
 			bool hasCounters = _counterIcons.Count > 0;
 
@@ -131,6 +133,7 @@ namespace PerformanceTrayMonitor.Tray
 			//ReevaluateAppIcon();
 		}
 
+		/*
 		private void ReevaluateAppIcon()
 		{
 			Log.Debug("TrayIconManager: Reevaluating AnimatedTrayIcon");
@@ -162,7 +165,6 @@ namespace PerformanceTrayMonitor.Tray
 				icon.UpdateContextMenu();
 		}
 
-		/*
 		private void ReevaluateAppIcon()
 		{
 			bool hasCounters = _counterIcons.Count > 0;
@@ -203,7 +205,7 @@ namespace PerformanceTrayMonitor.Tray
 		// ------------------------------------------------------------
 		public void RebuildAllIcons()
 		{
-			Log.Debug("RebuildAllIcons: disposing app + counters");
+			//Log.Debug("RebuildAllIcons: disposing app + counters");
 
 			_animatedIcon?.Dispose();
 			_animatedIcon = null;

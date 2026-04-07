@@ -10,8 +10,6 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Threading;
 
 namespace PerformanceTrayMonitor.ViewModels
 {
@@ -39,11 +37,15 @@ namespace PerformanceTrayMonitor.ViewModels
 			get => _showInTray;
 			set
 			{
-				// Make sure Show in tray is only ON when allowed!
 				_showInTray = value;
 				OnPropertyChanged();
 				OnPropertyChanged(nameof(ShowIconSetSelector));
-				_parent.NotifyTraySettingsChanged();  // Notify parent to notify UI!
+				_parent.NotifyTraySettingsChanged();
+
+				if (value)
+					EnsureTrayDefaults();
+
+				_parent.UpdateDynamicPreview();
 			}
 		}
 		public string IconSet { get => _iconSet; set { _iconSet = value; OnPropertyChanged(); } }
@@ -86,6 +88,14 @@ namespace PerformanceTrayMonitor.ViewModels
 			PickBackgroundColorCommand = new RelayCommand(_ => PickBackgroundColor());
 		}
 
+		private bool _newMetricDefaultsApplied; // InitializeDefaultsForNewMetricIfNeeded Gate
+		// public helper
+		public void ResetDefaultInitializationGate()
+		{
+			_newMetricDefaultsApplied = false;
+		}
+
+
 		public string SelectedCategory
 		{
 			get => _uiCategory;
@@ -93,19 +103,23 @@ namespace PerformanceTrayMonitor.ViewModels
 			{
 				if (_uiCategory == value)
 				{
-					Log.Debug($"SelectedCategory: _uiCategory == value -> {_uiCategory == value}");
+					Log.Debug($"SelectedCategory: value = {value}, _uiCategory == value -> {_uiCategory == value}, Id = {Id}");
 					return;
 				}
 
-				Log.Debug($"[Setter] SelectedCategory SET to '{value}' (UI sees this)");
+				Log.Debug($"[Setter] SelectedCategory SET to '{value}' (UI sees this), Id = {Id}-{Id == Guid.Empty}, " +
+						  $"SuppressEditorChanges = {_parent.SuppressEditorChanges}, _isSelectionLoadInProgress = {_parent._isSelectionLoadInProgress}");
 
 				_uiCategory = value;
 				OnPropertyChanged(nameof(SelectedCategory));
 
+				// If the Id (or gate flag) is not set, then we need to reset Min and Max and TrayDefaults!
+				InitializeDefaultsForNewMetricIfNeeded();
+
 				// During LoadFrom → DO NOT run shadow or parent pipeline
 				if (_parent.SuppressEditorChanges || _parent._isSelectionLoadInProgress)
 				{
-					Log.Debug("SelectedCategory: EARLY EXIT");
+					//Log.Debug("SelectedCategory: EARLY EXIT");
 					return;
 				}
 
@@ -132,14 +146,18 @@ namespace PerformanceTrayMonitor.ViewModels
 			{
 				if (_uiCounter == value)
 				{
-					Log.Debug($"SelectedCounter: _uiCounter == value -> {_uiCounter == value}");
+					Log.Debug($"SelectedCounter:  value = {value}, _uiCounter == value -> {_uiCounter == value}, Id = {Id}");
 					return;
 				}
 
-				Log.Debug($"[Setter] SelectedCounter SET to '{value}' (UI sees this)");
+				Log.Debug($"[Setter] SelectedCounter SET to '{value}' (UI sees this), " +
+						  $"SuppressEditorChanges = {_parent.SuppressEditorChanges}, _isSelectionLoadInProgress = {_parent._isSelectionLoadInProgress}");
 
 				_uiCounter = value;
 				OnPropertyChanged(nameof(SelectedCounter));
+
+				// If the Id (or gate flag) is not set, then we need to reset Min and Max and TrayDefaults!
+				InitializeDefaultsForNewMetricIfNeeded();
 
 				// During LoadFrom → DO NOT run shadow or parent pipeline
 				if (_parent.SuppressEditorChanges || _parent._isSelectionLoadInProgress)
@@ -160,7 +178,6 @@ namespace PerformanceTrayMonitor.ViewModels
 
 					_ = _parent.ApplySelectedFromEditorAsync();
 				}
-				//OnPropertyChanged(nameof(SelectedCounter));
 			}
 		}
 
@@ -171,14 +188,18 @@ namespace PerformanceTrayMonitor.ViewModels
 			{
 				if (_uiInstance == value)
 				{
-					Log.Debug("SelectedInstance: _uiInstance == value -> {_uiInstance == value}");
+					Log.Debug("SelectedInstance: value = {value}, _uiInstance == value -> {_uiInstance == value}");
 					return;
 				}
 
-				Log.Debug($"[Setter] SelectedInstance SET to '{value}' (UI sees this)");
+				Log.Debug($"[Setter] SelectedInstance SET to '{value}' (UI sees this), " +
+						  $"SuppressEditorChanges = {_parent.SuppressEditorChanges}, _isSelectionLoadInProgress = {_parent._isSelectionLoadInProgress}");
 
 				_uiInstance = value;
 				OnPropertyChanged(nameof(SelectedInstance));
+
+				// If the Id (or gate flag) is not set, then we need to reset Min and Max and TrayDefaults!
+				InitializeDefaultsForNewMetricIfNeeded();
 
 				// During LoadFrom → DO NOT run shadow or parent pipeline
 				if (_parent.SuppressEditorChanges || _parent._isSelectionLoadInProgress)
@@ -201,9 +222,29 @@ namespace PerformanceTrayMonitor.ViewModels
 			}
 		}
 
+		private void InitializeDefaultsForNewMetricIfNeeded()
+		{
+			if (Id != Guid.Empty && !_newMetricDefaultsApplied)
+				return;
+
+			var defaults = new DefaultSettingsProvider().CreateDefaultCounter();
+
+			if (Min == 0 && Max == 0)
+			{
+				Min = defaults.Min;
+				Max = defaults.Max;
+			}
+
+			EnsureTrayDefaults();
+			_newMetricDefaultsApplied = true;
+
+			Log.Debug($"InitializeDefaultsForNewMetricIfNeeded: Min = {Min}, Max = {Max}");
+		}
+
 		public async Task LoadFrom(CounterViewModel vm)
 		{
-			Log.Debug($"LoadFrom: vm.Id = {vm.Id}, Editor BEFORE load Id = {Id}");
+			//Log.Debug($"LoadFrom: vm.Id = {vm.Id}, Editor BEFORE load Id = {Id}");
+			//var defaults = new DefaultSettingsProvider().CreateDefaultCounter();
 
 			_parent.SuppressEditorChanges = true;
 			_parent._isSelectionLoadInProgress = true;
@@ -211,64 +252,65 @@ namespace PerformanceTrayMonitor.ViewModels
 			try
 			{
 				// Load primitive values
-				Log.Debug($"LoadFrom: INSTANCE = {GetHashCode()}, vm.Id = {vm.Id}, Editor BEFORE load Id = {Id}");
+				//Log.Debug($"LoadFrom: INSTANCE = {GetHashCode()}, vm.Id = {vm.Id}, Editor BEFORE load Id = {Id}");
 				Id = vm.Id;
-				Log.Debug($"LoadFrom: INSTANCE = {GetHashCode()}, AFTER assign, Editor.Id = {Id}");
+				//Log.Debug($"LoadFrom: INSTANCE = {GetHashCode()}, AFTER assign, Editor.Id = {Id}");
 				DisplayName = vm.DisplayName;
 				Min = vm.Min;
 				Max = vm.Max;
+				/* Not sure I like the below right here!
+				if (Min == 0 && Max == 0)
+				{
+					Min = defaults.Min;
+					Max = defaults.Max;
+				}
+				*/
 
 				// Load tray settings
-				Log.Debug($"LoadFrom: Loading tray settings, Editor.Id = {Id}");
+				//Log.Debug($"LoadFrom: Loading tray settings, Editor.Id = {Id}");
 				ShowInTray = vm.ShowInTray;
 				IconSet = vm.IconSet;
 				UseTextTrayIcon = vm.UseTextTrayIcon;
 				TrayAccentColor = vm.TrayAccentColor;
 				AutoTrayBackground = vm.AutoTrayBackground;
 				TrayBackgroundColor = vm.TrayBackgroundColor;
+				Log.Debug($"LoadFrom: TrayIconCount = {_parent.TrayIconCount}, MaxCpounterTrayIcon = {TrayIconConfig.MaxCounterTrayIcons}");
 
 				// Clear Counter and Instances list
-				Log.Debug($"LoadFrom: Before Counters clear Id = {Id}");
+				//Log.Debug($"LoadFrom: Before Counters clear Id = {Id}");
 				CountersInCategory.Clear();
-				//Log.Debug($"LoadFrom: After Counters clear Id = {Id}");
-				//Log.Debug($"LoadFrom: Before Instances 1 clear Id = {Id}");
 				Instances.Clear();
 				//Log.Debug($"LoadFrom: After Instances 1 clear Id = {Id}");
 
 				// Load Counters
-				//Log.Debug($"LoadFrom: Before LoadCountersCoreAsync Id = {Id}");
 				var counters = await _parent.LoadCountersCoreAsync(vm.Category, CancellationToken.None);
-				Log.Debug($"SelectedCounter = '{vm.Counter}' (len={vm.Counter?.Length})");
+				//Log.Debug($"SelectedCounter = '{vm.Counter}' (len={vm.Counter?.Length})");
 				foreach (var c in counters)
 				{
-					Log.Debug($"LoadFrom: Counter Item = '{c}' (len={c.Length})");
+					//Log.Debug($"LoadFrom: Counter Item = '{c}' (len={c.Length})");
 					CountersInCategory.Add(c);
 				}
 
 				// Load Instances
-				//Log.Debug($"LoadFrom: Before Instances 2 clear Id = {Id}");
 				Instances.Clear();
-				//Log.Debug($"LoadFrom: After Instances 2 clear Id = {Id}");
 				var instances = await _parent.LoadInstancesCoreAsync(vm.Category, vm.Counter, CancellationToken.None);
-				//Log.Debug($"LoadFrom: After LoadInstancesCoreAsync Id = {Id}");
-				Log.Debug($"SelectedInstance = '{vm.Instance}' (len={vm.Instance?.Length})");
+				//Log.Debug($"SelectedInstance = '{vm.Instance}' (len={vm.Instance?.Length})");
 				foreach (var inst in instances)
 				{
-					Log.Debug($"LoadFrom: Instance Item = '{inst}' (len={inst.Length})");
+					//Log.Debug($"LoadFrom: Instance Item = '{inst}' (len={inst.Length})");
 					Instances.Add(inst);
 				}
 			}
 			finally
 			{
 				_parent.SuppressEditorChanges = false;
-				//_parent.ResetEditorDirtyState();
 			}
-			//Log.Debug($"LoadFrom: Id = {Id}");
 
 			SelectedCategory = vm.Category;
 			SelectedCounter = vm.Counter;
 			SelectedInstance = vm.Instance;
-			
+
+			//Log.Debug($"LoadFrom: Finished Id = {Id}");
 			_parent._isSelectionLoadInProgress = false;
 		}
 
@@ -405,6 +447,28 @@ namespace PerformanceTrayMonitor.ViewModels
 
 			return initial; // unchanged
 		}
+		internal void EnsureTrayDefaults()
+		{
+			var defaults = new DefaultSettingsProvider().CreateDefaultCounter();
+
+			/*
+			if (Min == 0 && Max == 0)
+			{
+				Min = 0;
+				Max = 100;
+			}
+			*/
+
+			if (string.IsNullOrEmpty(IconSet))
+			{
+				IconSet = defaults.IconSet;
+				UseTextTrayIcon = defaults.UseTextTrayIcon;
+				TrayAccentColor = defaults.TrayAccentColor;
+				AutoTrayBackground = defaults.AutoTrayBackground;
+				TrayBackgroundColor = defaults.TrayBackgroundColor;
+			}
+		}
+
 
 		/*
 		private BitmapSource? _trayPreviewImage;
