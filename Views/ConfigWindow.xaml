@@ -337,7 +337,8 @@
                                 HorizontalAlignment="Left">
 
                             <!-- Column 0 Row 0: > (Edit metric) -->
-                            <Button Style="{StaticResource RoundIconButton}"
+                            <Button x:Name="EditButton"
+                                    Style="{StaticResource RoundIconButton}"
                                     Margin="0,85,0,0"
                                     Background="LightGray"
                                     ToolTip="Edit selected metric"
@@ -613,24 +614,24 @@
                                 </StackPanel>
                             </GroupBox>
                         </StackPanel>
-
                     </Grid>
-
+                    
                     <!-- Loading overlay  -->
                     <Border Background="#80FFFFFF"
-                            Visibility="{Binding IsBusy,
-                                         Converter={StaticResource BoolToVis}}"
-                            Margin="0,0,0,40">
+                                    Visibility="{Binding IsBusy,
+                                                 Converter={StaticResource BoolToVis}}">
                         <TextBlock Text="Updating&#x2026; please wait"
-                                   HorizontalAlignment="Center"
-                                   VerticalAlignment="Center"
-                                   FontSize="16"
-                                   FontWeight="Bold"
-                                   Foreground="#444"/>
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center"
+                                           FontSize="16"
+                                           FontWeight="Bold"
+                                           Foreground="#444"/>
                     </Border>
                 
                 </Grid>
-            </Border>   <!-- End Right side-->
+            </Border>
+            <!-- End Right side-->
+
 
         </Grid> <!-- End MAIN CONTENT GRID -->
 

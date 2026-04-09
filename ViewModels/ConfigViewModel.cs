@@ -5,6 +5,7 @@ using PerformanceTrayMonitor.Models;
 using PerformanceTrayMonitor.Properties;
 using PerformanceTrayMonitor.Settings;
 using PerformanceTrayMonitor.Tray;
+using PerformanceTrayMonitor.Views;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -27,6 +28,8 @@ namespace PerformanceTrayMonitor.ViewModels
 		private CounterViewModel? _selected;
 
 		internal CounterViewModel? _pendingRemoval;
+
+		public event Action LoadSelectedCompleted;
 
 		// ============================================================
 		//  CLEAN STATE MODEL
@@ -67,7 +70,11 @@ namespace PerformanceTrayMonitor.ViewModels
 		// Helper
 		public void MarkEditorDirty()
 		{
+			if (SuppressEditorChanges || _isSelectionLoadInProgress)	// Safety gates
+				return;
+
 			EditorPendingEdits = true;
+			Log.Debug($"MarkEditorDirty: EditorPendingEdits = {EditorPendingEdits}");
 		}
 
 		/// True when the editor UI has unsaved changes or edits for the currently selected metric.
@@ -361,27 +368,6 @@ namespace PerformanceTrayMonitor.ViewModels
 			}
 		}
 
-		/*
-		public async Task SetSelectedAsync(CounterViewModel? value)
-		{
-			if (_selected == value)
-				return;
-
-			_selected = value;
-
-			if (_selected != null)
-			{
-				// Run the full shadow → load → commit pipeline
-				await ApplySelectedAsync(_selected);
-			}
-
-			// Notify UI that the *selected metric* changed
-			OnPropertyChanged(nameof(Selected));
-
-			RefreshCommandStates();
-		}
-		*/
-
 		public sealed class ShadowMetricState
 		{
 			public string Category = "";
@@ -446,8 +432,9 @@ namespace PerformanceTrayMonitor.ViewModels
 			// ------------------------------------------------------------
 			// Real user edits → mark editor dirty
 			// ------------------------------------------------------------
-			EditorPendingEdits = true;
+			//EditorPendingEdits = true;
 			IsAtDefaultConfiguration = false;
+			//Log.Debug($"Editor_PropertyChanged: EditorPendingEdits = {EditorPendingEdits}");
 
 			// ------------------------------------------------------------
 			// Handle special cases
@@ -687,13 +674,13 @@ namespace PerformanceTrayMonitor.ViewModels
 		private void InitializeCommands()
 		{
 			// Editor-level actions
-			AddCommand = new RelayCommand(			// Add from Editor to Metric, (<+) button
-				_ => AddMetric(),
+			AddCommand = new RelayCommand(
+				async _ => await AddEditorToMetric(),
 				_ => EditorPendingEdits
 			);
 
 			CancelCommand = new RelayCommand(       // Cancel all unsaved actions, Cancel button
-				_ => CancelEdits(),
+				_ => CancelAllEdits(),
 				_ => GlobalEditsPending
 			);
 
@@ -704,22 +691,22 @@ namespace PerformanceTrayMonitor.ViewModels
 			);
 
 			UpdateCommand = new RelayCommand(       // Update Metric from Editor, (<) button
-				_ => UpdateMetric(),
+				_ => UpdateEditorToMetric(),
 				_ => EditorPendingEdits && IsEditingExistingMetric()
 			);
 
 			EditCommand = new RelayCommand(         // Copy Metric into Editor, (>) button
-				_ => LoadSelectedIntoEditor(),
+				async _ => await LoadSelectedIntoEditor(),
 				_ => Selected != null
 			);
 
 			SaveCommand = new RelayCommand(			// Save all made changes, Save button
-				_ => Save(),
-				_ => GlobalEditsPending
+				_ => SaveAllPendingEdits(),
+				_ => GlobalEditsPending && !IsLoading
 			);
 
 			RemoveCommand = new RelayCommand(       // Mark Metric for deletion (on save), (-) button
-				_ => RemoveSelected(),
+				_ => RemoveSelectedMetric(),
 				_ => Selected != null
 			);
 
@@ -750,7 +737,7 @@ namespace PerformanceTrayMonitor.ViewModels
 				   Selected.Id == Editor.Id;
 		}
 
-		private void AddMetric()
+		private async Task AddEditorToMetric()
 		{
 			if (Selected == null)
 				return;
@@ -774,17 +761,19 @@ namespace PerformanceTrayMonitor.ViewModels
 			Log.Debug($"AddMetric: BEFORE LoadSelectedIntoEditor... setting.ShowInTray = {settings.ShowInTray}");
 			Editor.Id = settings.Id;
 			Selected = vm;
-			LoadSelectedIntoEditor();
-			Log.Debug($"AddMetric: After LoadSelectedIntoEditor... setting.ShowInTray = {settings.ShowInTray}");
+			await LoadSelectedIntoEditor();
+			Log.Debug($"AddMetric: After LoadSelectedIntoEditor... setting.ShowInTray = {settings.ShowInTray}, EditorPendingEdits  = {EditorPendingEdits}");
 
 			OnPropertyChanged(nameof(TrayIconCount));
 			OnPropertyChanged(nameof(TrayIconCountDisplay));
 
-			EditorPendingEdits = false;
+			ResetEditorDirtyState();
+			//EditorPendingEdits = false;
 			GlobalEditsPending = true;
+			Log.Debug($"AddMetric: After LoadSelectedIntoEditor... EditorPendingEdits  = {EditorPendingEdits}");
 		}
 
-		private void UpdateMetric()
+		private void UpdateEditorToMetric()
 		{
 			if (Selected == null)
 				return;
@@ -818,7 +807,8 @@ namespace PerformanceTrayMonitor.ViewModels
 				OnPropertyChanged(nameof(TrayIconCountDisplay));
 			}
 
-			EditorPendingEdits = false;
+			ResetEditorDirtyState();
+			//EditorPendingEdits = false;
 			GlobalEditsPending = true;
 		}
 
@@ -839,14 +829,17 @@ namespace PerformanceTrayMonitor.ViewModels
 			}
 		}
 
-		private async void LoadSelectedIntoEditor()
+		private async Task LoadSelectedIntoEditor()
 		{
 			if (Selected == null)
 				return;
 
-			//Log.Debug($"LoadSelectedIntoEditor: Selected.Id = {Selected.Id}");
+			BeginLoading();
+
+			Log.Debug($"LoadSelectedIntoEditor: Before LoadFrom EditorPendingEdits = {EditorPendingEdits}");
 			// Load the selected metric into the editor
 			await Editor.LoadFrom(Selected);
+			Log.Debug($"LoadSelectedIntoEditor: After LoadFrom EditorPendingEdits = {EditorPendingEdits}");
 
 			// Show the metric is loaded
 			//Log.Debug($"LoadSelectedIntoEditor: After LoadFrom, Id = {Selected.Id}, Category = {Selected.Category}, "+
@@ -854,8 +847,10 @@ namespace PerformanceTrayMonitor.ViewModels
 			//		  $"Editor counter = {Editor.SelectedCounter}, Editor.Instance = {Editor.SelectedInstance}");
 			RefreshCommandStates();
 
+			Log.Debug($"LoadSelectedIntoEditor: Before OnPropertyChanged EditorPendingEdits = {EditorPendingEdits}");
 			OnPropertyChanged(nameof(Editor.SelectedCounter));
 			OnPropertyChanged(nameof(Editor.SelectedInstance));
+			Log.Debug($"LoadSelectedIntoEditor: After OnPropertyChanged EditorPendingEdits = {EditorPendingEdits}");
 
 			if (Editor.ShowInTray)
 			{
@@ -863,7 +858,10 @@ namespace PerformanceTrayMonitor.ViewModels
 				UpdateDynamicPreview();
 			}
 
+			EndLoading();
 			Editor.ResetDefaultInitializationGate();
+			LoadSelectedCompleted?.Invoke();
+			Log.Debug($"LoadSelectedIntoEditor: End EditorPendingEdits = {EditorPendingEdits}");
 		}
 
 		private void ApplyEditorToSelected(CounterViewModel target, CounterSettings settings)
@@ -935,25 +933,10 @@ namespace PerformanceTrayMonitor.ViewModels
 
 			// Mark global edits pending
 			GlobalEditsPending = true;
+			UpdateUiState();
 		}
 
-		/*
-		private void EnsureTrayDefaults(CounterSettings settings)
-		{
-			var defaults = new DefaultSettingsProvider().CreateDefaultCounter();
-
-			if (string.IsNullOrEmpty(settings.IconSet))
-			{
-				settings.IconSet = defaults.IconSet;
-				settings.UseTextTrayIcon = defaults.UseTextTrayIcon;
-				settings.TrayAccentColor = defaults.TrayAccentColor;
-				settings.AutoTrayBackground = defaults.AutoTrayBackground;
-				settings.TrayBackgroundColor = defaults.TrayBackgroundColor;
-			}
-		}
-		*/
-
-		private void RemoveSelected()
+		private void RemoveSelectedMetric()
 		{
 			if (Selected == null)
 				return;
@@ -1013,7 +996,7 @@ namespace PerformanceTrayMonitor.ViewModels
 			}
 		}
 
-		private void CancelEdits()
+		private void CancelAllEdits()
 		{
 			if (!(ConfirmCancel?.Invoke() ?? true))
 				return;
@@ -1030,13 +1013,20 @@ namespace PerformanceTrayMonitor.ViewModels
 			if (Selected != null)
 				LoadSelectedIntoEditor();   // reloads editor, preview, command states
 
+			//StopPreviewTimer();
+			CancelAllWork();
+
+			//StopPreviewTimer();
+			CancelAllWork();
+
 			OnPropertyChanged(nameof(TrayIconCount));
 			OnPropertyChanged(nameof(TrayIconCountDisplay));
 
 			RefreshCommandStates();
 
 			GlobalEditsPending = false;
-			EditorPendingEdits = false;
+			ResetEditorDirtyState();
+			//EditorPendingEdits = false;
 		}
 
 		private bool CheckIfDefault()
@@ -1058,7 +1048,7 @@ namespace PerformanceTrayMonitor.ViewModels
 			return true;
 		}
 
-		private void Save()
+		private void SaveAllPendingEdits()
 		{
 			if (_pendingRemoval != null)
 			{
@@ -1102,7 +1092,7 @@ namespace PerformanceTrayMonitor.ViewModels
 			IsAtDefaultConfiguration = CheckIfDefault();
 		}
 
-		/*
+		/* No longer used, Cancel does this!
 		private void DiscardEdits()
 		{
 			if (Selected == null)

@@ -1,5 +1,6 @@
 ﻿using PerformanceTrayMonitor.Common;
 using PerformanceTrayMonitor.Configuration;
+using PerformanceTrayMonitor.Extensions;
 using PerformanceTrayMonitor.Models;
 using PerformanceTrayMonitor.Settings;
 using System;
@@ -248,6 +249,7 @@ namespace PerformanceTrayMonitor.ViewModels
 
 			_parent.SuppressEditorChanges = true;
 			_parent._isSelectionLoadInProgress = true;
+			_parent.BeginLoading();
 
 			try
 			{
@@ -271,40 +273,53 @@ namespace PerformanceTrayMonitor.ViewModels
 
 				// Clear Counter and Instances list
 				//Log.Debug($"LoadFrom: Before Counters clear Id = {Id}");
-				CountersInCategory.Clear();
-				Instances.Clear();
+				//CountersInCategory.Clear();
+				//Instances.Clear();
 				//Log.Debug($"LoadFrom: After Instances 1 clear Id = {Id}");
 
 				// Load Counters
-				var counters = await _parent.LoadCountersCoreAsync(vm.Category, CancellationToken.None);
+				//var counters = await _parent.LoadCountersCoreAsync(vm.Category, CancellationToken.None);
+				var counters = await Task.Run(() =>
+					_parent.LoadCountersCoreAsync(vm.Category, CancellationToken.None));
+
 				//Log.Debug($"SelectedCounter = '{vm.Counter}' (len={vm.Counter?.Length})");
+				CountersInCategory.ReplaceWith(counters);
+				/*
 				foreach (var c in counters)
 				{
 					//Log.Debug($"LoadFrom: Counter Item = '{c}' (len={c.Length})");
 					CountersInCategory.Add(c);
 				}
+				*/
 
 				// Load Instances
-				Instances.Clear();
-				var instances = await _parent.LoadInstancesCoreAsync(vm.Category, vm.Counter, CancellationToken.None);
+				//Instances.Clear();
+				//var instances = await _parent.LoadInstancesCoreAsync(vm.Category, vm.Counter, CancellationToken.None);
+				var instances = await Task.Run(() =>
+					_parent.LoadInstancesCoreAsync(vm.Category, vm.Counter, CancellationToken.None));
+
 				//Log.Debug($"SelectedInstance = '{vm.Instance}' (len={vm.Instance?.Length})");
+				Instances.ReplaceWith(instances);
+				/*
 				foreach (var inst in instances)
 				{
 					//Log.Debug($"LoadFrom: Instance Item = '{inst}' (len={inst.Length})");
 					Instances.Add(inst);
 				}
+				*/
 			}
 			finally
 			{
+				SelectedCategory = vm.Category;
+				SelectedCounter = vm.Counter;
+				SelectedInstance = vm.Instance;
+
+				//Log.Debug($"LoadFrom: Finished Id = {Id}");
+				_parent._isSelectionLoadInProgress = false;
 				_parent.SuppressEditorChanges = false;
+
+				_parent.EndLoading();
 			}
-
-			SelectedCategory = vm.Category;
-			SelectedCounter = vm.Counter;
-			SelectedInstance = vm.Instance;
-
-			//Log.Debug($"LoadFrom: Finished Id = {Id}");
-			_parent._isSelectionLoadInProgress = false;
 		}
 
 		public void LoadDefaults()

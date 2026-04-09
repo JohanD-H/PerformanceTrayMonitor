@@ -52,6 +52,11 @@ namespace PerformanceTrayMonitor
 			var dto = SettingsRepository.Load();
 			var settings = SettingsMapper.ToOptions(dto);
 
+			// *****************************************
+			// *** DO SOME VALIDATION ON SETTINGS LOADED (USER MAY HAVE E#DITED THEM OUTSIDE THE APP?
+			// *****************************************
+			SettingsValidator.Validate(settings);
+
 			// -----------------------------------------
 			// If settings contain no metrics, use defaults
 			// -----------------------------------------

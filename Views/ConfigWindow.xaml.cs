@@ -14,6 +14,8 @@ namespace PerformanceTrayMonitor.Views
 			this.DataContext = vm;
 			((ConfigViewModel)DataContext).OwnerWindow = this;
 
+			vm.LoadSelectedCompleted += ConfigWindow_LoadSelectedCompleted;
+
 			this.Closing += ConfigWindow_Closing;
 			
 			vm.UpdateDynamicPreview();
@@ -67,12 +69,19 @@ namespace PerformanceTrayMonitor.Views
 			e.Handled = false;
 		}
 
+		/*
 		private void ApplyButton_Click(object sender, RoutedEventArgs e)
 		{
 			if (FindResource("PanelPulseStoryboard") is System.Windows.Media.Animation.Storyboard sb)
 			{
 				sb.Begin(DetailsPanel);
 			}
+		}
+		*/
+
+		private void ConfigWindow_LoadSelectedCompleted()
+		{
+			VisualStateManager.GoToState(EditButton, "Normal", true);
 		}
 
 		private void ConfigWindow_Closing(object sender, CancelEventArgs e)
