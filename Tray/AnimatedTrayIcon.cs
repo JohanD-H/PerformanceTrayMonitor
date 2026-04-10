@@ -223,9 +223,16 @@ namespace PerformanceTrayMonitor.Configuration
 				{
 					foreach (var file in files)
 					{
-						var bmp = new Icon(file).ToBitmap();
-						_frames.Add(bmp);
-						_icons.Add(IconFromBitmap(bmp));
+						try
+						{
+							var bmp = new Icon(file).ToBitmap();
+							_frames.Add(bmp);
+							_icons.Add(IconFromBitmap(bmp));
+						}
+						catch (Exception ex)
+						{
+							Log.Error($"Failed to load external icon {file}: {ex.Message}");
+						}
 					}
 
 					return; // External overrides embedded

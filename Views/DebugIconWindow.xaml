@@ -6,8 +6,8 @@
         MinWidth="250"
         MinHeight="300"
         Width="400"
-        MaxWidth="730"
-        MaxHeight="550"
+        MaxWidth="850"
+        MaxHeight="750"
         WindowStartupLocation="CenterOwner"
         Background="{StaticResource AppWindowGradient}">
 

@@ -424,8 +424,8 @@ namespace PerformanceTrayMonitor.ViewModels
 
 		private void Editor_PropertyChanged(object? sender, PropertyChangedEventArgs e)
 		{
-			//Log.Debug($"Editor_PropertyChanged: property = {e.PropertyName}, " +
-			//		  $"IsLoading = {IsLoading}, IsSelectionLoadInProgress = {IsSelectionLoadInProgress}");
+			Log.Debug($"Editor_PropertyChanged: property = {e.PropertyName}, " +
+					  $"IsLoading = {IsLoading}, IsSelectionLoadInProgress = {IsSelectionLoadInProgress}");
 			// ------------------------------------------------------------
 			// Ignore ALL changes during programmatic loads
 			// ------------------------------------------------------------
@@ -439,8 +439,8 @@ namespace PerformanceTrayMonitor.ViewModels
 			// Real user edits → mark editor dirty
 			// ------------------------------------------------------------
 			//EditorPendingEdits = true;
+			Log.Debug($"Editor_PropertyChanged: EditorPendingEdits = {EditorPendingEdits}");
 			IsAtDefaultConfiguration = false;
-			//Log.Debug($"Editor_PropertyChanged: EditorPendingEdits = {EditorPendingEdits}");
 
 			// ------------------------------------------------------------
 			// Handle special cases

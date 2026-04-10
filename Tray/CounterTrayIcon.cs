@@ -83,9 +83,9 @@ namespace PerformanceTrayMonitor.Tray
 
 			foreach (var frame in set.Frames)
 			{
-				try
+				if (set.IsEmbedded)
 				{
-					if (set.IsEmbedded)
+					try
 					{
 						// Embedded icon via pack URI
 						var uri = new Uri(frame, UriKind.Absolute);
@@ -100,17 +100,24 @@ namespace PerformanceTrayMonitor.Tray
 						using var s = streamInfo.Stream;
 						icons.Add(new Icon(s));
 					}
-					else
+					catch (Exception ex)
+					{
+						Log.Error($"Failed to load embedded icon '{frame}' for set '{set.Name}': {ex.Message}");
+					}
+				}
+				else
+				{
+					try
 					{
 						// External icon on disk
 						var localPath = new Uri(frame, UriKind.Absolute).LocalPath;
 						using var fs = new FileStream(localPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
 						icons.Add(new Icon(fs));
 					}
-				}
-				catch (Exception ex)
-				{
-					Log.Error($"{ex} Failed to load icon frame '{frame}' for set '{set.Name}'.");
+					catch (Exception ex)
+					{
+						Log.Error($"Failed to load external icon '{frame}' for set'{set.Name}: {ex.Message}");
+					}
 				}
 			}
 

@@ -42,6 +42,11 @@ namespace PerformanceTrayMonitor.ViewModels
 				OnPropertyChanged();
 				OnPropertyChanged(nameof(ShowIconSetSelector));
 				_parent.NotifyTraySettingsChanged();
+				if (!_parent.IsLoading)
+				{
+					// Notify parent that a real edit occurred
+					NotifyUserEdit?.Invoke();
+				}
 
 				if (value)
 					EnsureTrayDefaults();
@@ -49,7 +54,20 @@ namespace PerformanceTrayMonitor.ViewModels
 				_parent.UpdateDynamicPreview();
 			}
 		}
-		public string IconSet { get => _iconSet; set { _iconSet = value; OnPropertyChanged(); } }
+		public string IconSet
+		{
+			get => _iconSet;
+			set
+			{
+				_iconSet = value;
+				if (!_parent.IsLoading)
+				{
+					// Notify parent that a real edit occurred
+					NotifyUserEdit?.Invoke();
+				}
+				OnPropertyChanged();
+			}
+		}
 
 		public ICommand PickAccentColorCommand { get; }
 		public ICommand PickBackgroundColorCommand { get; }
@@ -358,11 +376,17 @@ namespace PerformanceTrayMonitor.ViewModels
 			get => _useTextTrayIcon;
 			set
 			{
+				Log.Debug($"UseTextTrayIcon: UseTextTrayIcon = {UseTextTrayIcon}");
 				if (_useTextTrayIcon == value) return;
 				_useTextTrayIcon = value;
 				OnPropertyChanged();
 				OnPropertyChanged(nameof(ShowIconSetSelector));
 				OnPropertyChanged(nameof(ShowBackgroundColorPicker));
+				if (!_parent.IsLoading)
+				{
+					// Notify parent that a real edit occurred
+					NotifyUserEdit?.Invoke();
+				}
 			}
 		}
 
