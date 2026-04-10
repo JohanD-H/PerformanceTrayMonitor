@@ -78,6 +78,7 @@ namespace PerformanceTrayMonitor.ViewModels
 
 		public ObservableCollection<string> Instances { get; }
 			= new ObservableCollection<string>();
+		public Action? NotifyUserEdit { get; set; }
 
 		public CounterEditorViewModel(ConfigViewModel parent)
 		{
@@ -383,6 +384,7 @@ namespace PerformanceTrayMonitor.ViewModels
 			{
 				if (_autoTrayBackground == value) return;
 
+				Log.Debug($"AutoTrayBackground: _autoTrayBackground = {_autoTrayBackground}, value = {value}");
 				bool old = _autoTrayBackground;
 				_autoTrayBackground = value;
 				OnPropertyChanged();
@@ -398,6 +400,12 @@ namespace PerformanceTrayMonitor.ViewModels
 							TrayAccentColor.B),
 						autoContrast: true
 					).ToMediaColor();
+				}
+
+				if (!_parent.IsLoading)
+				{
+					// Notify parent that a real edit occurred
+					NotifyUserEdit?.Invoke();
 				}
 			}
 		}
@@ -446,6 +454,10 @@ namespace PerformanceTrayMonitor.ViewModels
 				_parent.GlobalSettings.Global.CustomColors = dlg.CustomColors.ToArray();
 
 				SettingsSaveQueue.Enqueue(SettingsMapper.ToDto(_parent.GlobalSettings));
+
+				Log.Debug($"PickColor: initial = {initial}, CustomColor = {dlg.CustomColors}");
+				// Notify parent that a real edit occurred
+				NotifyUserEdit?.Invoke();
 
 				return Color.FromArgb(
 					dlg.Color.A,

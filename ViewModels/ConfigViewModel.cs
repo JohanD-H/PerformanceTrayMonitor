@@ -346,6 +346,12 @@ namespace PerformanceTrayMonitor.ViewModels
 
 			Editor.PropertyChanged += Editor_PropertyChanged;
 
+			Editor.NotifyUserEdit = () =>
+			{
+				EditorPendingEdits = true;
+			};
+
+
 			// If LoadIntoViewModel just re-applies settings, pass GlobalSettings, not the ctor parameter
 			LoadIntoViewModel(GlobalSettings);
 
@@ -681,7 +687,7 @@ namespace PerformanceTrayMonitor.ViewModels
 
 			CancelCommand = new RelayCommand(       // Cancel all unsaved actions, Cancel button
 				_ => CancelAllEdits(),
-				_ => GlobalEditsPending
+				_ => GlobalEditsPending || IsLoading
 			);
 
 			// Other actions
